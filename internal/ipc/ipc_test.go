@@ -15,8 +15,11 @@ func TestServeAcceptsEventsAndStops(t *testing.T) {
 	eventPath := filepath.Join(dir, "events.jsonl")
 
 	errs := make(chan error, 1)
+	observed := make(chan events.Event, 1)
 	go func() {
-		errs <- Serve(socketPath, eventPath)
+		errs <- ServeWithObserver(socketPath, eventPath, func(event events.Event) {
+			observed <- event
+		})
 	}()
 
 	waitForPing(t, socketPath)
@@ -37,6 +40,14 @@ func TestServeAcceptsEventsAndStops(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Status != events.StatusDone {
 		t.Fatalf("stored events = %#v, want one done event", got)
+	}
+	select {
+	case event := <-observed:
+		if event.Status != events.StatusDone {
+			t.Fatalf("observed status = %q, want done", event.Status)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("observer did not receive event")
 	}
 
 	if err := Stop(socketPath); err != nil {

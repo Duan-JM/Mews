@@ -84,6 +84,7 @@ Most users should only need two commands:
 mews start       # Start Mews and enable supported tools
 mews status      # Show the current local state
 mews history     # Show recent local events
+mews listen      # Listen in the terminal and print events as they arrive
 mews doctor      # Check setup and fix anything that needs attention
 ```
 
@@ -106,12 +107,14 @@ It is a small Mac companion for people who run AI agents in terminals and do not
 ### Open-source Mews
 
 - Two-step install
-- Menu bar status
-- Automatic setup for supported tools
-- Local notifications
+- Terminal listener before the Mac app exists
+- Local agent and event pipeline
+- Scriptable event notifications
 - Recent event history
 - Setup doctor
 - Safe uninstall and rollback
+- Automatic setup for supported tools
+- Menu bar status
 - Homebrew install
 
 ### Mews for Mac

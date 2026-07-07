@@ -14,6 +14,8 @@ import (
 
 var ErrUnavailable = errors.New("mews agent is not running")
 
+type Observer func(events.Event)
+
 type request struct {
 	Type  string       `json:"type"`
 	Event events.Event `json:"event,omitempty"`
@@ -25,6 +27,10 @@ type response struct {
 }
 
 func Serve(socketPath, eventPath string) error {
+	return ServeWithObserver(socketPath, eventPath, nil)
+}
+
+func ServeWithObserver(socketPath, eventPath string, observer Observer) error {
 	if err := removeStaleSocket(socketPath); err != nil {
 		return err
 	}
@@ -49,7 +55,7 @@ func Serve(socketPath, eventPath string) error {
 			}
 		}
 
-		go handleConnection(conn, eventPath, func() {
+		go handleConnection(conn, eventPath, observer, func() {
 			stopOnce.Do(func() {
 				close(done)
 				listener.Close()
@@ -70,7 +76,7 @@ func SendEvent(socketPath string, event events.Event) error {
 	return send(socketPath, request{Type: "event", Event: event})
 }
 
-func handleConnection(conn net.Conn, eventPath string, stop func()) {
+func handleConnection(conn net.Conn, eventPath string, observer Observer, stop func()) {
 	defer conn.Close()
 
 	var req request
@@ -89,6 +95,9 @@ func handleConnection(conn net.Conn, eventPath string, stop func()) {
 		if err := store.AppendEvent(eventPath, req.Event); err != nil {
 			writeResponse(conn, response{OK: false, Error: err.Error()})
 			return
+		}
+		if observer != nil {
+			observer(req.Event)
 		}
 		writeResponse(conn, response{OK: true})
 	default:
