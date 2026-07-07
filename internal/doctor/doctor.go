@@ -57,4 +57,3 @@ func checkPath(name, path string) CheckResult {
 	}
 	return CheckResult{Name: name, Status: "missing", OK: false}
 }
-

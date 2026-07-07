@@ -44,4 +44,3 @@ func Ensure() (StorePaths, error) {
 	}
 	return paths, nil
 }
-

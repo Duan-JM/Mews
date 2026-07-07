@@ -31,4 +31,3 @@ func TestEventValidateRejectsUnknownStatus(t *testing.T) {
 		t.Fatal("Validate accepted an unknown status")
 	}
 }
-
