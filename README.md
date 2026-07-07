@@ -82,6 +82,8 @@ Most users should only need two commands:
 
 ```bash
 mews start       # Start Mews and enable supported tools
+mews status      # Show the current local state
+mews history     # Show recent local events
 mews doctor      # Check setup and fix anything that needs attention
 ```
 
