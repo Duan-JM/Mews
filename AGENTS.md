@@ -37,6 +37,7 @@ Planned user commands:
 ```bash
 mews start      # Start Mews and enable supported tools
 mews status     # Print current watched tools and agent state
+mews history    # Show recent local events
 mews doctor     # Diagnose permissions, integrations, LaunchAgent, and IPC
 mews stop       # Stop the menu bar companion
 mews undo       # Remove Mews-installed integrations and restore backups
