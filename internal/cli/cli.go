@@ -3,8 +3,11 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Duan-JM/mews/internal/doctor"
 	"github.com/Duan-JM/mews/internal/events"
@@ -171,15 +174,50 @@ func runCommand(args []string, stdout, stderr io.Writer) int {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(stderr, "Mews: command failed: %s\n", strings.Join(args[1:], " "))
+	paths, err := store.Ensure()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+		return 1
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not resolve working directory: %v\n", err)
+		return 1
+	}
+	commandText := strings.Join(args[1:], " ")
+
+	if err := cmd.Start(); err != nil {
+		if saveErr := store.AppendEvent(paths.Events, commandEvent(events.StatusFailed, commandText, cwd, 0)); saveErr != nil {
+			fmt.Fprintf(stderr, "Could not save event: %v\n", saveErr)
+			return 1
+		}
+		fmt.Fprintf(stderr, "Mews: command failed to start: %s\n", commandText)
+		return 1
+	}
+
+	if err := store.AppendEvent(paths.Events, commandEvent(events.StatusRunning, commandText, cwd, cmd.Process.Pid)); err != nil {
+		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
+		return 1
+	}
+
+	if err := cmd.Wait(); err != nil {
+		if saveErr := store.AppendEvent(paths.Events, commandEvent(events.StatusFailed, commandText, cwd, cmd.Process.Pid)); saveErr != nil {
+			fmt.Fprintf(stderr, "Could not save event: %v\n", saveErr)
+			return 1
+		}
+		fmt.Fprintf(stderr, "Mews: command failed: %s\n", commandText)
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return exitErr.ExitCode()
 		}
 		return 1
 	}
 
-	fmt.Fprintf(stdout, "Mews: command completed: %s\n", strings.Join(args[1:], " "))
+	if err := store.AppendEvent(paths.Events, commandEvent(events.StatusDone, commandText, cwd, cmd.Process.Pid)); err != nil {
+		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "Mews: command completed: %s\n", commandText)
 	return 0
 }
 
@@ -209,4 +247,19 @@ func printEventSummary(w io.Writer, prefix string, event events.Event) {
 		project = "unknown project"
 	}
 	fmt.Fprintf(w, "%s: %s %s (%s) %s\n", prefix, event.Source, event.Status, project, message)
+}
+
+func commandEvent(status events.Status, commandText, cwd string, pid int) events.Event {
+	project := filepath.Base(cwd)
+	return events.Event{
+		Version:   1,
+		Source:    "runner",
+		SessionID: project,
+		Project:   project,
+		Status:    status,
+		Message:   commandText,
+		CWD:       cwd,
+		PID:       pid,
+		Timestamp: time.Now(),
+	}
 }
