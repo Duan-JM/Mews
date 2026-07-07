@@ -78,6 +78,7 @@ Recommended commands:
 ```bash
 mews start      # Start agent and enable supported tools
 mews status     # Print current watched tools and agent state
+mews listen     # Listen in the terminal and print events as they arrive
 mews doctor     # Diagnose permissions, hooks, LaunchAgent, and IPC
 mews stop       # Stop the local agent
 mews undo       # Remove Mews-installed integrations and restore backups

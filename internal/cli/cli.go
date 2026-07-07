@@ -31,6 +31,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return runStatus(stdout, stderr)
 	case "history":
 		return runHistory(stdout, stderr)
+	case "listen":
+		return runListen(stdout, stderr)
 	case "doctor":
 		return runDoctor(stdout, stderr)
 	case "stop":
@@ -126,7 +128,7 @@ func runStatus(stdout, stderr io.Writer) int {
 		return 1
 	}
 	if len(recent) == 0 {
-		fmt.Fprintln(stdout, "Latest event: none")
+		fmt.Fprintln(stdout, "Latest event: no events yet")
 		return 0
 	}
 	printEventSummary(stdout, "Latest event", recent[0])
@@ -228,8 +230,32 @@ func runAgent(stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintln(stdout, "Mews local agent started.")
-	if err := ipc.Serve(paths.Socket, paths.Events); err != nil {
+	if err := ipc.ServeWithObserver(paths.Socket, paths.Events, func(event events.Event) {
+		printEventSummary(stdout, "Event", event)
+	}); err != nil {
 		fmt.Fprintf(stderr, "Mews local agent failed: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func runListen(stdout, stderr io.Writer) int {
+	paths, err := store.Ensure()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+		return 1
+	}
+	if err := ipc.Ping(paths.Socket); err == nil {
+		fmt.Fprintln(stderr, "Mews local agent is already running. Stop it before using foreground listen.")
+		return 1
+	}
+
+	fmt.Fprintf(stdout, "Mews is listening on %s\n", paths.Socket)
+	fmt.Fprintln(stdout, "Press Ctrl+C to stop, or run `mews stop` from another terminal.")
+	if err := ipc.ServeWithObserver(paths.Socket, paths.Events, func(event events.Event) {
+		printEventSummary(stdout, "Event", event)
+	}); err != nil {
+		fmt.Fprintf(stderr, "Mews listener failed: %v\n", err)
 		return 1
 	}
 	return 0
@@ -301,6 +327,7 @@ Usage:
   mews start
   mews status
   mews history
+  mews listen
   mews doctor
   mews stop
   mews undo
