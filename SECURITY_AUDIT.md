@@ -6,7 +6,7 @@ Mews is still in project initialization. This document tracks the safety checks 
 
 - Event validation rejects unknown statuses and unsupported schema versions.
 - `mews notify` accepts only metadata needed for local status display.
-- `mews run -- <command>` reports exit status without rewriting the command.
+- `mews run -- <command>` records start and exit status without rewriting the command.
 - Local state stays under `~/Library/Application Support/Mews/`.
 - Logs stay under `~/Library/Logs/Mews/`.
 - Integration edits create backups before writing.
@@ -16,5 +16,4 @@ Mews is still in project initialization. This document tracks the safety checks 
 
 ## Current State
 
-The repository contains an initial Go CLI skeleton, project documentation, and safety policy. The menu bar agent and integration installers are not implemented yet.
-
+The repository contains the initial Go CLI, local JSONL event history, project documentation, and safety policy. The menu bar agent and integration installers are not implemented yet.
