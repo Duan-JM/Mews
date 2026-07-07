@@ -79,7 +79,7 @@ Recommended commands:
 mews start      # Start agent and enable supported tools
 mews status     # Print current watched tools and agent state
 mews doctor     # Diagnose permissions, hooks, LaunchAgent, and IPC
-mews stop       # Stop the menu bar agent
+mews stop       # Stop the local agent
 mews undo       # Remove Mews-installed integrations and restore backups
 
 mews notify     # Advanced: send a custom event

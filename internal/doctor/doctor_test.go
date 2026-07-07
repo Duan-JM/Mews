@@ -11,11 +11,11 @@ func TestCheckCreatesWritableStore(t *testing.T) {
 	}
 
 	want := map[string]string{
-		"Store":  "writable",
-		"Logs":   "writable",
-		"Events": "ready",
-		"Agent":  "not installed",
-		"Socket": "not running",
+		"Store":       "writable",
+		"Logs":        "writable",
+		"Events":      "ready",
+		"Local agent": "not running",
+		"Socket":      "not running",
 	}
 	for _, result := range report.Results {
 		if status, ok := want[result.Name]; ok && result.Status != status {

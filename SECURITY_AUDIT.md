@@ -16,4 +16,4 @@ Mews is still in project initialization. This document tracks the safety checks 
 
 ## Current State
 
-The repository contains the initial Go CLI, local JSONL event history, project documentation, and safety policy. The menu bar agent and integration installers are not implemented yet.
+The repository contains the initial Go CLI, local JSONL event history, local Unix socket agent, project documentation, and safety policy. The menu bar app and integration installers are not implemented yet.

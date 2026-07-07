@@ -92,7 +92,7 @@ For people who want to script Mews directly:
 ```bash
 mews notify      # Send a custom status event
 mews run -- cmd  # Run a command and notify when it exits
-mews stop        # Stop the menu bar companion
+mews stop        # Stop the local agent
 ```
 
 ## What Mews Is Not
