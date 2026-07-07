@@ -11,6 +11,7 @@ import (
 
 	"github.com/Duan-JM/mews/internal/doctor"
 	"github.com/Duan-JM/mews/internal/events"
+	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/store"
 )
 
@@ -33,13 +34,15 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	case "doctor":
 		return runDoctor(stdout, stderr)
 	case "stop":
-		return runStop(stdout)
+		return runStop(stdout, stderr)
 	case "undo":
 		return runUndo(stdout)
 	case "notify":
 		return runNotify(args[1:], stdout, stderr)
 	case "run":
 		return runCommand(args[1:], stdout, stderr)
+	case "agent":
+		return runAgent(stdout, stderr)
 	case "--help", "-h", "help":
 		printHelp(stdout)
 		return 0
@@ -60,8 +63,43 @@ func runStart(stdout, stderr io.Writer) int {
 		return 1
 	}
 
+	if err := ipc.Ping(paths.Socket); err == nil {
+		fmt.Fprintln(stdout, "Mews local agent is already running.")
+		return 0
+	}
+
+	logFile, err := os.OpenFile(filepath.Join(paths.Logs, "agent.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not open Mews agent log: %v\n", err)
+		return 1
+	}
+	defer logFile.Close()
+
+	executable, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not resolve Mews executable: %v\n", err)
+		return 1
+	}
+	cmd := exec.Command(executable, "agent")
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(stderr, "Could not start Mews local agent: %v\n", err)
+		return 1
+	}
+	if err := cmd.Process.Release(); err != nil {
+		fmt.Fprintf(stderr, "Could not release Mews local agent: %v\n", err)
+		return 1
+	}
+
+	if err := waitForAgent(paths.Socket, 2*time.Second); err != nil {
+		fmt.Fprintf(stderr, "Mews local agent did not start: %v\n", err)
+		return 1
+	}
+
 	fmt.Fprintln(stdout, "Mews store is ready.")
 	fmt.Fprintf(stdout, "  Store: %s\n", paths.AppSupport)
+	fmt.Fprintln(stdout, "Mews local agent is running.")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Menu bar companion is not packaged yet.")
 	fmt.Fprintln(stdout, "Run `mews doctor` to inspect the local setup.")
@@ -77,7 +115,11 @@ func runStatus(stdout, stderr io.Writer) int {
 
 	fmt.Fprintln(stdout, "Mews Status")
 	fmt.Fprintf(stdout, "Store: %s\n", paths.AppSupport)
-	fmt.Fprintln(stdout, "Agent: not installed")
+	if err := ipc.Ping(paths.Socket); err == nil {
+		fmt.Fprintln(stdout, "Agent: running")
+	} else {
+		fmt.Fprintln(stdout, "Agent: not running")
+	}
 	recent, err := store.ReadEvents(paths.Events, 1)
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not read event history: %v\n", err)
@@ -128,8 +170,21 @@ func runDoctor(stdout, stderr io.Writer) int {
 	return 0
 }
 
-func runStop(stdout io.Writer) int {
-	fmt.Fprintln(stdout, "Mews menu bar companion is not running.")
+func runStop(stdout, stderr io.Writer) int {
+	paths, err := store.Paths()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not resolve Mews paths: %v\n", err)
+		return 1
+	}
+	if err := ipc.Stop(paths.Socket); err != nil {
+		if err == ipc.ErrUnavailable {
+			fmt.Fprintln(stdout, "Mews local agent is not running.")
+			return 0
+		}
+		fmt.Fprintf(stderr, "Could not stop Mews local agent: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "Mews local agent stopped.")
 	return 0
 }
 
@@ -153,12 +208,30 @@ func runNotify(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
 		return 1
 	}
+	if err := ipc.SendEvent(paths.Socket, event); err == nil {
+		fmt.Fprintf(stdout, "Mews event sent: %s %s\n", event.Source, event.Status)
+		return 0
+	}
 	if err := store.AppendEvent(paths.Events, event); err != nil {
 		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
 		return 1
 	}
 
 	fmt.Fprintf(stdout, "Mews event accepted: %s %s\n", event.Source, event.Status)
+	return 0
+}
+
+func runAgent(stdout, stderr io.Writer) int {
+	paths, err := store.Ensure()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "Mews local agent started.")
+	if err := ipc.Serve(paths.Socket, paths.Events); err != nil {
+		fmt.Fprintf(stderr, "Mews local agent failed: %v\n", err)
+		return 1
+	}
 	return 0
 }
 
@@ -262,4 +335,15 @@ func commandEvent(status events.Status, commandText, cwd string, pid int) events
 		PID:       pid,
 		Timestamp: time.Now(),
 	}
+}
+
+func waitForAgent(socketPath string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := ipc.Ping(socketPath); err == nil {
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return ipc.ErrUnavailable
 }

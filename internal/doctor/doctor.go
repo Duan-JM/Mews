@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/store"
 )
 
@@ -29,7 +30,7 @@ func Check() (Report, error) {
 		checkPath("Store", paths.AppSupport),
 		checkPath("Logs", paths.Logs),
 		checkFile("Events", paths.Events),
-		{Name: "Agent", Status: "not installed", OK: false},
+		checkAgent(paths.Socket),
 		checkSocket(paths.Socket),
 	}
 
@@ -88,13 +89,23 @@ func checkFile(name, path string) CheckResult {
 }
 
 func checkSocket(path string) CheckResult {
+	if err := ipc.Ping(path); err == nil {
+		return CheckResult{Name: "Socket", Status: "available", OK: true}
+	}
 	if info, err := os.Stat(path); err == nil {
 		if info.Mode()&os.ModeSocket != 0 {
-			return CheckResult{Name: "Socket", Status: "available", OK: true}
+			return CheckResult{Name: "Socket", Status: "present but not responding", OK: false}
 		}
 		return CheckResult{Name: "Socket", Status: "path exists but is not a socket", OK: false}
 	} else if !os.IsNotExist(err) {
 		return CheckResult{Name: "Socket", Status: "unreadable", OK: false}
 	}
 	return CheckResult{Name: "Socket", Status: "not running", OK: false}
+}
+
+func checkAgent(socketPath string) CheckResult {
+	if err := ipc.Ping(socketPath); err == nil {
+		return CheckResult{Name: "Local agent", Status: "running", OK: true}
+	}
+	return CheckResult{Name: "Local agent", Status: "not running", OK: false}
 }
