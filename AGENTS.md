@@ -15,7 +15,7 @@ The product should feel like a Mole-style local Mac utility: simple command surf
 
 ## Current State
 
-This repository is still in product and architecture design. `README.md`, `architecture.md`, and `pre-app-store-product-design.md` define the current direction. Do not assume implementation files, commands, tests, or release workflows exist until they are actually present in the repo.
+This repository has an initial Go CLI skeleton plus product and architecture docs. `README.md`, `architecture.md`, and `pre-app-store-product-design.md` define the product direction. Do not assume planned commands, menu bar behavior, tests, or release workflows are complete until the files and verification commands exist.
 
 ## Commands
 
