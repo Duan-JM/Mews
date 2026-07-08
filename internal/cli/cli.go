@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Duan-JM/mews/internal/app"
 	"github.com/Duan-JM/mews/internal/doctor"
 	"github.com/Duan-JM/mews/internal/events"
 	"github.com/Duan-JM/mews/internal/integrations"
 	"github.com/Duan-JM/mews/internal/ipc"
+	"github.com/Duan-JM/mews/internal/launchd"
 	"github.com/Duan-JM/mews/internal/store"
 )
 
@@ -91,6 +93,11 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "Mews will:")
 	fmt.Fprintf(stdout, "  - create store: %s\n", paths.AppSupport)
 	fmt.Fprintf(stdout, "  - create logs: %s\n", paths.Logs)
+	if bundle, err := app.ResolveBundle(); err == nil {
+		fmt.Fprintf(stdout, "  - launch menu bar app: %s\n", bundle.Path)
+	} else {
+		fmt.Fprintln(stdout, "  - use the menu bar app after `make build` packages it")
+	}
 	if hookPath, err := integrations.CopilotHookPath(); err == nil {
 		fmt.Fprintf(stdout, "  - install Copilot CLI hooks: %s\n", hookPath)
 	}
@@ -103,7 +110,6 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "  - record setup state for `mw doctor` and `mw undo`")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Not installed yet:")
-	fmt.Fprintln(stdout, "  - menu bar companion and LaunchAgent")
 	fmt.Fprintln(stdout, "  - Claude Code lifecycle hooks")
 	fmt.Fprintln(stdout)
 
@@ -130,7 +136,7 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	state := store.SetupState{
 		Version:          1,
 		SetupAt:          time.Now(),
-		Agent:            "local agent available; menu bar not packaged yet",
+		Agent:            "menu bar app configured",
 		Copilot:          "hooks installed",
 		CopilotHook:      copilotInstall.HookPath,
 		IncludeTaskTitle: includeTaskTitle,
@@ -151,7 +157,7 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	if includeTaskTitle {
 		fmt.Fprintln(stdout, "Task titles enabled. Mews stores at most 80 local-only characters from hook payloads.")
 	}
-	fmt.Fprintln(stdout, "Run `mw start` to start the local agent.")
+	fmt.Fprintln(stdout, "Run `mw start` to start the menu bar app.")
 	return 0
 }
 
@@ -171,40 +177,43 @@ func runStart(stdout, stderr io.Writer) int {
 		return 1
 	}
 	if err := ipc.Ping(paths.Socket); err == nil {
-		fmt.Fprintln(stdout, "Mews local agent is already running.")
-		return 0
+		if loaded, _ := launchd.Loaded(); loaded {
+			fmt.Fprintln(stdout, "Mews menu bar app is already running.")
+			return 0
+		}
+		fmt.Fprintln(stdout, "Mews local agent is already running; starting menu bar app too.")
+	} else if err != ipc.ErrUnavailable {
+		fmt.Fprintf(stderr, "Could not check Mews local agent: %v\n", err)
+		return 1
 	}
 
-	logFile, err := os.OpenFile(filepath.Join(paths.Logs, "agent.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	bundle, err := app.ResolveBundle()
 	if err != nil {
-		fmt.Fprintf(stderr, "Could not open Mews agent log: %v\n", err)
+		fmt.Fprintf(stderr, "Could not find Mews.app: %v\n", err)
+		fmt.Fprintln(stderr, "Run `make build` from the repository, or install a package that includes Mews.app.")
 		return 1
 	}
-	defer logFile.Close()
-
-	executable, err := os.Executable()
+	plistPath, err := launchd.Install(bundle.Executable, paths.Logs)
 	if err != nil {
-		fmt.Fprintf(stderr, "Could not resolve Mews executable: %v\n", err)
+		fmt.Fprintf(stderr, "Could not install LaunchAgent: %v\n", err)
 		return 1
 	}
-	cmd := exec.Command(executable, "agent")
-	cmd.Stdout = logFile
-	cmd.Stderr = logFile
-	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(stderr, "Could not start Mews local agent: %v\n", err)
+	if err := launchd.Bootout(); err != nil {
+		fmt.Fprintf(stderr, "Could not refresh Mews LaunchAgent: %v\n", err)
 		return 1
 	}
-	if err := cmd.Process.Release(); err != nil {
-		fmt.Fprintf(stderr, "Could not release Mews local agent: %v\n", err)
+	if err := launchd.Bootstrap(); err != nil {
+		fmt.Fprintf(stderr, "Could not start Mews menu bar app: %v\n", err)
 		return 1
 	}
 
 	if err := waitForAgent(paths.Socket, 2*time.Second); err != nil {
-		fmt.Fprintf(stderr, "Mews local agent did not start: %v\n", err)
+		fmt.Fprintf(stderr, "Mews menu bar app did not start its local agent: %v\n", err)
 		return 1
 	}
 
-	fmt.Fprintln(stdout, "Mews local agent is running.")
+	fmt.Fprintln(stdout, "Mews menu bar app is running.")
+	fmt.Fprintf(stdout, "  LaunchAgent: %s\n", plistPath)
 	fmt.Fprintf(stdout, "  Store: %s\n", paths.AppSupport)
 	return 0
 }
@@ -287,15 +296,26 @@ func runStop(stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not resolve Mews paths: %v\n", err)
 		return 1
 	}
-	if err := ipc.Stop(paths.Socket); err != nil {
-		if err == ipc.ErrUnavailable {
-			fmt.Fprintln(stdout, "Mews local agent is not running.")
-			return 0
-		}
+	stopped := false
+	if err := ipc.Stop(paths.Socket); err == nil {
+		stopped = true
+	} else if err != ipc.ErrUnavailable {
 		fmt.Fprintf(stderr, "Could not stop Mews local agent: %v\n", err)
 		return 1
 	}
-	fmt.Fprintln(stdout, "Mews local agent stopped.")
+	if err := launchd.Bootout(); err != nil {
+		fmt.Fprintf(stderr, "Could not unload Mews LaunchAgent: %v\n", err)
+		return 1
+	}
+	if err := launchd.RemovePlist(); err != nil {
+		fmt.Fprintf(stderr, "Could not remove Mews LaunchAgent: %v\n", err)
+		return 1
+	}
+	if stopped {
+		fmt.Fprintln(stdout, "Mews menu bar app stopped.")
+	} else {
+		fmt.Fprintln(stdout, "Mews menu bar app is not running.")
+	}
 	return 0
 }
 
@@ -312,6 +332,14 @@ func runUndo(stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not remove Copilot hooks: %v\n", err)
 		return 1
 	}
+	if err := launchd.Bootout(); err != nil {
+		fmt.Fprintf(stderr, "Could not unload Mews LaunchAgent: %v\n", err)
+		return 1
+	}
+	if err := launchd.RemovePlist(); err != nil {
+		fmt.Fprintf(stderr, "Could not remove Mews LaunchAgent: %v\n", err)
+		return 1
+	}
 	if err := store.RemoveSetupState(); err != nil {
 		fmt.Fprintf(stderr, "Could not remove setup state: %v\n", err)
 		return 1
@@ -319,6 +347,7 @@ func runUndo(stdout, stderr io.Writer) int {
 
 	fmt.Fprintln(stdout, "Removed Mews setup state.")
 	fmt.Fprintln(stdout, "Removed Mews-owned Copilot hooks.")
+	fmt.Fprintln(stdout, "Removed Mews LaunchAgent.")
 	fmt.Fprintln(stdout, "Event history was kept. Run `mw reset --yes` to delete local Mews data.")
 	return 0
 }

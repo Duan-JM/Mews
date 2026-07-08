@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Duan-JM/mews/internal/app"
 	"github.com/Duan-JM/mews/internal/integrations"
 	"github.com/Duan-JM/mews/internal/ipc"
+	"github.com/Duan-JM/mews/internal/launchd"
 	"github.com/Duan-JM/mews/internal/store"
 )
 
@@ -48,6 +50,8 @@ func Check() (Report, error) {
 		checkPath("Logs", paths.Logs),
 		checkFile("Events", paths.Events),
 		{Name: "Setup", Status: setupStatus, OK: configured},
+		checkAppBundle(),
+		checkLaunchAgent(),
 		checkAgent(paths.Socket),
 		checkSocket(paths.Socket),
 		{Name: "Copilot CLI", Status: copilotStatus, OK: copilotOK},
@@ -107,6 +111,31 @@ func checkFile(name, path string) CheckResult {
 		return CheckResult{Name: name, Status: "close failed", OK: false}
 	}
 	return CheckResult{Name: name, Status: "ready", OK: true}
+}
+
+func checkAppBundle() CheckResult {
+	bundle, err := app.ResolveBundle()
+	if err != nil {
+		return CheckResult{Name: "Menu bar app", Status: "missing; run `make build`", OK: false}
+	}
+	return CheckResult{Name: "Menu bar app", Status: bundle.Path, OK: true}
+}
+
+func checkLaunchAgent() CheckResult {
+	plistPath, err := launchd.PlistPath()
+	if err != nil {
+		return CheckResult{Name: "LaunchAgent", Status: fmt.Sprintf("path error: %v", err), OK: false}
+	}
+	if _, err := os.Stat(plistPath); os.IsNotExist(err) {
+		return CheckResult{Name: "LaunchAgent", Status: "not installed", OK: false}
+	} else if err != nil {
+		return CheckResult{Name: "LaunchAgent", Status: "unreadable", OK: false}
+	}
+	if loaded, status := launchd.Loaded(); loaded {
+		return CheckResult{Name: "LaunchAgent", Status: status, OK: true}
+	} else {
+		return CheckResult{Name: "LaunchAgent", Status: status, OK: false}
+	}
 }
 
 func checkSocket(path string) CheckResult {
