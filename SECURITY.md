@@ -24,5 +24,5 @@ Do not include private prompts, code, or transcripts in public issues.
 - No telemetry in MVP.
 - No terminal scrollback scraping by default.
 - No execution of shell commands from received events.
-- Integration edits must be backed up and reversible through `mews undo`.
+- Integration edits must be backed up and reversible through `mw undo`.
 

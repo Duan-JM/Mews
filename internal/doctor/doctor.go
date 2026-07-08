@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Duan-JM/mews/internal/integrations"
 	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/store"
 )
@@ -25,13 +26,33 @@ func Check() (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
+	state, configured, err := store.LoadSetupState()
+	if err != nil {
+		return Report{}, err
+	}
+
+	setupStatus := "not set up; run `mw setup`"
+	undoStatus := "nothing to undo"
+	copilotStatus, copilotOK := integrations.CopilotHookStatus()
+	claudeStatus := "not installed by Mews"
+	if configured {
+		setupStatus = "configured"
+		if state.UndoReady {
+			undoStatus = "ready"
+		}
+		claudeStatus = state.Claude
+	}
 
 	results := []CheckResult{
 		checkPath("Store", paths.AppSupport),
 		checkPath("Logs", paths.Logs),
 		checkFile("Events", paths.Events),
+		{Name: "Setup", Status: setupStatus, OK: configured},
 		checkAgent(paths.Socket),
 		checkSocket(paths.Socket),
+		{Name: "Copilot CLI", Status: copilotStatus, OK: copilotOK},
+		{Name: "Claude Code", Status: claudeStatus, OK: claudeStatus == "enabled"},
+		{Name: "Undo", Status: undoStatus, OK: configured},
 	}
 
 	return Report{Results: results}, nil

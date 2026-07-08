@@ -10,9 +10,9 @@ OUT="dist/mews-${VERSION}-darwin"
 rm -rf "$OUT"
 mkdir -p "$OUT/bin" dist
 "$ROOT/scripts/build.sh"
-cp bin/mews "$OUT/bin/mews"
-cp README.md LICENSE "$OUT/"
+cp bin/mw "$OUT/bin/mw"
+cp README.md README_zh.md LICENSE SECURITY.md SECURITY_AUDIT.md CONTRIBUTING.md "$OUT/"
+cp -R docs "$OUT/docs"
 
 tar -czf "${OUT}.tar.gz" -C dist "mews-${VERSION}-darwin"
 echo "Created ${OUT}.tar.gz"
-

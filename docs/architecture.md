@@ -6,10 +6,12 @@ Mews is a local macOS companion for terminal AI agents. The first public version
 
 ```bash
 brew install mews
-mews start
+mw setup
+mw setup --yes
+mw start
 ```
 
-After that, Mews starts a menu bar companion, finds supported AI tools, enables local notifications where it can, and keeps a recent status history. Users should not need to edit Claude Code, Codex, Copilot CLI, or tmux configuration by hand.
+After that, Mews starts a menu bar companion, finds supported AI tools, enables local notifications where it can, and keeps a recent status history. Users should not need to edit Claude Code, Codex, or Copilot CLI configuration by hand.
 
 ## Non-Goals
 
@@ -19,23 +21,22 @@ After that, Mews starts a menu bar companion, finds supported AI tools, enables 
 - No AI chat UI.
 - No transcript sync.
 - No terminal scrollback scraping by default.
-- No App Store product architecture in the first version.
 - No notch cat as a required MVP dependency.
 
 ## Design Principles
 
-1. **Install, start, done**: the main path is `brew install mews` and `mews start`.
+1. **Install, setup, start, undo**: the main path is `brew install mews`, `mw setup`, `mw start`, and `mw undo`.
 2. **Menu bar first**: status must be visible even if notifications are missed.
 3. **Local-only**: all state stays under the current macOS user account.
 4. **No surprise writes**: Mews explains what it will enable, writes backups, and can undo its own changes.
 5. **Fail honestly**: unsupported tools show as unsupported, not silently broken.
-6. **Advanced paths stay advanced**: `mews notify`, wrappers, and hook details exist, but do not lead the product.
+6. **Advanced paths stay advanced**: `mw notify`, wrappers, and hook details exist, but do not lead the product.
 
 ## System Overview
 
 ```text
                   ┌────────────────────┐
-                  │      mews CLI       │
+                  │      mw CLI       │
                   │ start/status/doctor │
                   └─────────┬──────────┘
                             │ local IPC
@@ -54,37 +55,40 @@ After that, Mews starts a menu bar companion, finds supported AI tools, enables 
 
 Mews has two runtime pieces:
 
-1. **`mews` CLI**: user-facing command installed by Homebrew.
-2. **Mews Menu Bar Agent**: a native macOS LSUIElement app launched by `mews start`.
+1. **`mw` CLI**: user-facing command installed by Homebrew.
+2. **Mews Menu Bar Agent**: a native macOS LSUIElement app launched by `mw start`.
 
 The CLI handles setup, diagnostics, undo, and scriptable events. The agent owns the menu bar icon, notification delivery, current state, recent history, and local IPC server.
 
 ## Runtime Components
 
-### 1. `mews` CLI
+### 1. `mw` CLI
 
 Responsibilities:
 
 - Start and stop the menu bar agent.
 - Detect installed tools.
 - Install and remove integrations.
-- Send custom events with `mews notify`.
-- Wrap commands with `mews run -- <command>`.
-- Run diagnostics with `mews doctor`.
-- Revert changes with `mews undo`.
+- Send custom events with `mw notify`.
+- Wrap commands with `mw run -- <command>`.
+- Run diagnostics with `mw doctor`.
+- Revert changes with `mw undo`.
 
 Recommended commands:
 
 ```bash
-mews start      # Start agent and enable supported tools
-mews status     # Print current watched tools and agent state
-mews listen     # Listen in the terminal and print events as they arrive
-mews doctor     # Diagnose permissions, hooks, LaunchAgent, and IPC
-mews stop       # Stop the local agent
-mews undo       # Remove Mews-installed integrations and restore backups
+mw setup      # Show and apply supported local integrations
+mw start      # Start the local agent after setup
+mw status     # Print current watched tools and agent state
+mw history    # Show recent local events
+mw listen     # Listen in the terminal and print events as they arrive
+mw doctor     # Diagnose permissions, hooks, LaunchAgent, and IPC
+mw stop       # Stop the local agent
+mw undo       # Remove Mews-installed integrations and restore backups
+mw reset      # Delete local Mews data and logs
 
-mews notify     # Advanced: send a custom event
-mews run -- cmd # Advanced: run a command and report completion
+mw notify     # Advanced: send a custom event
+mw run -- cmd # Advanced: run a command and report completion
 ```
 
 ### 2. Mews Menu Bar Agent
@@ -108,17 +112,16 @@ Responsibilities:
 - Decide the safest available integration for each tool.
 - Install integration files with backups.
 - Verify that integrations can call back into Mews.
-- Report unsupported or partially supported tools to `mews doctor`.
+- Report unsupported or partially supported tools to `mw doctor`.
 
 Supported tools in the first version:
 
 | Tool | First strategy | Fallback |
 |---|---|---|
-| Claude Code | Install local hook command after confirmation | Show manual instructions in `mews doctor` |
-| Codex | Use notify command or config-backed hook after confirmation | Suggest `mews run -- codex` |
-| Copilot CLI | Use wrapper because hooks may not exist | Show wrapper alias suggestion |
-| tmux | Optional status watcher or wrapper-based reporting | `mews run -- <command>` |
-| Custom scripts | `mews notify` | None |
+| Claude Code | Install local hook command after confirmation | Show manual instructions in `mw doctor` |
+| Codex | Use notify command or config-backed hook after confirmation | Suggest `mw run -- codex` |
+| Copilot CLI | Install user-level hooks in `~/.copilot/hooks/mews.json` | `mw run -- copilot` for process-exit fallback |
+| Custom scripts | `mw notify` | None |
 
 ### 4. Local Store
 
@@ -152,18 +155,40 @@ SQLite can wait. JSON and JSONL are easier to inspect, back up, and repair in th
 
 ## Data Flow
 
-### `mews start`
+### `mw setup`
 
 ```text
-User runs mews start
+User runs mw setup
   │
   ├─ Ensure Application Support and Logs directories exist
-  ├─ Install or refresh LaunchAgent for the menu bar agent
-  ├─ Launch menu bar agent
-  ├─ Discover Claude Code, Codex, Copilot CLI, tmux
+  ├─ Discover Claude Code, Codex, Copilot CLI
   ├─ Show planned integrations
   ├─ Ask for approval before writing tool configs
   ├─ Install supported integrations with backups
+  ├─ Record installed files and backups in integrations.json
+  └─ Print undo and start next actions
+```
+
+Expected output:
+
+```text
+Mews setup plan:
+  ✓ Claude Code
+  ✓ Codex
+  ✓ Copilot CLI
+
+Run `mw setup --yes` to apply.
+Run `mw undo` later to remove these changes.
+```
+
+### `mw start`
+
+```text
+User runs mw start
+  │
+  ├─ Verify setup state exists
+  ├─ Install or refresh LaunchAgent for the menu bar agent
+  ├─ Launch menu bar agent
   ├─ Send test event through local IPC
   └─ Print watched tools and next action
 ```
@@ -171,14 +196,9 @@ User runs mews start
 Expected output:
 
 ```text
-Mews is watching:
-  ✓ Claude Code
-  ✓ Codex
-  ✓ Copilot CLI
-  ✓ tmux
-
+Mews is watching configured tools.
 Menu bar companion started.
-Run `mews doctor` if something does not notify correctly.
+Run `mw doctor` if something does not notify correctly.
 ```
 
 ### Agent Event Delivery
@@ -186,10 +206,10 @@ Run `mews doctor` if something does not notify correctly.
 ```text
 AI tool event
   │
-  ├─ hook, wrapper, or mews notify
+  ├─ hook, wrapper, or mw notify
   │
   ▼
-mews CLI validates event
+mw CLI validates event
   │
   ▼
 Unix domain socket
@@ -203,10 +223,10 @@ Menu bar agent
   └─ show notification if needed
 ```
 
-### `mews undo`
+### `mw undo`
 
 ```text
-User runs mews undo
+User runs mw undo
   │
   ├─ Read integrations.json
   ├─ Restore every backed-up file
@@ -218,6 +238,19 @@ User runs mews undo
 
 Rollback is part of the product, not a debug feature.
 
+### `mw reset`
+
+```text
+User runs mw reset --yes
+  │
+  ├─ Refuse to run without --yes
+  ├─ Delete Mews local store
+  ├─ Delete Mews logs
+  └─ Print deleted paths
+```
+
+Reset deletes local Mews data and event history. It should not be used as a substitute for `mw undo`, because it does not restore third-party config files.
+
 ## Event Model
 
 Mews should keep the event model small.
@@ -226,10 +259,12 @@ Mews should keep the event model small.
 {
   "version": 1,
   "source": "claude-code",
+  "hook_event": "agentStop",
   "session_id": "abc123",
   "project": "Mews",
+  "task_title": "Fix doctor output",
   "status": "done",
-  "message": "Task finished",
+  "message": "copilot done: Mews - Fix doctor output",
   "cwd": "/Users/name/project",
   "pid": 12345,
   "timestamp": "2026-07-07T18:40:00+08:00"
@@ -246,7 +281,9 @@ Required fields:
 Optional fields:
 
 - `session_id`
+- `hook_event`
 - `project`
+- `task_title`
 - `message`
 - `cwd`
 - `pid`
@@ -261,7 +298,7 @@ Supported statuses:
 | `failed` | Work failed | Notify immediately |
 | `idle` | No active work | Silent |
 
-The message should be short and safe. Integrations should avoid sending prompts, code snippets, or transcript content by default.
+The message should be short and safe. Integrations should avoid sending prompts, code snippets, or transcript content by default. Task titles are opt-in with `mw setup --yes --include-task-title`, must stay local-only, and must be truncated before storage.
 
 ## IPC
 
@@ -278,20 +315,20 @@ Reasons:
 - No localhost firewall prompt.
 - Easy for CLI and hook scripts to reach.
 
-If the socket is missing, `mews notify` should try to start the agent once, then fail with a clear doctor hint.
+If the socket is missing, `mw notify` should try to start the agent once, then fail with a clear doctor hint.
 
 ## Integration Strategy
 
 ### Claude Code
 
-Use Claude Code hooks when available. Mews should install a small command hook that calls `mews notify` with only status metadata.
+Use Claude Code hooks when available. Mews should install a small command hook that calls `mw notify` with only status metadata.
 
 Rules:
 
 - Back up existing settings before editing.
 - Preserve user hooks.
 - Add a Mews-owned block with a stable marker.
-- Remove only the Mews-owned block in `mews undo`.
+- Remove only the Mews-owned block in `mw undo`.
 
 ### Codex
 
@@ -299,32 +336,17 @@ Use the supported notify or hook path when present. If the installed Codex versi
 
 ### Copilot CLI
 
-Start with wrapper mode unless a stable lifecycle hook exists.
+Use Copilot CLI user-level hooks when available. Mews should install a Mews-owned hook file at `~/.copilot/hooks/mews.json`, or `$COPILOT_HOME/hooks/mews.json` when `COPILOT_HOME` is set.
 
 Mews can offer:
 
 ```text
 Copilot CLI found.
-Native hooks were not detected.
-Use `mews run -- copilot` for completion and failure notifications.
+User-level hooks installed.
+Agent stop and session end events will call `mw notify`.
 ```
 
-Do not pretend Copilot is deeply integrated until the integration can detect needs-input, done, and failed reliably.
-
-### tmux
-
-First version should not scrape pane content. Use explicit wrapper commands and optional status integration.
-
-Safe first version:
-
-- `mews run -- <long command>`
-- optional tmux status item showing Mews state
-
-Avoid in MVP:
-
-- reading scrollback
-- parsing arbitrary terminal output
-- watching every pane automatically
+`agentStop` should map to `done`, `sessionEnd` to `idle`, and `errorOccurred` to `failed`. Mews may derive `project` from `cwd` and preserve a hook `session_id` when provided. Do not read prompts, transcripts, or terminal scrollback by default; task titles require explicit opt-in and are truncated to 80 characters.
 
 ## Notification Rules
 
@@ -355,6 +377,7 @@ Hard boundaries:
 - No network requests for core functionality.
 - No telemetry in MVP.
 - No prompt, transcript, or code capture by default.
+- Prompt-derived task titles require explicit opt-in, are truncated, and stay local.
 - No terminal scrollback scraping by default.
 - No shell command execution from received events.
 - No broad write access beyond known integration files and Mews-owned paths.
@@ -364,12 +387,12 @@ Config writes:
 - Show what will be changed.
 - Write backups before edits.
 - Use stable markers around Mews-owned blocks.
-- Support `mews undo`.
-- Refuse to edit malformed config files and explain through `mews doctor`.
+- Support `mw undo`.
+- Refuse to edit malformed config files and explain through `mw doctor`.
 
 ## Doctor
 
-`mews doctor` is a first-class user experience.
+`mw doctor` is a first-class user experience.
 
 It should check:
 
@@ -380,8 +403,7 @@ It should check:
 - Mews store writable.
 - Claude Code integration installed and reachable.
 - Codex integration installed or marked fallback.
-- Copilot CLI wrapper status.
-- tmux support status.
+- Copilot CLI hook status.
 - Recent event delivery test.
 
 Example:
@@ -394,8 +416,7 @@ Socket             reachable
 Notifications      allowed
 Claude Code        enabled
 Codex              enabled
-Copilot CLI        wrapper suggested
-tmux               enabled
+Copilot CLI        hooks installed
 Store              writable
 
 No action needed.
@@ -406,13 +427,21 @@ No action needed.
 Homebrew should install:
 
 ```text
-bin/mews
+bin/mw
 libexec/Mews.app
 ```
 
-`mews start` should:
+`mw setup` should:
 
 1. Ensure `libexec/Mews.app` exists.
+2. Discover supported tools.
+3. Show every planned write.
+4. Write backups before editing tool config.
+5. Record rollback state.
+
+`mw start` should:
+
+1. Verify setup exists.
 2. Install `~/Library/LaunchAgents/dev.mews.agent.plist`.
 3. Launch the app.
 4. Verify IPC.
@@ -430,7 +459,7 @@ Go owns:
 - Tool detection and integration management.
 - Local store and event validation.
 - Unix socket IPC.
-- `mews notify` and `mews run`.
+- `mw notify` and `mw run`.
 - Release binaries and Homebrew packaging.
 
 `Mews.app` should stay thin. The first version can be a small native macOS app that owns the menu bar icon, notification identity, and recent event UI. If a pure-Go menu bar implementation proves reliable enough, it can be considered, but the architecture should not force the product into a non-native Mac UX just to keep one language.
@@ -443,7 +472,7 @@ Recommended structure:
 
 ```text
 cmd/
-  mews/
+  mw/
     main.go
 internal/
   app/
@@ -486,18 +515,17 @@ lib/
 scripts/
 tests/
 go.mod
-go.sum
 Makefile
 install.sh
 README.md
 SECURITY.md
 SECURITY_AUDIT.md
-architecture.md
+CONTRIBUTING.md
 ```
 
 Repository rules:
 
-1. **Root stays product-facing**: README, install script, architecture, security docs, and Makefile should be enough for a new contributor to understand the project.
+1. **Root stays product-facing**: README, install script, security docs, contributing guide, and Makefile should be enough for a new contributor to understand the project.
 2. **Go code follows `cmd/` + `internal/`**: no sprawling packages at root.
 3. **Scripts are explicit**: build, package, release, and local install scripts live under `scripts/`; `install.sh` stays as the user-facing fallback installer.
 4. **Makefile is the contributor API**: common tasks should be discoverable through `make test`, `make build`, `make lint`, `make package`, and `make install-local`.
@@ -507,7 +535,7 @@ Repository rules:
 Suggested Makefile targets:
 
 ```text
-make build          # Build mews CLI and package Mews.app
+make build          # Build mw CLI and package Mews.app
 make test           # Run Go tests
 make lint           # Run Go lint and shellcheck
 make package        # Produce local release artifact
@@ -530,15 +558,15 @@ The goal is the same feeling as Mole: a serious local Mac utility with simple co
 
 Manual acceptance checks:
 
-1. Fresh install, run `mews start`, menu bar icon appears.
-2. `mews start` discovers installed tools and asks before writing integrations.
-3. `mews doctor` reports green state after setup.
-4. `mews notify --status done --message "Task finished"` updates menu bar and history.
-5. `mews run -- false` produces a failed event.
+1. Fresh install, run `mw start`, menu bar icon appears.
+2. `mw start` discovers installed tools and asks before writing integrations.
+3. `mw doctor` reports green state after setup.
+4. `mw notify --status done --message "Task finished"` updates menu bar and history.
+5. `mw run -- false` produces a failed event.
 6. Claude Code notification hook reaches Mews without exposing transcript content.
-7. `mews undo` restores backed-up config and removes Mews-owned files.
+7. `mw undo` restores backed-up config and removes Mews-owned files.
 8. With notifications denied, menu bar status still works and doctor explains the permission.
-9. With the agent stopped, `mews notify` either starts it or gives a clear error.
+9. With the agent stopped, `mw notify` either starts it or gives a clear error.
 10. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
 
 Automated tests:
@@ -562,11 +590,11 @@ Every external write must have a rollback path:
 | shell wrapper or alias suggestion | remove generated Mews-owned file |
 | Mews store | keep by default, delete with explicit reset command |
 
-`mews undo` should not delete event history unless the user runs a separate reset command.
+`mw undo` should not delete event history unless the user runs a separate reset command.
 
 ## Open Questions
 
-1. Copilot CLI lifecycle hooks need verification. Until then, wrapper mode is the official design.
+1. Copilot CLI lifecycle hook coverage needs real-session verification beyond `agentStop`, `sessionEnd`, and `errorOccurred`.
 2. Codex notify support should be detected by version and config shape, not assumed.
 3. The exact Homebrew formula layout should be checked against the final app bundle signing and notification behavior.
 

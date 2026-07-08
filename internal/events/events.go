@@ -21,8 +21,10 @@ const (
 type Event struct {
 	Version   int       `json:"version"`
 	Source    string    `json:"source"`
+	HookEvent string    `json:"hook_event,omitempty"`
 	SessionID string    `json:"session_id,omitempty"`
 	Project   string    `json:"project,omitempty"`
+	TaskTitle string    `json:"task_title,omitempty"`
 	Status    Status    `json:"status"`
 	Message   string    `json:"message,omitempty"`
 	CWD       string    `json:"cwd,omitempty"`
@@ -37,6 +39,7 @@ func FromArgs(args []string) (Event, error) {
 	project := fs.String("project", "", "project name")
 	message := fs.String("message", "", "event message")
 	sessionID := fs.String("session", "", "session identifier")
+	hookEvent := fs.String("hook-event", "", "source hook event name")
 	cwd := fs.String("cwd", "", "working directory")
 	pid := fs.Int("pid", 0, "process identifier")
 	fs.SetOutput(io.Discard)
@@ -48,6 +51,7 @@ func FromArgs(args []string) (Event, error) {
 	return Event{
 		Version:   1,
 		Source:    *source,
+		HookEvent: *hookEvent,
 		SessionID: *sessionID,
 		Project:   *project,
 		Status:    Status(*status),
