@@ -6,7 +6,6 @@ PREFIX="${PREFIX:-/usr/local}"
 
 "$ROOT/scripts/build.sh"
 install -d "$PREFIX/bin"
-install "$ROOT/bin/mews" "$PREFIX/bin/mews"
+install "$ROOT/bin/mw" "$PREFIX/bin/mw"
 
-echo "Installed mews to $PREFIX/bin/mews"
-
+echo "Installed mw to $PREFIX/bin/mw"

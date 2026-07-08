@@ -7,5 +7,4 @@ PREFIX="${PREFIX:-/usr/local}"
 "$ROOT/scripts/install-local.sh"
 
 echo
-echo "Run: mews start"
-
+echo "Run: mw setup --yes"
