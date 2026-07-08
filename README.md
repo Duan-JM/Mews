@@ -16,7 +16,7 @@ Mews watches the AI agents you run from terminal and keeps their lifecycle event
 
 When Claude Code, Codex, Copilot CLI, or a long-running terminal command finishes, fails, or needs you, Mews lets you know. You do not have to keep checking every pane.
 
-> This repository is in init preview. The `mw` CLI, Copilot hook setup, local event log, and safety commands exist; the menu bar app is still planned.
+> This repository is in init preview. The `mw` CLI, Copilot hook setup, local event log, safety commands, and a thin menu bar app exist; polished Mac distribution is still planned.
 
 ## Install
 
@@ -26,6 +26,7 @@ For local testing from this repository:
 make build
 ./bin/mw setup
 ./bin/mw setup --yes
+./bin/mw start
 ./bin/mw doctor
 ```
 
@@ -37,7 +38,7 @@ mw setup --yes
 mw start
 ```
 
-`mw setup` shows the local changes Mews wants to make before it writes anything. `mw setup --yes` applies the Mews-owned setup. `mw start` is reserved for the planned menu bar companion and currently reports that the app is not packaged yet.
+`mw setup` shows the local changes Mews wants to make before it writes anything. `mw setup --yes` applies the Mews-owned setup. `mw start` installs a per-user LaunchAgent and starts the thin menu bar companion packaged by `make build`.
 
 By default, notifications include safe context such as tool, status, project, working directory, and session identifier when the tool provides them. If you want notification titles to include a short task label, opt in explicitly:
 
@@ -63,13 +64,12 @@ Mews turns that hidden state into a small local signal.
 
 - A short notification when an agent lifecycle event reaches Mews.
 - A local JSONL history so missed notifications are not gone forever.
-- Clear doctor output when setup, hooks, or the planned menu bar agent are missing.
+- A menu bar companion that shows the latest local state and recent events.
+- Clear doctor output when setup, hooks, LaunchAgent, socket, or the menu bar app are missing.
 
-## Planned Mac Companion
+## Mac Companion
 
-- A menu bar icon that shows whether an agent is running, done, failed, or waiting.
-- A recent history menu for missed notifications.
-- A quiet idle state when nothing is happening.
+The current menu bar companion is intentionally thin. It starts the local IPC agent, reads the local event history, and keeps the latest state visible from the menu bar.
 
 Later, **Mews for Mac** can add the notch cat: a small cat around the MacBook notch that walks while agents run, naps when idle, pounces when something finishes, and gets your attention when a prompt is waiting.
 
@@ -130,15 +130,15 @@ It is a small Mac companion for people who run AI agents in terminals and do not
 
 - Copilot CLI hook setup
 - Local notifications and event history
+- Menu bar status
 - Setup doctor, undo, and reset
-- Terminal listener before the Mac app exists
+- Terminal listener for foreground debugging
 - Local agent and event pipeline
 - Scriptable event notifications
 
 ### Planned next
 
 - Claude Code and Codex integrations
-- Menu bar status
 - Safe uninstall and rollback for every integration
 - Homebrew install
 

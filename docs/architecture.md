@@ -56,7 +56,7 @@ After that, Mews starts a menu bar companion, finds supported AI tools, enables 
 Mews has two runtime pieces:
 
 1. **`mw` CLI**: user-facing command installed by Homebrew.
-2. **Mews Menu Bar Agent**: a native macOS LSUIElement app launched by `mw start`.
+2. **Mews Menu Bar Agent**: a native Swift/AppKit LSUIElement app launched by `mw start`.
 
 The CLI handles setup, diagnostics, undo, and scriptable events. The agent owns the menu bar icon, notification delivery, current state, recent history, and local IPC server.
 
@@ -102,7 +102,7 @@ Responsibilities:
 - Apply notification rules, deduping, and quiet periods.
 - Persist recent events and settings.
 
-The agent should be packaged as a small app bundle so macOS notifications, icon identity, and login behavior are reliable.
+The agent is packaged as a small app bundle so macOS menu bar identity and local visibility are reliable. In the init preview, it starts the existing `mw agent` helper from the app bundle resources and reads local event history for the menu.
 
 ### 3. Integration Manager
 
@@ -188,7 +188,8 @@ User runs mw start
   │
   ├─ Verify setup state exists
   ├─ Install or refresh LaunchAgent for the menu bar agent
-  ├─ Launch menu bar agent
+  ├─ Install or refresh LaunchAgent for Mews.app
+  ├─ Launch menu bar app
   ├─ Send test event through local IPC
   └─ Print watched tools and next action
 ```
@@ -462,7 +463,7 @@ Go owns:
 - `mw notify` and `mw run`.
 - Release binaries and Homebrew packaging.
 
-`Mews.app` should stay thin. The first version can be a small native macOS app that owns the menu bar icon, notification identity, and recent event UI. If a pure-Go menu bar implementation proves reliable enough, it can be considered, but the architecture should not force the product into a non-native Mac UX just to keep one language.
+`Mews.app` should stay thin. The init-preview app is a small Swift/AppKit LSUIElement app that owns the menu bar icon and recent event UI while reusing the Go helper for local IPC. If a pure-Go menu bar implementation proves reliable enough, it can be considered, but the architecture should not force the product into a non-native Mac UX just to keep one language.
 
 Do not use Rust in the first version. Mews needs simple distribution, fast iteration, and boring local tooling more than Rust's extra safety guarantees.
 

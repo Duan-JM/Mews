@@ -16,7 +16,7 @@ Mews 会盯着你在终端里运行的 AI agent，把它们的生命周期事件
 
 当 Claude Code、Codex、Copilot CLI 或一个长时间运行的终端命令完成、失败或需要你处理时，Mews 会提醒你。
 
-> 仓库目前处于 init preview。`mw` CLI、Copilot hook 接入、本地事件日志和安全命令已经可用；菜单栏 app 还在计划中。
+> 仓库目前处于 init preview。`mw` CLI、Copilot hook 接入、本地事件日志、安全命令和一个轻量菜单栏 app 已经可用；更完整的 Mac 分发还在计划中。
 
 ## 安装
 
@@ -26,6 +26,7 @@ Mews 会盯着你在终端里运行的 AI agent，把它们的生命周期事件
 make build
 ./bin/mw setup
 ./bin/mw setup --yes
+./bin/mw start
 ./bin/mw doctor
 ```
 
@@ -37,7 +38,7 @@ mw setup --yes
 mw start
 ```
 
-`mw setup` 会先展示 Mews 准备写入的本地改动。`mw setup --yes` 才会应用这些 Mews-owned 设置。`mw start` 预留给之后的菜单栏 companion，现在会明确提示 app 还没有打包。
+`mw setup` 会先展示 Mews 准备写入的本地改动。`mw setup --yes` 才会应用这些 Mews-owned 设置。`mw start` 会安装当前用户的 LaunchAgent，并启动由 `make build` 打包出来的轻量菜单栏 companion。
 
 默认通知会带上安全上下文，比如工具、状态、项目名、工作目录，以及工具提供的 session id。如果你希望通知里带一个简短任务标题，需要显式开启：
 
@@ -63,13 +64,12 @@ Mews 把这些隐藏状态变成本地、低打扰的提醒。
 
 - agent 生命周期事件到达 Mews 时发出简短通知。
 - 本地 JSONL 历史记录，错过通知后还能找回。
-- `doctor` 会清楚显示 setup、hook、计划中的菜单栏 app 是否可用。
+- 菜单栏 companion 会显示最新本地状态和最近事件。
+- `doctor` 会清楚显示 setup、hook、LaunchAgent、socket 和菜单栏 app 是否可用。
 
-## 计划中的 Mac companion
+## Mac companion
 
-- 菜单栏图标显示 agent 是运行中、完成、失败还是等待输入。
-- 菜单栏下拉展示最近事件。
-- 没有任务时保持安静。
+当前菜单栏 companion 故意保持轻量。它会启动本地 IPC agent，读取本地事件历史，并把最新状态留在菜单栏里。
 
 之后的 **Mews for Mac** 可以加入刘海小猫：agent 运行时小猫走动，空闲时睡觉，完成时跳一下，需要你处理时吸引注意。
 
@@ -130,15 +130,15 @@ Mews 不是 AI 聊天应用，不是 Claude wrapper，不是 Codex dashboard，�
 
 - Copilot CLI hook setup
 - 本地通知和事件历史
+- 菜单栏状态
 - Setup doctor、undo 和 reset
-- Mac app 做出来之前，先提供终端监听模式
+- 用于前台调试的终端监听模式
 - 本地 agent 和事件管线
 - 可脚本化事件通知
 
 ### 接下来
 
 - Claude Code 和 Codex 接入
-- 菜单栏状态
 - 每个接入都支持安全撤销
 - Homebrew 安装
 

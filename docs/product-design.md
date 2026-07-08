@@ -72,14 +72,14 @@ Must have:
 5. `mw doctor` that reports setup, hook, store, and companion state honestly.
 6. `mw undo` for Mews-owned integrations.
 7. Clear privacy copy in the README.
+8. A thin menu bar companion launched by `mw start`.
 
 Can wait:
 
-1. Menu bar companion packaging.
-2. Claude Code and Codex hooks.
-3. Graphical setup.
-4. Long-term event history.
-5. Automatic terminal-state detection.
+1. Claude Code and Codex hooks.
+2. Graphical setup.
+3. Long-term event history.
+4. Automatic terminal-state detection.
 
 ## State Model
 

@@ -15,7 +15,7 @@ The product should feel like a Mole-style local Mac utility: simple command surf
 
 ## Current State
 
-This repository has an init-preview Go CLI plus product and architecture docs. `README.md`, `docs/architecture.md`, and `docs/product-design.md` define the product direction. Do not assume planned menu bar behavior, tests, or release workflows are complete until the files and verification commands exist.
+This repository has an init-preview Go CLI, a thin Swift/AppKit menu bar app, and product and architecture docs. `README.md`, `docs/architecture.md`, and `docs/product-design.md` define the product direction. Do not assume planned integrations, tests, or release workflows are complete until the files and verification commands exist.
 
 ## Commands
 
@@ -100,7 +100,7 @@ Follow Go's `cmd/` + `internal/` convention. Keep most implementation private. K
 
 ## Code Style
 
-- Primary language: Go.
+- Primary language: Go. The thin menu bar app uses Swift/AppKit.
 - Use `gofmt` for all Go code.
 - Keep package names short, lowercase, and specific.
 - Prefer small interfaces at package boundaries.
