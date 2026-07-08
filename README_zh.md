@@ -101,6 +101,10 @@ Mews 的隐私边界应该简单、可审计。
 mw setup       # 查看 setup 计划
 mw setup --yes # 应用 Mews-owned setup
 mw setup --yes --include-task-title # 显式开启本地短任务标题
+mw start       # setup 后启动本地 agent
+mw status      # 查看当前本地状态
+mw history     # 查看最近本地事件
+mw listen      # 在终端里监听并打印事件
 mw doctor      # 检查 setup 和接入状态
 mw undo        # 移除 Mews 安装的接入和 setup state
 ```
@@ -110,8 +114,7 @@ mw undo        # 移除 Mews 安装的接入和 setup state
 ```bash
 mw notify      # 发送自定义状态事件
 mw run -- cmd  # 运行命令，并在退出时通知
-mw start       # 启动菜单栏 companion（planned app）
-mw stop        # 停止菜单栏 companion
+mw stop        # 停止本地 agent
 mw reset --yes # 删除 Mews 本地数据和日志
 ```
 
@@ -128,6 +131,9 @@ Mews 不是 AI 聊天应用，不是 Claude wrapper，不是 Codex dashboard，�
 - Copilot CLI hook setup
 - 本地通知和事件历史
 - Setup doctor、undo 和 reset
+- Mac app 做出来之前，先提供终端监听模式
+- 本地 agent 和事件管线
+- 可脚本化事件通知
 
 ### 接下来
 

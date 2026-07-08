@@ -40,6 +40,8 @@ func FromArgs(args []string) (Event, error) {
 	message := fs.String("message", "", "event message")
 	sessionID := fs.String("session", "", "session identifier")
 	hookEvent := fs.String("hook-event", "", "source hook event name")
+	cwd := fs.String("cwd", "", "working directory")
+	pid := fs.Int("pid", 0, "process identifier")
 	fs.SetOutput(io.Discard)
 
 	if err := fs.Parse(args); err != nil {
@@ -54,6 +56,8 @@ func FromArgs(args []string) (Event, error) {
 		Project:   *project,
 		Status:    Status(*status),
 		Message:   *message,
+		CWD:       *cwd,
+		PID:       *pid,
 		Timestamp: time.Now(),
 	}, nil
 }

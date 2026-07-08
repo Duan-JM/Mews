@@ -13,6 +13,7 @@ import (
 	"github.com/Duan-JM/mews/internal/doctor"
 	"github.com/Duan-JM/mews/internal/events"
 	"github.com/Duan-JM/mews/internal/integrations"
+	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/store"
 )
 
@@ -32,10 +33,14 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runStart(stdout, stderr)
 	case "status":
 		return runStatus(stdout, stderr)
+	case "history":
+		return runHistory(stdout, stderr)
+	case "listen":
+		return runListen(stdout, stderr)
 	case "doctor":
 		return runDoctor(stdout, stderr)
 	case "stop":
-		return runStop(stdout)
+		return runStop(stdout, stderr)
 	case "undo":
 		return runUndo(stdout, stderr)
 	case "reset":
@@ -44,6 +49,8 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runNotify(args[1:], stdin, stdout, stderr)
 	case "run":
 		return runCommand(args[1:], stdin, stdout, stderr)
+	case "agent":
+		return runAgent(stdout, stderr)
 	case "--help", "-h", "help":
 		printHelp(stdout)
 		return 0
@@ -96,7 +103,7 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "  - record setup state for `mw doctor` and `mw undo`")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Not installed yet:")
-	fmt.Fprintln(stdout, "  - menu bar agent and LaunchAgent")
+	fmt.Fprintln(stdout, "  - menu bar companion and LaunchAgent")
 	fmt.Fprintln(stdout, "  - Claude Code lifecycle hooks")
 	fmt.Fprintln(stdout)
 
@@ -123,7 +130,7 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	state := store.SetupState{
 		Version:          1,
 		SetupAt:          time.Now(),
-		Agent:            "not packaged yet",
+		Agent:            "local agent available; menu bar not packaged yet",
 		Copilot:          "hooks installed",
 		CopilotHook:      copilotInstall.HookPath,
 		IncludeTaskTitle: includeTaskTitle,
@@ -144,14 +151,14 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	if includeTaskTitle {
 		fmt.Fprintln(stdout, "Task titles enabled. Mews stores at most 80 local-only characters from hook payloads.")
 	}
-	fmt.Fprintln(stdout, "Run `mw start` to start Mews when the menu bar agent is available.")
+	fmt.Fprintln(stdout, "Run `mw start` to start the local agent.")
 	return 0
 }
 
 func runStart(stdout, stderr io.Writer) int {
-	paths, err := store.Paths()
+	paths, err := store.Ensure()
 	if err != nil {
-		fmt.Fprintf(stderr, "Could not resolve Mews paths: %v\n", err)
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
 		return 1
 	}
 	if _, configured, err := store.LoadSetupState(); err != nil {
@@ -163,13 +170,43 @@ func runStart(stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "Run `mw setup --yes` to create Mews-owned setup state.")
 		return 1
 	}
+	if err := ipc.Ping(paths.Socket); err == nil {
+		fmt.Fprintln(stdout, "Mews local agent is already running.")
+		return 0
+	}
 
-	fmt.Fprintln(stdout, "Mews setup state found.")
+	logFile, err := os.OpenFile(filepath.Join(paths.Logs, "agent.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not open Mews agent log: %v\n", err)
+		return 1
+	}
+	defer logFile.Close()
+
+	executable, err := os.Executable()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not resolve Mews executable: %v\n", err)
+		return 1
+	}
+	cmd := exec.Command(executable, "agent")
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(stderr, "Could not start Mews local agent: %v\n", err)
+		return 1
+	}
+	if err := cmd.Process.Release(); err != nil {
+		fmt.Fprintf(stderr, "Could not release Mews local agent: %v\n", err)
+		return 1
+	}
+
+	if err := waitForAgent(paths.Socket, 2*time.Second); err != nil {
+		fmt.Fprintf(stderr, "Mews local agent did not start: %v\n", err)
+		return 1
+	}
+
+	fmt.Fprintln(stdout, "Mews local agent is running.")
 	fmt.Fprintf(stdout, "  Store: %s\n", paths.AppSupport)
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Menu bar companion is not packaged yet.")
-	fmt.Fprintln(stdout, "Run `mw doctor` to inspect the local setup.")
-	return 1
+	return 0
 }
 
 func runStatus(stdout, stderr io.Writer) int {
@@ -189,7 +226,45 @@ func runStatus(stdout, stderr io.Writer) int {
 	} else {
 		fmt.Fprintln(stdout, "Setup: not set up")
 	}
-	fmt.Fprintln(stdout, "Agent: not packaged yet")
+	if err := ipc.Ping(paths.Socket); err == nil {
+		fmt.Fprintln(stdout, "Agent: running")
+	} else {
+		fmt.Fprintln(stdout, "Agent: not running")
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not read event history: %v\n", err)
+		return 1
+	}
+	if len(recent) == 0 {
+		fmt.Fprintln(stdout, "Latest event: no events yet")
+		return 0
+	}
+	printEventSummary(stdout, "Latest event", recent[0])
+	return 0
+}
+
+func runHistory(stdout, stderr io.Writer) int {
+	paths, err := store.Paths()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not resolve Mews paths: %v\n", err)
+		return 1
+	}
+
+	recent, err := store.ReadEvents(paths.Events, 10)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not read event history: %v\n", err)
+		return 1
+	}
+
+	fmt.Fprintln(stdout, "Mews History")
+	if len(recent) == 0 {
+		fmt.Fprintln(stdout, "No events yet.")
+		return 0
+	}
+	for _, event := range recent {
+		printEventSummary(stdout, "-", event)
+	}
 	return 0
 }
 
@@ -206,8 +281,21 @@ func runDoctor(stdout, stderr io.Writer) int {
 	return 0
 }
 
-func runStop(stdout io.Writer) int {
-	fmt.Fprintln(stdout, "Mews menu bar companion is not running.")
+func runStop(stdout, stderr io.Writer) int {
+	paths, err := store.Paths()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not resolve Mews paths: %v\n", err)
+		return 1
+	}
+	if err := ipc.Stop(paths.Socket); err != nil {
+		if err == ipc.ErrUnavailable {
+			fmt.Fprintln(stdout, "Mews local agent is not running.")
+			return 0
+		}
+		fmt.Fprintf(stderr, "Could not stop Mews local agent: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "Mews local agent stopped.")
 	return 0
 }
 
@@ -274,22 +362,28 @@ func runNotify(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 2
 		}
 	}
+	if cwd, err := os.Getwd(); err == nil && event.CWD == "" {
+		event.CWD = cwd
+	}
+	if event.PID == 0 {
+		event.PID = os.Getpid()
+	}
 	if err := event.Validate(); err != nil {
 		fmt.Fprintf(stderr, "Invalid event: %v\n", err)
 		return 2
 	}
-	if cwd, err := os.Getwd(); err == nil && event.CWD == "" {
-		event.CWD = cwd
-	}
-	event.PID = os.Getpid()
-
-	data, err := json.Marshal(event)
+	paths, err := store.Ensure()
 	if err != nil {
-		fmt.Fprintf(stderr, "Could not encode event: %v\n", err)
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
 		return 1
 	}
-	if err := store.AppendEventJSON(data); err != nil {
-		fmt.Fprintf(stderr, "Could not write event: %v\n", err)
+	if err := ipc.SendEvent(paths.Socket, event); err == nil {
+		notifyDesktop(event)
+		fmt.Fprintf(stdout, "Mews event sent: %s %s\n", event.Source, event.Status)
+		return 0
+	}
+	if err := store.AppendEvent(paths.Events, event); err != nil {
+		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
 		return 1
 	}
 	notifyDesktop(event)
@@ -402,6 +496,44 @@ func notifyDesktop(event events.Event) {
 	_ = exec.Command("osascript", "-e", fmt.Sprintf("display notification %q with title %q", message, title)).Run()
 }
 
+func runAgent(stdout, stderr io.Writer) int {
+	paths, err := store.Ensure()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "Mews local agent started.")
+	if err := ipc.ServeWithObserver(paths.Socket, paths.Events, func(event events.Event) {
+		printEventSummary(stdout, "Event", event)
+	}); err != nil {
+		fmt.Fprintf(stderr, "Mews local agent failed: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func runListen(stdout, stderr io.Writer) int {
+	paths, err := store.Ensure()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+		return 1
+	}
+	if err := ipc.Ping(paths.Socket); err == nil {
+		fmt.Fprintln(stderr, "Mews local agent is already running. Stop it before using foreground listen.")
+		return 1
+	}
+
+	fmt.Fprintf(stdout, "Mews is listening on %s\n", paths.Socket)
+	fmt.Fprintln(stdout, "Press Ctrl+C to stop, or run `mw stop` from another terminal.")
+	if err := ipc.ServeWithObserver(paths.Socket, paths.Events, func(event events.Event) {
+		printEventSummary(stdout, "Event", event)
+	}); err != nil {
+		fmt.Fprintf(stderr, "Mews listener failed: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
 func runCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 || args[0] != "--" || len(args) == 1 {
 		fmt.Fprintln(stderr, "Usage: mw run -- <command>")
@@ -415,15 +547,50 @@ func runCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(stderr, "Mews: command failed: %s\n", strings.Join(args[1:], " "))
+	paths, err := store.Ensure()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+		return 1
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not resolve working directory: %v\n", err)
+		return 1
+	}
+	commandText := strings.Join(args[1:], " ")
+
+	if err := cmd.Start(); err != nil {
+		if saveErr := store.AppendEvent(paths.Events, commandEvent(events.StatusFailed, commandText, cwd, 0)); saveErr != nil {
+			fmt.Fprintf(stderr, "Could not save event: %v\n", saveErr)
+			return 1
+		}
+		fmt.Fprintf(stderr, "Mews: command failed to start: %s\n", commandText)
+		return 1
+	}
+
+	if err := store.AppendEvent(paths.Events, commandEvent(events.StatusRunning, commandText, cwd, cmd.Process.Pid)); err != nil {
+		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
+		return 1
+	}
+
+	if err := cmd.Wait(); err != nil {
+		if saveErr := store.AppendEvent(paths.Events, commandEvent(events.StatusFailed, commandText, cwd, cmd.Process.Pid)); saveErr != nil {
+			fmt.Fprintf(stderr, "Could not save event: %v\n", saveErr)
+			return 1
+		}
+		fmt.Fprintf(stderr, "Mews: command failed: %s\n", commandText)
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return exitErr.ExitCode()
 		}
 		return 1
 	}
 
-	fmt.Fprintf(stdout, "Mews: command completed: %s\n", strings.Join(args[1:], " "))
+	if err := store.AppendEvent(paths.Events, commandEvent(events.StatusDone, commandText, cwd, cmd.Process.Pid)); err != nil {
+		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "Mews: command completed: %s\n", commandText)
 	return 0
 }
 
@@ -434,6 +601,8 @@ Usage:
   mw setup [--yes] [--include-task-title]
   mw start
   mw status
+  mw history
+  mw listen
   mw doctor
   mw stop
   mw undo
@@ -442,4 +611,42 @@ Usage:
   mw run -- <command>
 
 `)
+}
+
+func printEventSummary(w io.Writer, prefix string, event events.Event) {
+	message := event.Message
+	if message == "" {
+		message = "no message"
+	}
+	project := event.Project
+	if project == "" {
+		project = "unknown project"
+	}
+	fmt.Fprintf(w, "%s: %s %s (%s) %s\n", prefix, event.Source, event.Status, project, message)
+}
+
+func commandEvent(status events.Status, commandText, cwd string, pid int) events.Event {
+	project := filepath.Base(cwd)
+	return events.Event{
+		Version:   1,
+		Source:    "runner",
+		SessionID: project,
+		Project:   project,
+		Status:    status,
+		Message:   commandText,
+		CWD:       cwd,
+		PID:       pid,
+		Timestamp: time.Now(),
+	}
+}
+
+func waitForAgent(socketPath string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := ipc.Ping(socketPath); err == nil {
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return ipc.ErrUnavailable
 }

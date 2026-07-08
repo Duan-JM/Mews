@@ -36,10 +36,12 @@ Planned user commands:
 
 ```bash
 mw setup      # Show and apply supported local integrations
-mw start      # Start the menu bar companion after setup
+mw start      # Start the local agent after setup
 mw status     # Print current watched tools and agent state
+mw history    # Show recent local events
+mw listen     # Listen in the terminal and print events as they arrive
 mw doctor     # Diagnose permissions, integrations, LaunchAgent, and IPC
-mw stop       # Stop the menu bar companion
+mw stop       # Stop the local agent
 mw undo       # Remove Mews-installed integrations and restore backups
 mw reset      # Delete local Mews data and logs
 

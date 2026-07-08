@@ -101,6 +101,10 @@ Most users should only need these commands:
 mw setup       # Show the setup plan
 mw setup --yes # Apply Mews-owned setup
 mw setup --yes --include-task-title # Opt in to short local task labels
+mw start       # Start the local agent after setup
+mw status      # Show the current local state
+mw history     # Show recent local events
+mw listen      # Listen in the terminal and print events as they arrive
 mw doctor      # Check setup and fix anything that needs attention
 mw undo        # Remove Mews-installed integrations and setup state
 ```
@@ -110,8 +114,7 @@ For people who want to script Mews directly:
 ```bash
 mw notify      # Send a custom status event
 mw run -- cmd  # Run a command and notify when it exits
-mw start       # Start the menu bar companion after setup (planned app)
-mw stop        # Stop the menu bar companion
+mw stop        # Stop the local agent
 mw reset --yes # Delete local Mews data and logs
 ```
 
@@ -128,6 +131,9 @@ It is a small Mac companion for people who run AI agents in terminals and do not
 - Copilot CLI hook setup
 - Local notifications and event history
 - Setup doctor, undo, and reset
+- Terminal listener before the Mac app exists
+- Local agent and event pipeline
+- Scriptable event notifications
 
 ### Planned next
 
