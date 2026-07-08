@@ -5,16 +5,15 @@ Mews is still in project initialization. This document tracks the safety checks 
 ## MVP Safety Checklist
 
 - Event validation rejects unknown statuses and unsupported schema versions.
-- `mews notify` accepts only metadata needed for local status display.
-- `mews run -- <command>` reports exit status without rewriting the command.
+- `mw notify` accepts only metadata needed for local status display.
+- `mw run -- <command>` reports exit status without rewriting the command.
 - Local state stays under `~/Library/Application Support/Mews/`.
 - Logs stay under `~/Library/Logs/Mews/`.
 - Integration edits create backups before writing.
-- `mews undo` removes only Mews-owned integration blocks.
+- `mw undo` removes only Mews-owned integration blocks.
 - Malformed third-party config files are not edited.
 - Core functionality does not require network access.
 
 ## Current State
 
-The repository contains an initial Go CLI skeleton, project documentation, and safety policy. The menu bar agent and integration installers are not implemented yet.
-
+The repository contains an init-preview Go CLI, project documentation, and safety policy. Copilot CLI user-level hook installation is implemented with Mews-owned files and `mw undo` removal. The menu bar agent, LaunchAgent, Claude Code integration, and Codex integration are not implemented yet.
