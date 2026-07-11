@@ -14,9 +14,14 @@ import (
 
 const Label = "dev.mews.agent"
 
+var runLaunchctl = func(args ...string) ([]byte, error) {
+	return exec.Command("launchctl", args...).CombinedOutput()
+}
+
 type Job struct {
 	Label      string
 	Program    string
+	HomePath   string
 	StdoutPath string
 	StderrPath string
 }
@@ -47,10 +52,15 @@ func Install(program, logsDir string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return "", err
 	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
 
 	data, err := Render(Job{
 		Label:      Label,
 		Program:    program,
+		HomePath:   home,
 		StdoutPath: filepath.Join(logsDir, "app.log"),
 		StderrPath: filepath.Join(logsDir, "app.log"),
 	})
@@ -89,7 +99,17 @@ func Bootout() error {
 	} else if err != nil {
 		return err
 	}
-	if err := launchctl("bootout", guiDomain(), path); err != nil && !isLaunchctlNotLoaded(err) {
+	loaded, status, err := loadedStatus()
+	if err != nil {
+		if isLaunchctlNotLoadedText(status) {
+			return nil
+		}
+		return fmt.Errorf("launchctl print %s/%s: %s", guiDomain(), Label, status)
+	}
+	if !loaded {
+		return nil
+	}
+	if err := launchctl("bootout", guiDomain()+"/"+Label); err != nil && !isLaunchctlNotLoaded(err) {
 		return err
 	}
 	return nil
@@ -107,21 +127,24 @@ func RemovePlist() error {
 }
 
 func Loaded() (bool, string) {
-	cmd := exec.Command("launchctl", "print", guiDomain()+"/"+Label)
-	output, err := cmd.CombinedOutput()
+	loaded, status, _ := loadedStatus()
+	return loaded, status
+}
+
+func loadedStatus() (bool, string, error) {
+	output, err := runLaunchctl("print", guiDomain()+"/"+Label)
 	if err != nil {
 		text := strings.TrimSpace(string(output))
 		if text == "" {
 			text = "not loaded"
 		}
-		return false, text
+		return false, text, err
 	}
-	return true, "loaded"
+	return true, "loaded", nil
 }
 
 func launchctl(args ...string) error {
-	cmd := exec.Command("launchctl", args...)
-	output, err := cmd.CombinedOutput()
+	output, err := runLaunchctl(args...)
 	if err == nil {
 		return nil
 	}
@@ -137,7 +160,10 @@ func guiDomain() string {
 }
 
 func isLaunchctlNotLoaded(err error) bool {
-	text := err.Error()
+	return isLaunchctlNotLoadedText(err.Error())
+}
+
+func isLaunchctlNotLoadedText(text string) bool {
 	return strings.Contains(text, "Could not find service") ||
 		strings.Contains(text, "No such process") ||
 		strings.Contains(text, "not found")
@@ -165,6 +191,11 @@ var plistTemplate = template.Must(template.New("launchd-plist").Funcs(template.F
   </array>
   <key>RunAtLoad</key>
   <true/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>{{plist .HomePath}}</string>
+  </dict>
   <key>StandardOutPath</key>
   <string>{{plist .StdoutPath}}</string>
   <key>StandardErrorPath</key>

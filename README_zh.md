@@ -139,7 +139,13 @@ Mews 不是 AI 聊天应用，不是 Claude wrapper，不是 Codex dashboard，�
 
 ## 发布
 
-维护者在 macOS 上生成签名发布包：
+维护者可以先运行不需要签名凭据的发布检查：
+
+```bash
+VERSION=vX.Y.Z make release-check
+```
+
+正式发布需要在与 `origin/main` 同步的干净 `main` 分支上运行：
 
 ```bash
 VERSION=vX.Y.Z \
@@ -148,7 +154,7 @@ NOTARY_PROFILE=mews-notary \
 make release
 ```
 
-发布命令强制要求签名和公证凭证，使用 Gatekeeper 校验 App，并生成 tarball、SHA-256 校验文件，以及用于发布到 Homebrew tap 的版本固定 `dist/mews.rb` formula。缺少凭证时不会生成形式上像正式发布、实际未签名的产物。
+`make release-check` 会运行测试、lint、安装包校验和检查，以及隔离的安装后运行 smoke，不需要签名凭据。正式发布命令强制要求签名和公证凭据，使用 Gatekeeper 校验 App，并生成 tarball、SHA-256 校验文件，以及用于发布到 Homebrew tap 的版本固定 `dist/mews.rb` formula。缺少凭据时不会生成形式上像正式发布、实际未签名的产物。
 
 ## 路线图
 

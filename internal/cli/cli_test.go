@@ -391,15 +391,22 @@ func TestLegacyUndoUsesRecordedCopilotPath(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
 	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
 
-	var setupOut, setupErr bytes.Buffer
-	if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &setupOut, &setupErr); code != 0 {
-		t.Fatalf("setup returned %d, stderr: %s", code, setupErr.String())
-	}
 	hookPath := filepath.Join(firstHome, "hooks", "mews.json")
+	if err := os.MkdirAll(filepath.Dir(hookPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(hookPath, legacyCopilotHookJSON(), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.RemoveIntegrationState(); err != nil {
+	if err := store.SaveSetupState(store.SetupState{
+		Version:     1,
+		SetupAt:     time.Now(),
+		Agent:       "not packaged yet",
+		Copilot:     "hooks installed",
+		CopilotHook: hookPath,
+		Claude:      "hooks not installed",
+		UndoReady:   true,
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -410,6 +417,42 @@ func TestLegacyUndoUsesRecordedCopilotPath(t *testing.T) {
 	}
 	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
 		t.Fatalf("recorded legacy Copilot hook remains: %v", err)
+	}
+}
+
+func TestUndoRefusesWhenCurrentIntegrationStateIsMissing(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+
+	var setupOut, setupErr bytes.Buffer
+	if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &setupOut, &setupErr); code != 0 {
+		t.Fatalf("setup returned %d, stderr: %s", code, setupErr.String())
+	}
+	if err := store.RemoveIntegrationState(); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"undo"}, strings.NewReader(""), &stdout, &stderr); code != 1 {
+		t.Fatalf("undo returned %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "integration rollback state is missing") {
+		t.Fatalf("undo did not explain missing rollback state: %q", stderr.String())
+	}
+	if _, configured, err := store.LoadSetupState(); err != nil || !configured {
+		t.Fatalf("setup state was removed: configured=%v err=%v", configured, err)
+	}
+	for _, path := range []string{
+		filepath.Join(home, "copilot", "hooks", "mews.json"),
+		filepath.Join(home, "claude", "settings.json"),
+		filepath.Join(home, "codex", "config.toml"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("integration was changed after failed undo: %s: %v", path, err)
+		}
 	}
 }
 

@@ -352,6 +352,11 @@ func runUndo(stdout, stderr io.Writer) int {
 			return 1
 		}
 	} else {
+		if setupState.Claude == "hooks installed" {
+			fmt.Fprintln(stderr, "Could not remove integrations: integration rollback state is missing.")
+			fmt.Fprintln(stderr, "Restore integrations.json from backup before retrying `mw undo`.")
+			return 1
+		}
 		hookPath := setupState.CopilotHook
 		var err error
 		if hookPath != "" {

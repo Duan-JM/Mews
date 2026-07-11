@@ -13,8 +13,8 @@ fi
 
 go vet ./...
 
-if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck install.sh scripts/*.sh
-else
-  echo "shellcheck not found; skipping shell script lint"
+if ! command -v shellcheck >/dev/null 2>&1; then
+  echo "shellcheck is required for shell script lint" >&2
+  exit 1
 fi
+shellcheck install.sh scripts/*.sh
