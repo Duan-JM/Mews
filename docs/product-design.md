@@ -67,19 +67,20 @@ Must have:
 
 1. `mw setup --yes`
 2. `mw notify --source copilot --status done --project Mews --message "Task finished"`
-3. Copilot CLI lifecycle hooks for done, failed, and idle states.
+3. Claude Code, Codex, and Copilot CLI lifecycle integration.
 4. Local event history.
 5. `mw doctor` that reports setup, hook, store, and companion state honestly.
 6. `mw undo` for Mews-owned integrations.
 7. Clear privacy copy in the README.
 8. A thin menu bar companion launched by `mw start`.
+9. Versioned, checksummed packages and a credential-gated signed release path.
 
 Can wait:
 
-1. Claude Code and Codex hooks.
-2. Graphical setup.
-3. Long-term event history.
-4. Automatic terminal-state detection.
+1. Graphical setup.
+2. Long-term event history.
+3. Automatic terminal-state detection.
+4. Quiet mode and richer notification rules.
 
 ## State Model
 
@@ -116,16 +117,18 @@ Events stay deliberately small:
 
 ## Install and Distribution
 
-The expected path is:
+The release package path is:
 
 ```bash
-brew install mews
+tar -xzf mews-vX.Y.Z-darwin.tar.gz
+cd mews-vX.Y.Z-darwin
+sudo ./install.sh
 mw setup --yes
 mw doctor
 mw notify --status done --message "Hello"
 ```
 
-During the init preview, local builds use:
+Local development uses:
 
 ```bash
 make build

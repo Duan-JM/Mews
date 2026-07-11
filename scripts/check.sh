@@ -18,4 +18,3 @@ if command -v shellcheck >/dev/null 2>&1; then
 else
   echo "shellcheck not found; skipping shell script lint"
 fi
-

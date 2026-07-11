@@ -3,7 +3,9 @@ name: test
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
 
 jobs:
   test:

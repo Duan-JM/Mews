@@ -7,7 +7,7 @@ Long-form design notes live here so the repository root stays product-facing.
 
 Root documents:
 
-- [README](../README.md): public overview and current init-preview usage.
+- [README](../README.md): public overview, installation, and current MVP usage.
 - [CONTRIBUTING](../CONTRIBUTING.md): local development and safety expectations.
 - [SECURITY](../SECURITY.md): reporting guidance and security boundaries.
 - [SECURITY_AUDIT](../SECURITY_AUDIT.md): safety checklist and current implementation state.

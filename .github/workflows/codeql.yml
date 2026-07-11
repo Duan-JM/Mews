@@ -3,7 +3,9 @@ name: codeql
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
   schedule:
     - cron: "30 3 * * 1"
 

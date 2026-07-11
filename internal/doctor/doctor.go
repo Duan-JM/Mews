@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -35,14 +36,15 @@ func Check() (Report, error) {
 
 	setupStatus := "not set up; run `mw setup`"
 	undoStatus := "nothing to undo"
-	copilotStatus, copilotOK := integrations.CopilotHookStatus()
-	claudeStatus := "not installed by Mews"
+	_, integrationsConfigured, err := store.LoadIntegrationState()
+	if err != nil {
+		return Report{}, err
+	}
 	if configured {
 		setupStatus = "configured"
-		if state.UndoReady {
+		if state.UndoReady && integrationsConfigured {
 			undoStatus = "ready"
 		}
-		claudeStatus = state.Claude
 	}
 
 	results := []CheckResult{
@@ -54,12 +56,44 @@ func Check() (Report, error) {
 		checkLaunchAgent(),
 		checkAgent(paths.Socket),
 		checkSocket(paths.Socket),
-		{Name: "Copilot CLI", Status: copilotStatus, OK: copilotOK},
-		{Name: "Claude Code", Status: claudeStatus, OK: claudeStatus == "enabled"},
-		{Name: "Undo", Status: undoStatus, OK: configured},
+		checkNotifications(paths.NotificationStatus),
+		{Name: "Undo", Status: undoStatus, OK: configured && integrationsConfigured},
+	}
+	for _, integration := range integrations.Statuses() {
+		results = append(results, CheckResult{
+			Name: integration.Name, Status: integration.Status, OK: integration.OK,
+		})
 	}
 
 	return Report{Results: results}, nil
+}
+
+func checkNotifications(path string) CheckResult {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return CheckResult{
+			Name: "Notifications", Status: "unknown; start Mews.app once", OK: false,
+		}
+	}
+	if err != nil {
+		return CheckResult{Name: "Notifications", Status: "unreadable", OK: false}
+	}
+	var state struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(data, &state); err != nil {
+		return CheckResult{Name: "Notifications", Status: "invalid status file", OK: false}
+	}
+	switch state.Status {
+	case "authorized":
+		return CheckResult{Name: "Notifications", Status: "authorized", OK: true}
+	case "denied":
+		return CheckResult{Name: "Notifications", Status: "denied in System Settings", OK: false}
+	case "not_determined":
+		return CheckResult{Name: "Notifications", Status: "permission not decided", OK: false}
+	default:
+		return CheckResult{Name: "Notifications", Status: "unknown", OK: false}
+	}
 }
 
 func (r Report) HasFailures() bool {
