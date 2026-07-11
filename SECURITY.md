@@ -4,7 +4,7 @@ Mews is a local macOS utility. Its core job is to connect local AI coding tools 
 
 ## Supported Versions
 
-Mews has not shipped a stable release yet. Security reports should target the current `main` or `dev` branch until a release policy exists.
+Mews is preparing its first signed MVP release. Security reports should target the latest published release or the current `dev` branch.
 
 ## Reporting a Vulnerability
 
@@ -25,4 +25,4 @@ Do not include private prompts, code, or transcripts in public issues.
 - No terminal scrollback scraping by default.
 - No execution of shell commands from received events.
 - Integration edits must be backed up and reversible through `mw undo`.
-
+- Formal release artifacts must be signed, notarized, Gatekeeper-verified, and published with a SHA-256 checksum.

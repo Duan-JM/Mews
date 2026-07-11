@@ -2,12 +2,14 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Duan-JM/mews/internal/app"
@@ -16,10 +18,13 @@ import (
 	"github.com/Duan-JM/mews/internal/integrations"
 	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/launchd"
+	"github.com/Duan-JM/mews/internal/notify"
 	"github.com/Duan-JM/mews/internal/store"
 )
 
-const version = "0.0.0-dev"
+var version = "dev"
+var sendNotification = notify.Send
+var deliverEventFn = deliverEvent
 
 // Run executes the mw CLI and returns a process exit code.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -49,6 +54,8 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runReset(args[1:], stdout, stderr)
 	case "notify":
 		return runNotify(args[1:], stdin, stdout, stderr)
+	case "hook":
+		return runHook(args[1:], stdin, stdout, stderr)
 	case "run":
 		return runCommand(args[1:], stdin, stdout, stderr)
 	case "agent":
@@ -101,6 +108,12 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 	if hookPath, err := integrations.CopilotHookPath(); err == nil {
 		fmt.Fprintf(stdout, "  - install Copilot CLI hooks: %s\n", hookPath)
 	}
+	if settingsPath, err := integrations.ClaudeSettingsPath(); err == nil {
+		fmt.Fprintf(stdout, "  - install Claude Code hooks: %s\n", settingsPath)
+	}
+	if configPath, err := integrations.CodexConfigPath(); err == nil {
+		fmt.Fprintf(stdout, "  - install Codex notify integration: %s\n", configPath)
+	}
 	fmt.Fprintln(stdout, "  - include project, cwd, hook event, and session metadata in events")
 	if includeTaskTitle {
 		fmt.Fprintln(stdout, "  - include a local-only task title, truncated to 80 characters")
@@ -108,9 +121,6 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "  - skip task titles by default; use --include-task-title to opt in")
 	}
 	fmt.Fprintln(stdout, "  - record setup state for `mw doctor` and `mw undo`")
-	fmt.Fprintln(stdout)
-	fmt.Fprintln(stdout, "Not installed yet:")
-	fmt.Fprintln(stdout, "  - Claude Code lifecycle hooks")
 	fmt.Fprintln(stdout)
 
 	if !apply {
@@ -124,12 +134,10 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not resolve mw executable path: %v\n", err)
 		return 1
 	}
-	if resolved, err := filepath.EvalSymlinks(mwPath); err == nil {
-		mwPath = resolved
-	}
-	copilotInstall, err := integrations.InstallCopilotHooks(mwPath)
+	mwPath = app.StableInstalledPath(mwPath)
+	installed, err := integrations.InstallAll(mwPath)
 	if err != nil {
-		fmt.Fprintf(stderr, "Could not install Copilot hooks: %v\n", err)
+		fmt.Fprintf(stderr, "Could not install integrations: %v\n", err)
 		return 1
 	}
 
@@ -138,21 +146,24 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 		SetupAt:          time.Now(),
 		Agent:            "menu bar app configured",
 		Copilot:          "hooks installed",
-		CopilotHook:      copilotInstall.HookPath,
 		IncludeTaskTitle: includeTaskTitle,
-		Claude:           "hooks not installed",
+		Claude:           "hooks installed",
 		UndoReady:        true,
 	}
+	for _, integration := range installed {
+		if integration.Name == "copilot" {
+			state.CopilotHook = integration.Path
+		}
+	}
 	if err := store.SaveSetupState(state); err != nil {
+		_ = integrations.UndoAll()
 		fmt.Fprintf(stderr, "Could not save setup state: %v\n", err)
 		return 1
 	}
 
 	fmt.Fprintln(stdout, "Mews setup state saved.")
-	if copilotInstall.Existed {
-		fmt.Fprintf(stdout, "Refreshed Copilot hook: %s\n", copilotInstall.HookPath)
-	} else {
-		fmt.Fprintf(stdout, "Installed Copilot hook: %s\n", copilotInstall.HookPath)
+	for _, integration := range installed {
+		fmt.Fprintf(stdout, "Installed %s integration: %s\n", integration.Name, integration.Path)
 	}
 	if includeTaskTitle {
 		fmt.Fprintln(stdout, "Task titles enabled. Mews stores at most 80 local-only characters from hook payloads.")
@@ -320,17 +331,38 @@ func runStop(stdout, stderr io.Writer) int {
 }
 
 func runUndo(stdout, stderr io.Writer) int {
-	if _, configured, err := store.LoadSetupState(); err != nil {
+	setupState, setupConfigured, err := store.LoadSetupState()
+	if err != nil {
 		fmt.Fprintf(stderr, "Could not read setup state: %v\n", err)
 		return 1
-	} else if !configured {
+	}
+	_, integrationsConfigured, err := store.LoadIntegrationState()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not read integration state: %v\n", err)
+		return 1
+	}
+	if !setupConfigured && !integrationsConfigured {
 		fmt.Fprintln(stdout, "No Mews setup state or integrations are installed.")
 		return 0
 	}
 
-	if err := integrations.RemoveCopilotHooks(); err != nil {
-		fmt.Fprintf(stderr, "Could not remove Copilot hooks: %v\n", err)
-		return 1
+	if integrationsConfigured {
+		if err := integrations.UndoAll(); err != nil {
+			fmt.Fprintf(stderr, "Could not remove integrations: %v\n", err)
+			return 1
+		}
+	} else {
+		hookPath := setupState.CopilotHook
+		var err error
+		if hookPath != "" {
+			err = integrations.RemoveRecordedCopilotHookAt(hookPath)
+		} else {
+			err = integrations.RemoveCopilotHooks()
+		}
+		if err != nil {
+			fmt.Fprintf(stderr, "Could not remove integrations: %v\n", err)
+			return 1
+		}
 	}
 	if err := launchd.Bootout(); err != nil {
 		fmt.Fprintf(stderr, "Could not unload Mews LaunchAgent: %v\n", err)
@@ -346,7 +378,7 @@ func runUndo(stdout, stderr io.Writer) int {
 	}
 
 	fmt.Fprintln(stdout, "Removed Mews setup state.")
-	fmt.Fprintln(stdout, "Removed Mews-owned Copilot hooks.")
+	fmt.Fprintln(stdout, "Removed Mews-owned integrations.")
 	fmt.Fprintln(stdout, "Removed Mews LaunchAgent.")
 	fmt.Fprintln(stdout, "Event history was kept. Run `mw reset --yes` to delete local Mews data.")
 	return 0
@@ -367,8 +399,24 @@ func runReset(args []string, stdout, stderr io.Writer) int {
 
 	if !apply {
 		fmt.Fprintln(stderr, "Usage: mw reset --yes")
-		fmt.Fprintln(stderr, "This deletes Mews local store, logs, setup state, and event history.")
+		fmt.Fprintln(stderr, "This deletes Mews local store, logs, and event history after `mw undo`.")
 		return 2
+	}
+	if _, configured, err := store.LoadSetupState(); err != nil {
+		fmt.Fprintf(stderr, "Could not read setup state: %v\n", err)
+		return 1
+	} else if configured {
+		fmt.Fprintln(stderr, "Mews integrations are still configured.")
+		fmt.Fprintln(stderr, "Run `mw undo` before `mw reset --yes` so external config remains reversible.")
+		return 1
+	}
+	if _, configured, err := store.LoadIntegrationState(); err != nil {
+		fmt.Fprintf(stderr, "Could not read integration state: %v\n", err)
+		return 1
+	} else if configured {
+		fmt.Fprintln(stderr, "Mews integration rollback state still exists.")
+		fmt.Fprintln(stderr, "Run `mw undo` before `mw reset --yes`.")
+		return 1
 	}
 	if err := store.Reset(); err != nil {
 		fmt.Fprintf(stderr, "Could not reset Mews data: %v\n", err)
@@ -406,19 +454,60 @@ func runNotify(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
 		return 1
 	}
-	if err := ipc.SendEvent(paths.Socket, event); err == nil {
-		notifyDesktop(event)
-		fmt.Fprintf(stdout, "Mews event sent: %s %s\n", event.Source, event.Status)
-		return 0
-	}
-	if err := store.AppendEvent(paths.Events, event); err != nil {
-		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
+	if err := deliverEvent(paths, event, stderr); err != nil {
+		fmt.Fprintf(stderr, "Could not deliver event: %v\n", err)
 		return 1
 	}
-	notifyDesktop(event)
 
 	fmt.Fprintf(stdout, "Mews event accepted: %s %s\n", event.Source, event.Status)
 	return 0
+}
+
+func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "Usage: mw hook codex [payload]")
+		return 2
+	}
+	switch args[0] {
+	case "codex":
+		if len(args) > 2 {
+			fmt.Fprintln(stderr, "Usage: mw hook codex [payload]")
+			return 2
+		}
+		var payload io.Reader = stdin
+		if len(args) == 2 {
+			payload = strings.NewReader(args[1])
+		}
+		event := events.Event{
+			Version:   1,
+			Source:    "codex",
+			HookEvent: "agent-turn-complete",
+			Status:    events.StatusDone,
+			Message:   "Codex turn completed",
+			Timestamp: time.Now(),
+		}
+		if err := enrichFromHookPayload(&event, payload); err != nil {
+			fmt.Fprintf(stderr, "Invalid Codex hook payload: %v\n", err)
+			return 2
+		}
+		if event.HookEvent == "" {
+			event.HookEvent = "agent-turn-complete"
+		}
+		paths, err := store.Ensure()
+		if err != nil {
+			fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+			return 1
+		}
+		if err := deliverEvent(paths, event, stderr); err != nil {
+			fmt.Fprintf(stderr, "Could not deliver Codex event: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "Mews event sent: %s %s\n", event.Source, event.Status)
+		return 0
+	default:
+		fmt.Fprintf(stderr, "Unknown hook source: %s\n", args[0])
+		return 2
+	}
 }
 
 func enrichFromHookPayload(event *events.Event, stdin io.Reader) error {
@@ -439,7 +528,10 @@ func enrichFromHookPayload(event *events.Event, stdin io.Reader) error {
 		event.CWD = firstString(payload, "cwd", "workspace", "workspacePath", "repositoryPath")
 	}
 	if event.SessionID == "" {
-		event.SessionID = firstString(payload, "session_id", "sessionId", "sessionID", "session")
+		event.SessionID = firstString(payload, "session_id", "sessionId", "sessionID", "session", "thread-id", "thread_id")
+	}
+	if hookEvent := firstString(payload, "type", "hook_event", "hookEvent"); hookEvent != "" {
+		event.HookEvent = hookEvent
 	}
 	if event.Project == "" && event.CWD != "" {
 		event.Project = filepath.Base(event.CWD)
@@ -516,15 +608,6 @@ func truncate(value string, max int) string {
 	return string(runes[:max-3]) + "..."
 }
 
-func notifyDesktop(event events.Event) {
-	title := "Mews"
-	message := fmt.Sprintf("%s: %s", event.Source, event.Status)
-	if event.Message != "" {
-		message = event.Message
-	}
-	_ = exec.Command("osascript", "-e", fmt.Sprintf("display notification %q with title %q", message, title)).Run()
-}
-
 func runAgent(stdout, stderr io.Writer) int {
 	paths, err := store.Ensure()
 	if err != nil {
@@ -556,6 +639,9 @@ func runListen(stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "Press Ctrl+C to stop, or run `mw stop` from another terminal.")
 	if err := ipc.ServeWithObserver(paths.Socket, paths.Events, func(event events.Event) {
 		printEventSummary(stdout, "Event", event)
+		if err := sendNotification(event); err != nil {
+			fmt.Fprintf(stderr, "Warning: event saved but notification failed: %v\n", err)
+		}
 	}); err != nil {
 		fmt.Fprintf(stderr, "Mews listener failed: %v\n", err)
 		return 1
@@ -572,6 +658,7 @@ func runCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	name := args[1]
 	cmdArgs := args[2:]
 	cmd := exec.Command(name, cmdArgs...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -590,7 +677,7 @@ func runCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	commandText := strings.Join(args[1:], " ")
 
 	if err := cmd.Start(); err != nil {
-		if saveErr := store.AppendEvent(paths.Events, commandEvent(events.StatusFailed, commandText, cwd, 0)); saveErr != nil {
+		if saveErr := deliverEvent(paths, commandEvent(events.StatusFailed, commandText, cwd, 0), stderr); saveErr != nil {
 			fmt.Fprintf(stderr, "Could not save event: %v\n", saveErr)
 			return 1
 		}
@@ -598,13 +685,15 @@ func runCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	if err := store.AppendEvent(paths.Events, commandEvent(events.StatusRunning, commandText, cwd, cmd.Process.Pid)); err != nil {
+	if err := deliverEventFn(paths, commandEvent(events.StatusRunning, commandText, cwd, cmd.Process.Pid), stderr); err != nil {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		_ = cmd.Wait()
 		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
 		return 1
 	}
 
 	if err := cmd.Wait(); err != nil {
-		if saveErr := store.AppendEvent(paths.Events, commandEvent(events.StatusFailed, commandText, cwd, cmd.Process.Pid)); saveErr != nil {
+		if saveErr := deliverEventFn(paths, commandEvent(events.StatusFailed, commandText, cwd, cmd.Process.Pid), stderr); saveErr != nil {
 			fmt.Fprintf(stderr, "Could not save event: %v\n", saveErr)
 			return 1
 		}
@@ -615,7 +704,7 @@ func runCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	if err := store.AppendEvent(paths.Events, commandEvent(events.StatusDone, commandText, cwd, cmd.Process.Pid)); err != nil {
+	if err := deliverEventFn(paths, commandEvent(events.StatusDone, commandText, cwd, cmd.Process.Pid), stderr); err != nil {
 		fmt.Fprintf(stderr, "Could not save event: %v\n", err)
 		return 1
 	}
@@ -637,6 +726,7 @@ Usage:
   mw undo
   mw reset --yes
   mw notify --status done --source custom
+  mw hook codex [payload]
   mw run -- <command>
 
 `)
@@ -662,7 +752,7 @@ func commandEvent(status events.Status, commandText, cwd string, pid int) events
 		SessionID: project,
 		Project:   project,
 		Status:    status,
-		Message:   commandText,
+		Message:   truncate(commandText, 1024),
 		CWD:       cwd,
 		PID:       pid,
 		Timestamp: time.Now(),
@@ -678,4 +768,19 @@ func waitForAgent(socketPath string, timeout time.Duration) error {
 		time.Sleep(20 * time.Millisecond)
 	}
 	return ipc.ErrUnavailable
+}
+
+func deliverEvent(paths store.StorePaths, event events.Event, stderr io.Writer) error {
+	if err := ipc.SendEvent(paths.Socket, event); err == nil {
+		return nil
+	} else if !errors.Is(err, ipc.ErrUnavailable) {
+		return err
+	}
+	if err := store.AppendEvent(paths.Events, event); err != nil {
+		return err
+	}
+	if err := sendNotification(event); err != nil {
+		fmt.Fprintf(stderr, "Warning: event saved but notification failed: %v\n", err)
+	}
+	return nil
 }

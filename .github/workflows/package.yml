@@ -1,0 +1,23 @@
+name: package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  package:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: VERSION=dev make build
+      - run: VERSION=dev SKIP_BUILD=1 make package
+      - name: Verify checksum
+        run: cd dist && shasum -a 256 -c mews-dev-darwin.tar.gz.sha256
+      - name: Smoke packaged artifact
+        run: VERSION=dev ./scripts/smoke-package.sh

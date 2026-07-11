@@ -55,7 +55,7 @@ After that, Mews starts a menu bar companion, finds supported AI tools, enables 
 
 Mews has two runtime pieces:
 
-1. **`mw` CLI**: user-facing command installed by Homebrew.
+1. **`mw` CLI**: user-facing command installed from a verified release package or a future Homebrew tap.
 2. **Mews Menu Bar Agent**: a native Swift/AppKit LSUIElement app launched by `mw start`.
 
 The CLI handles setup, diagnostics, undo, and scriptable events. The agent owns the menu bar icon, notification delivery, current state, recent history, and local IPC server.
@@ -99,10 +99,10 @@ Responsibilities:
 - Show recent event history.
 - Deliver macOS notifications.
 - Receive local events from integrations and the CLI.
-- Apply notification rules, deduping, and quiet periods.
+- Deliver native notifications for the implemented attention states.
 - Persist recent events and settings.
 
-The agent is packaged as a small app bundle so macOS menu bar identity and local visibility are reliable. In the init preview, it starts the existing `mw agent` helper from the app bundle resources and reads local event history for the menu.
+The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, reads local event history for the menu, and delivers native notifications for attention states.
 
 ### 3. Integration Manager
 
@@ -138,7 +138,8 @@ Recommended paths:
   mews.sock
 
 ~/Library/Logs/Mews/
-  mews.log
+  app.log
+  agent.log
 
 ~/Library/LaunchAgents/
   dev.mews.agent.plist
@@ -151,6 +152,8 @@ Storage format:
 - `integrations.json`: installed integration records and backup paths.
 - `backups/`: original config files before Mews modifies them.
 
+The socket normally lives in Application Support. If the full path would exceed the macOS Unix socket limit, Mews uses a private `0700` directory under the system temporary directory for the current user.
+
 SQLite can wait. JSON and JSONL are easier to inspect, back up, and repair in the first version.
 
 ## Data Flow
@@ -161,8 +164,7 @@ SQLite can wait. JSON and JSONL are easier to inspect, back up, and repair in th
 User runs mw setup
   │
   ├─ Ensure Application Support and Logs directories exist
-  ├─ Discover Claude Code, Codex, Copilot CLI
-  ├─ Show planned integrations
+  ├─ Show the Claude Code, Codex, and Copilot CLI writes
   ├─ Ask for approval before writing tool configs
   ├─ Install supported integrations with backups
   ├─ Record installed files and backups in integrations.json
@@ -187,10 +189,9 @@ Run `mw undo` later to remove these changes.
 User runs mw start
   │
   ├─ Verify setup state exists
-  ├─ Install or refresh LaunchAgent for the menu bar agent
-  ├─ Install or refresh LaunchAgent for Mews.app
+  ├─ Install or refresh the LaunchAgent for Mews.app
   ├─ Launch menu bar app
-  ├─ Send test event through local IPC
+  ├─ Wait for the bundled local agent socket
   └─ Print watched tools and next action
 ```
 
@@ -220,8 +221,7 @@ Menu bar agent
   │
   ├─ update current status
   ├─ append to events.jsonl
-  ├─ dedupe repeated events
-  └─ show notification if needed
+  └─ let Mews.app show a native notification for attention states
 ```
 
 ### `mw undo`
@@ -230,8 +230,9 @@ Menu bar agent
 User runs mw undo
   │
   ├─ Read integrations.json
-  ├─ Restore every backed-up file
-  ├─ Remove generated hook or wrapper files
+  ├─ Remove exact Mews-managed hook commands and marker blocks
+  ├─ Preserve unrelated edits made after setup
+  ├─ Remove generated Mews-owned files
   ├─ Unload LaunchAgent if requested
   ├─ Stop menu bar agent if requested
   └─ Print restored items
@@ -245,6 +246,7 @@ Rollback is part of the product, not a debug feature.
 User runs mw reset --yes
   │
   ├─ Refuse to run without --yes
+  ├─ Refuse while integration rollback state still exists
   ├─ Delete Mews local store
   ├─ Delete Mews logs
   └─ Print deleted paths
@@ -303,7 +305,7 @@ The message should be short and safe. Integrations should avoid sending prompts,
 
 ## IPC
 
-Use a Unix domain socket under the user Application Support directory:
+Use a Unix domain socket under the user Application Support directory when the path fits:
 
 ```text
 ~/Library/Application Support/Mews/mews.sock
@@ -316,24 +318,24 @@ Reasons:
 - No localhost firewall prompt.
 - Easy for CLI and hook scripts to reach.
 
-If the socket is missing, `mw notify` should try to start the agent once, then fail with a clear doctor hint.
+Long home paths use a private short path under the system temporary directory. If the socket is missing, `mw notify` appends the validated event locally and uses an `osascript` notification fallback.
 
 ## Integration Strategy
 
 ### Claude Code
 
-Use Claude Code hooks when available. Mews should install a small command hook that calls `mw notify` with only status metadata.
+Mews installs user-level Claude Code hooks for `PermissionRequest`, `Stop`, `StopFailure`, and `SessionEnd`. Each command calls `mw notify` and receives hook JSON through stdin.
 
 Rules:
 
 - Back up existing settings before editing.
 - Preserve user hooks.
-- Add a Mews-owned block with a stable marker.
-- Remove only the Mews-owned block in `mw undo`.
+- Record the exact Mews commands in `integrations.json`.
+- Remove only those exact commands in `mw undo`.
 
 ### Codex
 
-Use the supported notify or hook path when present. If the installed Codex version does not expose a stable notify path, Mews should not edit unknown config. It should mark Codex as partially supported and suggest wrapper mode.
+Mews installs Codex's top-level `notify` argv array and routes its JSON argument through `mw hook codex`. The managed TOML block has stable markers, is inserted before table declarations, and refuses to replace an existing top-level `notify` command.
 
 ### Copilot CLI
 
@@ -351,23 +353,15 @@ Agent stop and session end events will call `mw notify`.
 
 ## Notification Rules
 
-Default behavior:
+Implemented default behavior:
 
 - `needs_input`: notify immediately.
 - `failed`: notify immediately.
-- `done`: notify only if runtime is longer than a small threshold, for example 10 seconds.
+- `done`: notify immediately.
 - `running`: update menu bar only.
 - `idle`: update menu bar only.
 
-Deduping:
-
-- Collapse repeated events with the same `source`, `session_id`, and `status` inside a short window.
-- Keep the newest event visible in the menu bar.
-
-Quiet mode:
-
-- A menu bar toggle can silence banners while keeping history and status.
-- Critical states still update the menu bar.
+Deduping, runtime thresholds, and quiet mode remain post-MVP notification policy work.
 
 ## Security and Privacy
 
@@ -395,7 +389,7 @@ Config writes:
 
 `mw doctor` is a first-class user experience.
 
-It should check:
+It checks:
 
 - Menu bar agent installed.
 - LaunchAgent loaded.
@@ -405,7 +399,7 @@ It should check:
 - Claude Code integration installed and reachable.
 - Codex integration installed or marked fallback.
 - Copilot CLI hook status.
-- Recent event delivery test.
+- Integration rollback state.
 
 Example:
 
@@ -414,7 +408,7 @@ Mews Doctor
 
 Agent              running
 Socket             reachable
-Notifications      allowed
+Notifications      authorized
 Claude Code        enabled
 Codex              enabled
 Copilot CLI        hooks installed
@@ -425,7 +419,7 @@ No action needed.
 
 ## Packaging
 
-Homebrew should install:
+The release package and future Homebrew formula install:
 
 ```text
 bin/mw
@@ -448,6 +442,8 @@ libexec/Mews.app
 4. Verify IPC.
 
 This keeps the install path simple while still using a proper app bundle for menu bar identity and macOS notifications.
+
+`make build` produces universal `arm64` and `x86_64` CLI and app executables. `make package` produces a versioned tarball and SHA-256 checksum and runs an isolated install smoke in CI. Formal `make release` requires a semantic version, Developer ID identity, and notarization keychain profile. It signs the CLI and app, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, and generates a checksum-pinned Homebrew formula for tap publication. Homebrew-managed hooks and LaunchAgent paths use the stable `opt/mews` prefix rather than a versioned Cellar path.
 
 ## Technology Choice
 
@@ -531,26 +527,27 @@ Repository rules:
 3. **Scripts are explicit**: build, package, release, and local install scripts live under `scripts/`; `install.sh` stays as the user-facing fallback installer.
 4. **Makefile is the contributor API**: common tasks should be discoverable through `make test`, `make build`, `make lint`, `make package`, and `make install-local`.
 5. **Security docs are first-class**: because Mews edits local tool configs, it needs `SECURITY.md` and a practical `SECURITY_AUDIT.md` from the start.
-6. **Workflows stay boring**: CI should run tests, lint, shellcheck for scripts, CodeQL, and release packaging. Do not add complex release automation before the first stable package exists.
+6. **Workflows stay boring**: CI runs tests, lint, shellcheck, CodeQL, package checksum verification, and an isolated artifact smoke. Signing remains an explicit credential-gated maintainer action.
 
-Suggested Makefile targets:
+Makefile targets:
 
 ```text
 make build          # Build mw CLI and package Mews.app
 make test           # Run Go tests
 make lint           # Run Go lint and shellcheck
 make package        # Produce local release artifact
+make release        # Sign, notarize, verify, and package a release
 make install-local  # Install into a local test prefix
 make clean          # Remove build outputs
 ```
 
-Suggested workflows:
+Workflows:
 
 ```text
 check.yml           # formatting, lint, shellcheck
 test.yml            # Go tests
 codeql.yml          # CodeQL scan
-release.yml         # tagged release artifacts
+package.yml         # build, checksum, and artifact smoke
 ```
 
 The goal is the same feeling as Mole: a serious local Mac utility with simple commands, visible safety boundaries, and a repository that does not feel over-engineered.
@@ -596,7 +593,7 @@ Every external write must have a rollback path:
 ## Open Questions
 
 1. Copilot CLI lifecycle hook coverage needs real-session verification beyond `agentStop`, `sessionEnd`, and `errorOccurred`.
-2. Codex notify support should be detected by version and config shape, not assumed.
-3. The exact Homebrew formula layout should be checked against the final app bundle signing and notification behavior.
+2. Claude Code and Codex integrations need real-session compatibility checks as upstream payloads evolve.
+3. The Homebrew tap layout must preserve the signed app bundle and checksum verification.
 
 These do not block the first architecture because each has a safe fallback.

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const BundleName = "Mews.app"
@@ -28,11 +29,18 @@ func ResolveBundle() (Bundle, error) {
 		executable = resolved
 	}
 
-	exeDir := filepath.Dir(executable)
-	candidates := []string{
-		filepath.Join(exeDir, "..", "lib", BundleName),
-		filepath.Join(exeDir, "..", "libexec", BundleName),
-		filepath.Join(exeDir, BundleName),
+	executables := []string{StableInstalledPath(executable)}
+	if executables[0] != executable {
+		executables = append(executables, executable)
+	}
+	var candidates []string
+	for _, executable := range executables {
+		exeDir := filepath.Dir(executable)
+		candidates = append(candidates,
+			filepath.Join(exeDir, "..", "lib", BundleName),
+			filepath.Join(exeDir, "..", "libexec", BundleName),
+			filepath.Join(exeDir, BundleName),
+		)
 	}
 	for _, candidate := range candidates {
 		if bundle, err := bundleAt(filepath.Clean(candidate)); err == nil {
@@ -40,6 +48,20 @@ func ResolveBundle() (Bundle, error) {
 		}
 	}
 	return Bundle{}, ErrNotFound
+}
+
+func StableInstalledPath(path string) string {
+	const cellarMarker = "/Cellar/mews/"
+	index := strings.Index(path, cellarMarker)
+	if index < 0 {
+		return path
+	}
+	remainder := path[index+len(cellarMarker):]
+	versionEnd := strings.IndexByte(remainder, '/')
+	if versionEnd < 0 || versionEnd == len(remainder)-1 {
+		return path
+	}
+	return filepath.Join(path[:index], "opt", "mews", remainder[versionEnd+1:])
 }
 
 func bundleAt(path string) (Bundle, error) {

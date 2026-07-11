@@ -36,3 +36,16 @@ func TestResolveBundleRejectsMissingBundle(t *testing.T) {
 		t.Fatalf("ResolveBundle error = %v, want ErrNotFound", err)
 	}
 }
+
+func TestStableInstalledPathUsesHomebrewOptPrefix(t *testing.T) {
+	tests := map[string]string{
+		"/opt/homebrew/Cellar/mews/0.1.0/bin/mw": "/opt/homebrew/opt/mews/bin/mw",
+		"/usr/local/Cellar/mews/2.3.4/bin/mw":    "/usr/local/opt/mews/bin/mw",
+		"/usr/local/bin/mw":                      "/usr/local/bin/mw",
+	}
+	for input, want := range tests {
+		if got := StableInstalledPath(input); got != want {
+			t.Fatalf("StableInstalledPath(%q) = %q, want %q", input, got, want)
+		}
+	}
+}

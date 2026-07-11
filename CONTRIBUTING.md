@@ -1,6 +1,6 @@
 # Contributing to Mews
 
-Mews is in init preview. Keep changes small, local-first, and reversible.
+Mews is an MVP release candidate. Keep changes small, local-first, reversible, and release-verifiable.
 
 ## Local setup
 
@@ -8,6 +8,8 @@ Mews is in init preview. Keep changes small, local-first, and reversible.
 make build
 make test
 make lint
+make package
+VERSION=dev ./scripts/smoke-package.sh
 ```
 
 For an end-to-end local smoke:
@@ -18,6 +20,17 @@ For an end-to-end local smoke:
 ./bin/mw doctor
 ./bin/mw undo
 ```
+
+Formal release validation requires macOS Developer ID and notarization credentials:
+
+```bash
+VERSION=vX.Y.Z \
+SIGN_IDENTITY="Developer ID Application: ..." \
+NOTARY_PROFILE=mews-notary \
+make release
+```
+
+Do not bypass these gates or publish an unsigned artifact as a formal release.
 
 ## Safety expectations
 

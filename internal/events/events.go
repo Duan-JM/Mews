@@ -19,6 +19,7 @@ const (
 )
 
 type Event struct {
+	ID        string    `json:"id,omitempty"`
 	Version   int       `json:"version"`
 	Source    string    `json:"source"`
 	HookEvent string    `json:"hook_event,omitempty"`
@@ -71,6 +72,25 @@ func (e Event) Validate() error {
 	}
 	if e.Timestamp.IsZero() {
 		return errors.New("timestamp is required")
+	}
+	limits := []struct {
+		name  string
+		value string
+		max   int
+	}{
+		{name: "source", value: e.Source, max: 64},
+		{name: "id", value: e.ID, max: 64},
+		{name: "hook_event", value: e.HookEvent, max: 128},
+		{name: "session_id", value: e.SessionID, max: 256},
+		{name: "project", value: e.Project, max: 256},
+		{name: "task_title", value: e.TaskTitle, max: 80},
+		{name: "message", value: e.Message, max: 1024},
+		{name: "cwd", value: e.CWD, max: 4096},
+	}
+	for _, field := range limits {
+		if len([]rune(field.value)) > field.max {
+			return fmt.Errorf("%s exceeds %d characters", field.name, field.max)
+		}
 	}
 	switch e.Status {
 	case StatusRunning, StatusNeedsInput, StatusDone, StatusFailed, StatusIdle:

@@ -1,6 +1,6 @@
 # Security Audit Notes
 
-Mews is still in project initialization. This document tracks the safety checks that must stay true as implementation starts.
+This document tracks the safety checks that must stay true for the release MVP.
 
 ## MVP Safety Checklist
 
@@ -13,8 +13,15 @@ Mews is still in project initialization. This document tracks the safety checks 
 - Integration edits create backups before writing.
 - `mw undo` removes only Mews-owned integration blocks.
 - Malformed third-party config files are not edited.
+- Existing Codex `notify` commands are not replaced.
+- Event metadata has field-size limits and the JSONL history is bounded.
+- Formal release packaging fails when signing or notarization credentials are missing.
 - Core functionality does not require network access.
 
 ## Current State
 
-The repository contains an init-preview Go CLI, local JSONL event history, local Unix socket agent, foreground terminal listener, project documentation, and safety policy. Copilot CLI user-level hook installation is implemented with Mews-owned files and `mw undo` removal. The menu bar app, Homebrew formula, LaunchAgent, Claude Code integration, and Codex integration are not implemented yet.
+The release MVP includes the Go CLI, bounded JSONL history, Unix socket agent, LaunchAgent-managed Swift/AppKit menu bar app, native notification permission reporting, and safe integrations for Claude Code, Codex, and Copilot CLI.
+
+Setup writes backups and an `integrations.json` audit record before editing existing configuration. Undo removes exact Claude commands, the marked Codex block, and the Mews-owned Copilot hook while preserving unrelated edits made after setup.
+
+CI covers tests, lint, CodeQL, universal macOS build, package checksum verification, and an isolated package install smoke. Formal release remains a maintainer action because Developer ID and notarization credentials are required. The generated Homebrew formula uses stable `opt/mews` runtime paths; the tap has not been published yet.
