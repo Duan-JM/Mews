@@ -1,4 +1,4 @@
-.PHONY: all build test lint package release install-local clean
+.PHONY: all build test lint package release-check release install-local clean
 
 all: build
 
@@ -13,6 +13,9 @@ lint:
 
 package:
 	./scripts/package.sh
+
+release-check:
+	./scripts/release-check.sh
 
 release:
 	./scripts/release.sh

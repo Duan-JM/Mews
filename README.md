@@ -142,13 +142,15 @@ It is a small Mac companion for people who run AI agents in terminals and do not
 Maintainers create a signed release artifact on macOS:
 
 ```bash
+VERSION=vX.Y.Z make release-check
+
 VERSION=vX.Y.Z \
 SIGN_IDENTITY="Developer ID Application: ..." \
 NOTARY_PROFILE=mews-notary \
 make release
 ```
 
-The release command requires signing and notarization credentials, verifies the app with Gatekeeper, and produces a tarball, SHA-256 checksum, and version-pinned `dist/mews.rb` formula for publication to a Homebrew tap. It fails instead of producing an unsigned formal release.
+`make release-check` runs tests, lint, package checksum verification, and an isolated installed-runtime smoke without requiring signing credentials. The formal release command must run from a clean `main` synchronized with `origin/main`; it requires signing and notarization credentials, verifies the app with Gatekeeper, and produces a tarball, SHA-256 checksum, and version-pinned `dist/mews.rb` formula for publication to a Homebrew tap. It fails instead of producing an unsigned formal release.
 
 ## Roadmap
 

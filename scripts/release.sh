@@ -26,6 +26,22 @@ for tool in codesign ditto shasum spctl xcrun; do
   fi
 done
 
+branch="$(git branch --show-current)"
+if [[ "$branch" != "main" ]]; then
+  echo "Formal releases must run from main (current branch: ${branch:-detached})." >&2
+  exit 1
+fi
+git fetch --quiet origin main
+if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
+  echo "origin/main is unavailable; fetch it before releasing." >&2
+  exit 1
+fi
+if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+  echo "main must exactly match origin/main before releasing." >&2
+  exit 1
+fi
+
+VERSION="$VERSION" "$ROOT/scripts/release-check.sh"
 VERSION="$VERSION" "$ROOT/scripts/build.sh"
 
 APP="$ROOT/lib/Mews.app"

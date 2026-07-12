@@ -443,7 +443,7 @@ libexec/Mews.app
 
 This keeps the install path simple while still using a proper app bundle for menu bar identity and macOS notifications.
 
-`make build` produces universal `arm64` and `x86_64` CLI and app executables. `make package` produces a versioned tarball and SHA-256 checksum and runs an isolated install smoke in CI. Formal `make release` requires a semantic version, Developer ID identity, and notarization keychain profile. It signs the CLI and app, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, and generates a checksum-pinned Homebrew formula for tap publication. Homebrew-managed hooks and LaunchAgent paths use the stable `opt/mews` prefix rather than a versioned Cellar path.
+`make build` produces universal `arm64` and `x86_64` CLI and app executables. `make package` produces a versioned tarball and SHA-256 checksum. `VERSION=vX.Y.Z make release-check` runs tests, lint, checksum verification, and an isolated installed-runtime smoke that applies setup, executes all three generated integration paths through IPC, checks privacy-safe history, and verifies undo/reset. Formal `make release` must run from a clean `main` synchronized with `origin/main` and requires a Developer ID identity and notarization keychain profile. It signs the CLI and app, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, and generates a checksum-pinned Homebrew formula for tap publication. Homebrew-managed hooks and LaunchAgent paths use the stable `opt/mews` prefix rather than a versioned Cellar path.
 
 ## Technology Choice
 
