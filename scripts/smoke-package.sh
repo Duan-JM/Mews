@@ -88,8 +88,7 @@ export HOME="$SMOKE_DIR/home"
 export COPILOT_HOME="$HOME/.copilot"
 export CLAUDE_CONFIG_DIR="$HOME/.claude"
 export CODEX_HOME="$HOME/.codex"
-export MEWS_TESTING=1
-
+export MEWS_SOCKET_NAMESPACE="package-smoke-$$"
 "$MW" setup --yes >/dev/null
 "$MW" agent >"$SMOKE_DIR/agent.log" 2>&1 &
 AGENT_PID=$!

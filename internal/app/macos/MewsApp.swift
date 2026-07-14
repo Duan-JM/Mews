@@ -3,7 +3,7 @@ import Foundation
 import UserNotifications
 
 final class MewsApp: NSObject, NSApplicationDelegate {
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private var statusItem: NSStatusItem?
     private var timer: Timer?
     private var agent: Process?
     private var events: [MewsEvent] = []
@@ -23,7 +23,13 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         }
         started = true
         NSApp.setActivationPolicy(.accessory)
-        statusItem.button?.title = "Mews"
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem?.button?.title = "Mews"
+        if let image = NSImage(systemSymbolName: "cat.fill", accessibilityDescription: "Mews") {
+            image.isTemplate = true
+            statusItem?.button?.image = image
+            statusItem?.button?.imagePosition = .imageLeading
+        }
         configureNotifications()
         startAgent()
         reloadEvents()
@@ -33,6 +39,9 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        started = false
+        timer?.invalidate()
+        timer = nil
         stopAgent()
     }
 
@@ -88,6 +97,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     private func reloadEvents() {
+        ensureAgentRunning()
         let url = eventsURL()
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
               let fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value,
@@ -147,10 +157,25 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         updateStatusItem()
     }
 
+    private func ensureAgentRunning() {
+        if let agent, agent.isRunning {
+            return
+        }
+        agent = nil
+        startAgent()
+    }
+
     private func configureNotifications() {
         let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in
+        center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, error in
+            if let error {
+                self?.appendAppLog("Could not request notification permission: \(error)")
+            }
             center.getNotificationSettings { settings in
+                self?.appendAppLog(
+                    "Notification settings authorization=\(settings.authorizationStatus.rawValue) " +
+                    "alert=\(settings.alertSetting.rawValue) center=\(settings.notificationCenterSetting.rawValue)"
+                )
                 self?.writeNotificationStatus(settings.authorizationStatus)
             }
         }
@@ -162,10 +187,9 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         }
         appendAppLog("Notification queued for event \(event.id ?? "unknown")")
         let content = UNMutableNotificationContent()
-        content.title = "Mews"
-        content.body = event.message?.isEmpty == false
-            ? event.message!
-            : "\(event.source): \(event.status)"
+        content.title = notificationTitle(for: event)
+        content.subtitle = notificationSubtitle(for: event)
+        content.body = notificationBody(for: event)
         content.sound = .default
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
@@ -177,6 +201,100 @@ final class MewsApp: NSObject, NSApplicationDelegate {
                 self?.appendAppLog("Could not deliver notification: \(error)")
             }
         }
+    }
+
+    private func notificationTitle(for event: MewsEvent) -> String {
+        return "\(sourceLabel(event.source)): \(statusLabel(event.status))"
+    }
+
+    private func notificationSubtitle(for event: MewsEvent) -> String {
+        var parts: [String] = []
+        let project = nonEmpty(event.project)
+        if let project {
+            parts.append(project)
+        }
+        if let session = nonEmpty(event.sessionID), session != project {
+            parts.append("Session \(shortLabel(session, max: 8))")
+        }
+        return parts.joined(separator: " | ")
+    }
+
+    private func notificationBody(for event: MewsEvent) -> String {
+        if let taskTitle = nonEmpty(event.taskTitle) {
+            return taskTitle
+        }
+        switch event.hookEvent {
+        case "PermissionRequest":
+            return "Waiting for permission"
+        case "Stop":
+            return "Agent finished"
+        case "StopFailure":
+            return "Agent failed"
+        case "agentStop":
+            return "Agent stopped"
+        case "errorOccurred":
+            return "Agent reported an error"
+        case "agent-turn-complete":
+            return "Agent turn completed"
+        default:
+            break
+        }
+        if let message = nonEmpty(event.message) {
+            return message
+        }
+        switch event.status {
+        case "needs_input":
+            return "Waiting for input"
+        case "done":
+            return "Agent finished"
+        case "failed":
+            return "Agent failed"
+        default:
+            return "Agent status: \(event.status)"
+        }
+    }
+
+    private func sourceLabel(_ source: String) -> String {
+        switch source {
+        case "claude-code":
+            return "Claude Code"
+        case "codex":
+            return "Codex"
+        case "copilot":
+            return "Copilot CLI"
+        case "runner":
+            return "Command"
+        default:
+            return source.isEmpty ? "Agent" : source
+        }
+    }
+
+    private func statusLabel(_ status: String) -> String {
+        switch status {
+        case "needs_input":
+            return "Needs Input"
+        case "done":
+            return "Done"
+        case "failed":
+            return "Failed"
+        default:
+            return status
+        }
+    }
+
+    private func nonEmpty(_ value: String?) -> String? {
+        guard let value else {
+            return nil
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func shortLabel(_ value: String, max: Int) -> String {
+        guard value.count > max else {
+            return value
+        }
+        return String(value.prefix(max)) + "..."
     }
 
     private func writeNotificationStatus(_ status: UNAuthorizationStatus) {
@@ -208,7 +326,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         let latest = events.last
-        statusItem.button?.title = title(for: latest)
+        statusItem?.button?.title = title(for: latest)
 
         let menu = NSMenu()
         if let latest {
@@ -229,7 +347,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         let quit = NSMenuItem(title: "Quit Mews", action: #selector(quitClicked), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
-        statusItem.menu = menu
+        statusItem?.menu = menu
     }
 
     @objc private func refreshClicked() {
@@ -339,9 +457,24 @@ struct MewsEvent: Decodable {
     let id: String?
     let source: String
     let status: String
+    let hookEvent: String?
+    let sessionID: String?
     let project: String?
+    let taskTitle: String?
     let message: String?
     let timestamp: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case source
+        case status
+        case hookEvent = "hook_event"
+        case sessionID = "session_id"
+        case project
+        case taskTitle = "task_title"
+        case message
+        case timestamp
+    }
 }
 
 @main
@@ -353,7 +486,6 @@ enum Main {
         let delegate = MewsApp()
         Self.delegate = delegate
         app.delegate = delegate
-        delegate.start()
         app.run()
     }
 }

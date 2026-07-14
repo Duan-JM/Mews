@@ -318,7 +318,7 @@ Reasons:
 - No localhost firewall prompt.
 - Easy for CLI and hook scripts to reach.
 
-Long home paths use a private short path under the system temporary directory. If the socket is missing, `mw notify` appends the validated event locally and uses an `osascript` notification fallback.
+Long home paths use a private short path under the system temporary directory. If the socket is missing, `mw notify` appends the validated event locally. Notifications are delivered only by Mews.app through `UNUserNotificationCenter`; the CLI does not provide a separate notification fallback.
 
 ## Integration Strategy
 
@@ -443,7 +443,7 @@ libexec/Mews.app
 
 This keeps the install path simple while still using a proper app bundle for menu bar identity and macOS notifications.
 
-`make build` produces universal `arm64` and `x86_64` CLI and app executables. `make package` produces a versioned tarball and SHA-256 checksum. `VERSION=vX.Y.Z make release-check` runs tests, lint, checksum verification, and an isolated installed-runtime smoke that applies setup, executes all three generated integration paths through IPC, checks privacy-safe history, and verifies undo/reset. Formal `make release` must run from a clean `main` synchronized with `origin/main` and requires a Developer ID identity and notarization keychain profile. It signs the CLI and app, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, and generates a checksum-pinned Homebrew formula for tap publication. Homebrew-managed hooks and LaunchAgent paths use the stable `opt/mews` prefix rather than a versioned Cellar path.
+`make build` produces universal `arm64` and `x86_64` CLI and app executables, then applies a complete ad-hoc signature to the local app bundle so menu bar identity and notification permission work during development. `make package` produces a versioned tarball and SHA-256 checksum. `VERSION=vX.Y.Z make release-check` runs tests, lint, checksum verification, and an isolated installed-runtime smoke that applies setup, executes all three generated integration paths through IPC, checks privacy-safe history, and verifies undo/reset. Formal `make release` must run from a clean `main` synchronized with `origin/main` and requires a Developer ID identity and notarization keychain profile. It replaces the local signature with Developer ID signatures, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, and generates a checksum-pinned Homebrew formula for tap publication. Homebrew-managed hooks and LaunchAgent paths use the stable `opt/mews` prefix rather than a versioned Cellar path.
 
 ## Technology Choice
 

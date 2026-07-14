@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"time"
@@ -57,7 +58,13 @@ func Paths() (StorePaths, error) {
 	socketDir := appSupport
 	socket := filepath.Join(socketDir, "mews.sock")
 	if len(socket) >= 100 {
-		socketDir = filepath.Join(os.TempDir(), fmt.Sprintf("mews-%d", os.Getuid()))
+		name := fmt.Sprintf("mews-%d", os.Getuid())
+		if namespace := os.Getenv("MEWS_SOCKET_NAMESPACE"); namespace != "" {
+			namespaceHash := fnv.New64a()
+			_, _ = namespaceHash.Write([]byte(namespace))
+			name = fmt.Sprintf("%s-%x", name, namespaceHash.Sum64())
+		}
+		socketDir = filepath.Join(os.TempDir(), name)
 		socket = filepath.Join(socketDir, "mews.sock")
 	}
 

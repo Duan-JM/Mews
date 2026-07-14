@@ -45,7 +45,7 @@ make build
 
 `mw setup` shows the local changes Mews wants to make before it writes anything. `mw setup --yes` applies the Mews-owned setup. `mw start` installs a per-user LaunchAgent and starts the thin menu bar companion packaged by `make build`.
 
-By default, notifications include safe context such as tool, status, project, working directory, and session identifier when the tool provides them. If you want notification titles to include a short task label, opt in explicitly:
+Mews.app delivers all notifications through the native macOS notification center. Notifications identify the agent and status in the title, then show the project and a shortened session identifier when the tool provides them. The body describes the lifecycle action without exposing the full working directory, full session identifier, prompt, or terminal output. To show a short task label in the body, opt in explicitly:
 
 ```bash
 mw setup --yes --include-task-title

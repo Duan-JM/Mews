@@ -58,6 +58,10 @@ if ! command -v swiftc >/dev/null 2>&1; then
   echo "swiftc is required to build Mews.app" >&2
   exit 1
 fi
+if ! command -v codesign >/dev/null 2>&1; then
+  echo "codesign is required to build Mews.app" >&2
+  exit 1
+fi
 
 APP="$ROOT/lib/Mews.app"
 rm -rf "$APP"
@@ -111,3 +115,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
+
+codesign --force --sign - "$APP/Contents/Resources/mw"
+codesign --force --sign - "$APP/Contents/MacOS/Mews"
+codesign --force --sign - "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
+
+app_identifier="$(codesign -dv --verbose=4 "$APP" 2>&1 | sed -n 's/^Identifier=//p')"
+if [[ "$app_identifier" != "dev.mews.Mews" ]]; then
+  echo "Built app has unexpected code-signing identifier: $app_identifier" >&2
+  exit 1
+fi
