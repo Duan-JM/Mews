@@ -30,3 +30,22 @@ func TestPathsUsesShortSocketFallbackForLongHome(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(paths.SocketDir) })
 }
+
+func TestSocketNamespacesUseDistinctFallbacks(t *testing.T) {
+	home := filepath.Join(t.TempDir(), strings.Repeat("long-home-", 12))
+	t.Setenv("HOME", home)
+	t.Setenv("MEWS_SOCKET_NAMESPACE", "first")
+	first, err := Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MEWS_SOCKET_NAMESPACE", "second")
+	second, err := Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first.SocketDir == second.SocketDir {
+		t.Fatalf("distinct namespaces shared socket directory %s", first.SocketDir)
+	}
+}

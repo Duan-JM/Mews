@@ -6,7 +6,7 @@ build:
 	./scripts/build.sh
 
 test:
-	go test ./...
+	MEWS_SOCKET_NAMESPACE=test go test ./...
 
 lint:
 	./scripts/check.sh

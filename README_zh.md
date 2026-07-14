@@ -45,7 +45,7 @@ make build
 
 `mw setup` 会先展示 Mews 准备写入的本地改动。`mw setup --yes` 才会应用这些 Mews-owned 设置。`mw start` 会安装当前用户的 LaunchAgent，并启动由 `make build` 打包出来的轻量菜单栏 companion。
 
-默认通知会带上安全上下文，比如工具、状态、项目名、工作目录，以及工具提供的 session id。如果你希望通知里带一个简短任务标题，需要显式开启：
+所有通知都由 Mews.app 通过 macOS 原生通知中心发送。通知标题会标明 agent 和状态，并在工具提供相关信息时显示项目名和缩短后的 session id。正文会描述生命周期动作，但不会展示完整工作目录、完整 session id、prompt 或终端输出。如果希望正文带一个简短任务标题，需要显式开启：
 
 ```bash
 mw setup --yes --include-task-title

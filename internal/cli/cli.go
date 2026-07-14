@@ -18,13 +18,14 @@ import (
 	"github.com/Duan-JM/mews/internal/integrations"
 	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/launchd"
-	"github.com/Duan-JM/mews/internal/notify"
 	"github.com/Duan-JM/mews/internal/store"
 )
 
 var version = "dev"
-var sendNotification = notify.Send
 var deliverEventFn = deliverEvent
+var pingAgent = ipc.Ping
+var bootstrapLaunchAgent = launchd.Bootstrap
+var bootstrapRetryDelay = 20 * time.Millisecond
 
 // Run executes the mw CLI and returns a process exit code.
 func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -187,12 +188,19 @@ func runStart(stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "Run `mw setup --yes` to create Mews-owned setup state.")
 		return 1
 	}
+	loadedJob, loaded, err := launchd.CurrentJob()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not inspect Mews LaunchAgent: %v\n", err)
+		return 1
+	}
+	agentRunning := false
 	if err := ipc.Ping(paths.Socket); err == nil {
-		if loaded, _ := launchd.Loaded(); loaded {
-			fmt.Fprintln(stdout, "Mews menu bar app is already running.")
-			return 0
+		agentRunning = true
+		if loaded {
+			fmt.Fprintln(stdout, "Mews menu bar app is already running; refreshing it.")
+		} else {
+			fmt.Fprintln(stdout, "Mews local agent is already running; starting menu bar app too.")
 		}
-		fmt.Fprintln(stdout, "Mews local agent is already running; starting menu bar app too.")
 	} else if err != ipc.ErrUnavailable {
 		fmt.Fprintf(stderr, "Could not check Mews local agent: %v\n", err)
 		return 1
@@ -209,13 +217,65 @@ func runStart(stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not install LaunchAgent: %v\n", err)
 		return 1
 	}
-	if err := launchd.Bootout(); err != nil {
-		fmt.Fprintf(stderr, "Could not refresh Mews LaunchAgent: %v\n", err)
-		return 1
+	if loaded && agentRunning {
+		if err := ipc.Stop(paths.Socket); err != nil && err != ipc.ErrUnavailable {
+			fmt.Fprintf(stderr, "Could not stop the existing Mews local agent: %v\n", err)
+			return 1
+		}
+		if err := waitForAgentStop(paths.Socket, 2*time.Second); err != nil {
+			fmt.Fprintf(stderr, "Existing Mews local agent did not stop: %v\n", err)
+			return 1
+		}
 	}
-	if err := launchd.Bootstrap(); err != nil {
-		fmt.Fprintf(stderr, "Could not start Mews menu bar app: %v\n", err)
-		return 1
+	if loaded {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Fprintf(stderr, "Could not resolve the current home directory: %v\n", err)
+			return 1
+		}
+		desiredNamespace := os.Getenv("MEWS_SOCKET_NAMESPACE")
+		desiredLogPath := filepath.Join(paths.Logs, "app.log")
+		if loadedJob.Program == bundle.Executable &&
+			loadedJob.HomePath == home &&
+			loadedJob.SocketNamespace == desiredNamespace &&
+			loadedJob.StdoutPath == desiredLogPath &&
+			loadedJob.StderrPath == desiredLogPath {
+			if err := launchd.Kickstart(); err != nil {
+				fmt.Fprintf(stderr, "Could not refresh Mews menu bar app: %v\n", err)
+				return 1
+			}
+		} else {
+			if err := launchd.Bootout(); err != nil {
+				fmt.Fprintf(stderr, "Could not replace Mews LaunchAgent: %v\n", err)
+				return 1
+			}
+			if err := bootstrapWithRetry(2 * time.Second); err != nil {
+				_, restoreErr := launchd.InstallLoadedJob(loadedJob)
+				if restoreErr == nil {
+					restoreErr = bootstrapWithRetry(2 * time.Second)
+				}
+				if restoreErr != nil {
+					fmt.Fprintf(
+						stderr,
+						"Could not start the new Mews app (%v) or restore the previous LaunchAgent (%v).\n",
+						err,
+						restoreErr,
+					)
+				} else {
+					fmt.Fprintf(
+						stderr,
+						"Could not start the new Mews app; the previous LaunchAgent was restored: %v\n",
+						err,
+					)
+				}
+				return 1
+			}
+		}
+	} else {
+		if err := bootstrapWithRetry(2 * time.Second); err != nil {
+			fmt.Fprintf(stderr, "Could not start Mews menu bar app: %v\n", err)
+			return 1
+		}
 	}
 
 	if err := waitForAgent(paths.Socket, 2*time.Second); err != nil {
@@ -644,9 +704,6 @@ func runListen(stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout, "Press Ctrl+C to stop, or run `mw stop` from another terminal.")
 	if err := ipc.ServeWithObserver(paths.Socket, paths.Events, func(event events.Event) {
 		printEventSummary(stdout, "Event", event)
-		if err := sendNotification(event); err != nil {
-			fmt.Fprintf(stderr, "Warning: event saved but notification failed: %v\n", err)
-		}
 	}); err != nil {
 		fmt.Fprintf(stderr, "Mews listener failed: %v\n", err)
 		return 1
@@ -767,7 +824,7 @@ func commandEvent(status events.Status, commandText, cwd string, pid int) events
 func waitForAgent(socketPath string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if err := ipc.Ping(socketPath); err == nil {
+		if err := pingAgent(socketPath); err == nil {
 			return nil
 		}
 		time.Sleep(20 * time.Millisecond)
@@ -775,7 +832,32 @@ func waitForAgent(socketPath string, timeout time.Duration) error {
 	return ipc.ErrUnavailable
 }
 
-func deliverEvent(paths store.StorePaths, event events.Event, stderr io.Writer) error {
+func waitForAgentStop(socketPath string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := pingAgent(socketPath); err != nil {
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	return errors.New("timed out waiting for local agent to stop")
+}
+
+func bootstrapWithRetry(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		err := bootstrapLaunchAgent()
+		if err == nil {
+			return nil
+		}
+		if !launchd.IsBootstrapRace(err) || !time.Now().Before(deadline) {
+			return err
+		}
+		time.Sleep(bootstrapRetryDelay)
+	}
+}
+
+func deliverEvent(paths store.StorePaths, event events.Event, _ io.Writer) error {
 	if err := ipc.SendEvent(paths.Socket, event); err == nil {
 		return nil
 	} else if !errors.Is(err, ipc.ErrUnavailable) {
@@ -783,9 +865,6 @@ func deliverEvent(paths store.StorePaths, event events.Event, stderr io.Writer) 
 	}
 	if err := store.AppendEvent(paths.Events, event); err != nil {
 		return err
-	}
-	if err := sendNotification(event); err != nil {
-		fmt.Fprintf(stderr, "Warning: event saved but notification failed: %v\n", err)
 	}
 	return nil
 }

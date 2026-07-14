@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,9 +18,14 @@ import (
 	"github.com/Duan-JM/mews/internal/store"
 )
 
-func TestMain(m *testing.M) {
-	_ = os.Setenv("MEWS_TESTING", "1")
-	os.Exit(m.Run())
+type bootstrapExitError int
+
+func (e bootstrapExitError) Error() string {
+	return fmt.Sprintf("exit status %d", e)
+}
+
+func (e bootstrapExitError) ExitCode() int {
+	return int(e)
 }
 
 func TestRunCommandForwardsStdin(t *testing.T) {
@@ -45,13 +51,6 @@ func TestRunCommandForwardsStdin(t *testing.T) {
 
 func TestRunCommandRecordsSuccess(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	originalNotifier := sendNotification
-	t.Cleanup(func() { sendNotification = originalNotifier })
-	var notified []events.Status
-	sendNotification = func(event events.Event) error {
-		notified = append(notified, event.Status)
-		return nil
-	}
 
 	var stdout, stderr bytes.Buffer
 	code := Run([]string{"run", "--", "sh", "-c", "exit 0"}, strings.NewReader(""), &stdout, &stderr)
@@ -72,9 +71,6 @@ func TestRunCommandRecordsSuccess(t *testing.T) {
 	}
 	if got[0].Status != events.StatusRunning || got[1].Status != events.StatusDone {
 		t.Fatalf("statuses = %q, %q; want running, done", got[0].Status, got[1].Status)
-	}
-	if len(notified) != 2 || notified[1] != events.StatusDone {
-		t.Fatalf("notified statuses = %q, want running and done delivery", notified)
 	}
 }
 
@@ -152,6 +148,63 @@ func TestRunCommandTerminatesProcessGroupWhenEventDeliveryFails(t *testing.T) {
 	time.Sleep(1200 * time.Millisecond)
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("command continued after delivery failure: %v", err)
+	}
+}
+
+func TestBootstrapWithRetryHandlesLaunchdInputOutputRace(t *testing.T) {
+	originalBootstrap := bootstrapLaunchAgent
+	originalDelay := bootstrapRetryDelay
+	t.Cleanup(func() {
+		bootstrapLaunchAgent = originalBootstrap
+		bootstrapRetryDelay = originalDelay
+	})
+
+	calls := 0
+	bootstrapRetryDelay = 0
+	bootstrapLaunchAgent = func() error {
+		calls++
+		if calls == 1 {
+			return bootstrapExitError(5)
+		}
+		return nil
+	}
+
+	if err := bootstrapWithRetry(time.Second); err != nil {
+		t.Fatalf("bootstrapWithRetry returned error: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("bootstrap calls = %d, want 2", calls)
+	}
+}
+
+func TestBootstrapWithRetryDoesNotHidePermanentFailure(t *testing.T) {
+	originalBootstrap := bootstrapLaunchAgent
+	t.Cleanup(func() { bootstrapLaunchAgent = originalBootstrap })
+
+	calls := 0
+	bootstrapLaunchAgent = func() error {
+		calls++
+		return errors.New("Bootstrap failed: 125: Domain does not support specified action")
+	}
+
+	err := bootstrapWithRetry(time.Second)
+	if err == nil || !strings.Contains(err.Error(), "Domain does not support") {
+		t.Fatalf("bootstrapWithRetry error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("bootstrap calls = %d, want 1", calls)
+	}
+}
+
+func TestWaitForAgentStopAcceptsClosingSocketEOF(t *testing.T) {
+	originalPing := pingAgent
+	t.Cleanup(func() { pingAgent = originalPing })
+	pingAgent = func(string) error {
+		return io.EOF
+	}
+
+	if err := waitForAgentStop("/tmp/mews.sock", time.Second); err != nil {
+		t.Fatalf("waitForAgentStop returned error: %v", err)
 	}
 }
 

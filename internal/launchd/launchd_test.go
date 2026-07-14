@@ -58,6 +58,29 @@ func TestRenderPlistEscapesPaths(t *testing.T) {
 	}
 }
 
+func TestRenderPlistIncludesSocketNamespace(t *testing.T) {
+	data, err := Render(Job{
+		Label:           Label,
+		Program:         "/Applications/Mews.app/Contents/MacOS/Mews",
+		HomePath:        "/Users/tester",
+		SocketNamespace: "package-smoke",
+		StdoutPath:      "/tmp/mews-app.log",
+		StderrPath:      "/tmp/mews-app.log",
+	})
+	if err != nil {
+		t.Fatalf("Render returned error: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{
+		"<key>MEWS_SOCKET_NAMESPACE</key>",
+		"<string>package-smoke</string>",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("plist missing %q: %s", want, content)
+		}
+	}
+}
+
 func TestBootoutSkipsUnloadedLaunchAgent(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -137,5 +160,70 @@ func TestBootoutUsesLoadedServiceLabel(t *testing.T) {
 	}
 	if !reflect.DeepEqual(calls, want) {
 		t.Fatalf("launchctl calls = %#v, want %#v", calls, want)
+	}
+}
+
+func TestKickstartRestartsLoadedService(t *testing.T) {
+	original := runLaunchctl
+	t.Cleanup(func() { runLaunchctl = original })
+	var calls [][]string
+	runLaunchctl = func(args ...string) ([]byte, error) {
+		calls = append(calls, append([]string(nil), args...))
+		return nil, nil
+	}
+
+	if err := Kickstart(); err != nil {
+		t.Fatalf("Kickstart returned error: %v", err)
+	}
+	want := [][]string{{"kickstart", "-k", guiDomain() + "/" + Label}}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("launchctl calls = %#v, want %#v", calls, want)
+	}
+}
+
+func TestCurrentJobReadsLaunchctlConfiguration(t *testing.T) {
+	original := runLaunchctl
+	t.Cleanup(func() { runLaunchctl = original })
+	runLaunchctl = func(args ...string) ([]byte, error) {
+		return []byte(
+			"gui/501/dev.mews.agent = {\n" +
+				"\tprogram = /Applications/Mews.app/Contents/MacOS/Mews\n" +
+				"\tstdout path = /Users/tester/Library/Logs/Mews/app.log\n" +
+				"\tstderr path = /Users/tester/Library/Logs/Mews/app.log\n" +
+				"\tenvironment = {\n" +
+				"\t\tHOME => /Users/tester\n" +
+				"\t\tMEWS_SOCKET_NAMESPACE => package-smoke\n" +
+				"\t}\n" +
+				"}\n",
+		), nil
+	}
+
+	job, loaded, err := CurrentJob()
+	if err != nil {
+		t.Fatalf("CurrentJob returned error: %v", err)
+	}
+	if !loaded ||
+		job.Program != "/Applications/Mews.app/Contents/MacOS/Mews" ||
+		job.HomePath != "/Users/tester" ||
+		job.SocketNamespace != "package-smoke" ||
+		job.StdoutPath != "/Users/tester/Library/Logs/Mews/app.log" ||
+		job.StderrPath != "/Users/tester/Library/Logs/Mews/app.log" {
+		t.Fatalf("CurrentJob = %#v, %v; want loaded job configuration", job, loaded)
+	}
+}
+
+func TestCurrentJobReportsUnloadedService(t *testing.T) {
+	original := runLaunchctl
+	t.Cleanup(func() { runLaunchctl = original })
+	runLaunchctl = func(args ...string) ([]byte, error) {
+		return []byte("Could not find service"), errors.New("exit status 1")
+	}
+
+	job, loaded, err := CurrentJob()
+	if err != nil {
+		t.Fatalf("CurrentJob returned error: %v", err)
+	}
+	if loaded || job != (LoadedJob{}) {
+		t.Fatalf("CurrentJob = %#v, %v; want unloaded", job, loaded)
 	}
 }
