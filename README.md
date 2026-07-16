@@ -54,7 +54,7 @@ mw setup --yes --include-task-title
 
 That stores at most 80 local-only characters from a hook-provided prompt or title. Mews still does not upload prompts, transcripts, or terminal output.
 
-The app bundle includes the Mews cat logo as its macOS icon, so native notifications are branded as Mews. When an event includes a session identifier, clicking the notification or selecting the event in the menu bar copies a local return command such as `mw history --session 'abc123'`.
+The app bundle includes the Mews cat logo as its macOS icon. Native notifications use that app identity instead of adding the logo as notification content. When an event includes a session identifier, clicking the notification or selecting the event in the menu bar copies a local return command such as `mw history --session 'abc123'`.
 
 Setup installs:
 

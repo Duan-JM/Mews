@@ -364,7 +364,7 @@ Implemented default behavior:
 - `running`: update menu bar only.
 - `idle`: update menu bar only.
 
-Notifications are delivered by the app bundle, which declares the Mews icon so Notification Center can show Mews identity. A small logo attachment is included for supported notification presentations.
+Notifications are delivered by the app bundle, which declares the Mews icon so Notification Center can show Mews identity. The logo is app identity only, not a notification attachment.
 
 Deduping, runtime thresholds, and quiet mode remain post-MVP notification policy work.
 

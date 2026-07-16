@@ -1,8 +1,10 @@
 package app
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -47,5 +49,37 @@ func TestStableInstalledPathUsesHomebrewOptPrefix(t *testing.T) {
 		if got := StableInstalledPath(input); got != want {
 			t.Fatalf("StableInstalledPath(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+func TestRegisterBundleUsesLaunchServices(t *testing.T) {
+	original := runLSRegister
+	t.Cleanup(func() { runLSRegister = original })
+
+	var got string
+	runLSRegister = func(path string) ([]byte, error) {
+		got = path
+		return nil, nil
+	}
+
+	if err := RegisterBundle("/Applications/Mews.app"); err != nil {
+		t.Fatalf("RegisterBundle returned error: %v", err)
+	}
+	if got != "/Applications/Mews.app" {
+		t.Fatalf("registered path = %q, want /Applications/Mews.app", got)
+	}
+}
+
+func TestRegisterBundleReportsLaunchServicesFailure(t *testing.T) {
+	original := runLSRegister
+	t.Cleanup(func() { runLSRegister = original })
+
+	runLSRegister = func(string) ([]byte, error) {
+		return []byte("registration denied"), errors.New("exit status 1")
+	}
+
+	err := RegisterBundle("/Applications/Mews.app")
+	if err == nil || !strings.Contains(err.Error(), "registration denied") {
+		t.Fatalf("RegisterBundle error = %v, want LaunchServices output", err)
 	}
 }

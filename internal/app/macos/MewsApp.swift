@@ -193,7 +193,6 @@ final class MewsApp: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
         content.body = notificationBody(for: event)
         content.sound = .default
         content.userInfo = notificationUserInfo(for: event)
-        content.attachments = notificationAttachments()
         let request = UNNotificationRequest(
             identifier: event.id ?? UUID().uuidString,
             content: content,
@@ -232,18 +231,6 @@ final class MewsApp: NSObject, NSApplicationDelegate, UNUserNotificationCenterDe
             info["return_command"] = sessionReturnCommand(session)
         }
         return info
-    }
-
-    private func notificationAttachments() -> [UNNotificationAttachment] {
-        guard let iconURL = Bundle.main.url(forResource: "mews-logo-256", withExtension: "png") else {
-            return []
-        }
-        do {
-            return [try UNNotificationAttachment(identifier: "mews-logo", url: iconURL)]
-        } catch {
-            appendAppLog("Could not attach Mews notification logo: \(error)")
-            return []
-        }
     }
 
     private func notificationTitle(for event: MewsEvent) -> String {

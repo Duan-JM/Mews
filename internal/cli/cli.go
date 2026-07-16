@@ -25,6 +25,7 @@ var version = "dev"
 var deliverEventFn = deliverEvent
 var pingAgent = ipc.Ping
 var bootstrapLaunchAgent = launchd.Bootstrap
+var registerBundle = app.RegisterBundle
 var bootstrapRetryDelay = 20 * time.Millisecond
 
 // Run executes the mw CLI and returns a process exit code.
@@ -210,6 +211,10 @@ func runStart(stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not find Mews.app: %v\n", err)
 		fmt.Fprintln(stderr, "Run `make build` from the repository, or install a package that includes Mews.app.")
+		return 1
+	}
+	if err := registerBundle(bundle.Path); err != nil {
+		fmt.Fprintf(stderr, "Could not register Mews.app icon: %v\n", err)
 		return 1
 	}
 	plistPath, err := launchd.Install(bundle.Executable, paths.Logs)

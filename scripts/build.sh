@@ -89,10 +89,9 @@ lipo -create "$BUILD_DIR/Mews-arm64" "$BUILD_DIR/Mews-amd64" \
   -output "$APP/Contents/MacOS/Mews"
 
 cp "$ROOT/bin/mw" "$APP/Contents/Resources/mw"
-cp "$ROOT/assets/mews-logo.svg" "$APP/Contents/Resources/mews-logo.svg"
 swift "$ROOT/scripts/generate-icon.swift" \
   "$BUILD_DIR/Mews.iconset" \
-  "$APP/Contents/Resources/mews-logo-256.png"
+  "$BUILD_DIR/mews-logo-256.png"
 iconutil -c icns "$BUILD_DIR/Mews.iconset" -o "$APP/Contents/Resources/Mews.icns"
 chmod 0755 "$APP/Contents/MacOS/Mews" "$APP/Contents/Resources/mw"
 
