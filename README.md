@@ -1,1 +1,167 @@
-PGRpdiBhbGlnbj0iY2VudGVyIj4KICA8aW1nIHNyYz0iLi9hc3NldHMvbWV3cy1sb2dvLnN2ZyIgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBhbHQ9Ik1ld3MgbWluaW1hbCBjYXQgbG9nbyI+CiAgPGgxPk1ld3M8L2gxPgogIDxwPjxlbT7wn5CIIE5ldmVyIG1pc3MgeW91ciBBSSBhZ2VudHMgYWdhaW4uPC9lbT48L3A+CjwvZGl2PgoKPHAgYWxpZ249ImNlbnRlciI+CiAgPGltZyBzcmM9Imh0dHBzOi8vaW1nLnNoaWVsZHMuaW8vYmFkZ2UvbWFjT1MtbG9jYWwtLWZpcnN0LWJsYWNrP3N0eWxlPWZsYXQtc3F1YXJlIiBhbHQ9Im1hY09TIGxvY2FsIGZpcnN0Ij4KICA8aW1nIHNyYz0iaHR0cHM6Ly9pbWcuc2hpZWxkcy5pby9iYWRnZS9kaXN0cmlidXRpb24tc2lnbmVkX3JlbGVhc2VfcGlwZWxpbmUtb3JhbmdlP3N0eWxlPWZsYXQtc3F1YXJlIiBhbHQ9IlNpZ25lZCByZWxlYXNlIHBpcGVsaW5lIj4KICA8aW1nIHNyYz0iaHR0cHM6Ly9pbWcuc2hpZWxkcy5pby9iYWRnZS9saWNlbnNlLUdQTF92My1ibHVlLnN2Zz9zdHlsZT1mbGF0LXNxdWFyZSIgYWx0PSJMaWNlbnNlIj4KICA8aW1nIHNyYz0iaHR0cHM6Ly9pbWcuc2hpZWxkcy5pby9iYWRnZS9zdGF0dXMtTVZQX3JlbGVhc2VfY2FuZGlkYXRlLWdyZWVuP3N0eWxlPWZsYXQtc3F1YXJlIiBhbHQ9Ik1WUCByZWxlYXNlIGNhbmRpZGF0ZSI+CjwvcD4KClvnroDkvZPkuK3mloddKC4vUkVBRE1FX3poLm1kKQoKTWV3cyB3YXRjaGVzIHRoZSBBSSBhZ2VudHMgeW91IHJ1biBmcm9tIHRlcm1pbmFsIGFuZCBrZWVwcyB0aGVpciBsaWZlY3ljbGUgZXZlbnRzIHZpc2libGUgbG9jYWxseS4KCldoZW4gQ2xhdWRlIENvZGUsIENvZGV4LCBDb3BpbG90IENMSSwgb3IgYSBsb25nLXJ1bm5pbmcgdGVybWluYWwgY29tbWFuZCBmaW5pc2hlcywgZmFpbHMsIG9yIG5lZWRzIHlvdSwgTWV3cyBsZXRzIHlvdSBrbm93LiBZb3UgZG8gbm90IGhhdmUgdG8ga2VlcCBjaGVja2luZyBldmVyeSBwYW5lLgoKPiBNZXdzIGlzIGFuIE1WUCByZWxlYXNlIGNhbmRpZGF0ZS4gVGhlIGxvY2FsIHByb2R1Y3QgcGF0aCwgdGhyZWUgYWdlbnQgaW50ZWdyYXRpb25zLCByZXZlcnNpYmxlIHNldHVwLCBwYWNrYWdlIHZlcmlmaWNhdGlvbiwgYW5kIHNpZ25lZC9ub3Rhcml6ZWQgcmVsZWFzZSBwaXBlbGluZSBhcmUgaW1wbGVtZW50ZWQuIEEgSG9tZWJyZXcgdGFwIGlzIHN0aWxsIGEgZGlzdHJpYnV0aW9uIGZvbGxvdy11cC4KCiMjIEluc3RhbGwKCkZyb20gYSBHaXRIdWIgcmVsZWFzZSBhcnRpZmFjdDoKCmBgYGJhc2gKdGFyIC14emYgbWV3cy12WC5ZLlotZGFyd2luLnRhci5negpjZCBtZXdzLXZYLlkuWi1kYXJ3aW4Kc3VkbyAuL2luc3RhbGwuc2gKbXcgc2V0dXAKbXcgc2V0dXAgLS15ZXMKbXcgc3RhcnQKYGBgCgpWZXJpZnkgdGhlIGRvd25sb2FkZWQgYXJjaGl2ZSB3aXRoIHRoZSBhZGphY2VudCBgLnNoYTI1NmAgZmlsZSBiZWZvcmUgaW5zdGFsbGluZy4KCkZvciBkZXZlbG9wbWVudCBmcm9tIHRoaXMgcmVwb3NpdG9yeToKCmBgYGJhc2gKbWFrZSBidWlsZAouL2Jpbi9tdyBzZXR1cAouL2Jpbi9tdyBzZXR1cCAtLXllcwouL2Jpbi9tdyBzdGFydAouL2Jpbi9tdyBkb2N0b3IKYGBgCgpgbXcgc2V0dXBgIHNob3dzIHRoZSBsb2NhbCBjaGFuZ2VzIE1ld3Mgd2FudHMgdG8gbWFrZSBiZWZvcmUgaXQgd3JpdGVzIGFueXRoaW5nLiBgbXcgc2V0dXAgLS15ZXNgIGFwcGxpZXMgdGhlIE1ld3Mtb3duZWQgc2V0dXAuIGBtdyBzdGFydGAgaW5zdGFsbHMgYSBwZXItdXNlciBMYXVuY2hBZ2VudCBhbmQgc3RhcnRzIHRoZSB0aGluIG1lbnUgYmFyIGNvbXBhbmlvbiBwYWNrYWdlZCBieSBgbWFrZSBidWlsZGAuCgpNZXdzLmFwcCBkZWxpdmVycyBhbGwgbm90aWZpY2F0aW9ucyB0aHJvdWdoIHRoZSBuYXRpdmUgbWFjT1Mgbm90aWZpY2F0aW9uIGNlbnRlci4gTm90aWZpY2F0aW9ucyBpZGVudGlmeSB0aGUgYWdlbnQgYW5kIHN0YXR1cyBpbiB0aGUgdGl0bGUsIHRoZW4gc2hvdyB0aGUgcHJvamVjdCBhbmQgYSBzaG9ydGVuZWQgc2Vzc2lvbiBpZGVudGlmaWVyIHdoZW4gdGhlIHRvb2wgcHJvdmlkZXMgdGhlbS4gVGhlIGJvZHkgZGVzY3JpYmVzIHRoZSBsaWZlY3ljbGUgYWN0aW9uIHdpdGhvdXQgZXhwb3NpbmcgdGhlIGZ1bGwgd29ya2luZyBkaXJlY3RvcnksIGZ1bGwgc2Vzc2lvbiBpZGVudGlmaWVyLCBwcm9tcHQsIG9yIHRlcm1pbmFsIG91dHB1dC4gVG8gc2hvdyBhIHNob3J0IHRhc2sgbGFiZWwgaW4gdGhlIGJvZHksIG9wdCBpbiBleHBsaWNpdGx5OgoKYGBgYmFzaAptdyBzZXR1cCAtLXllcyAtLWluY2x1ZGUtdGFzay10aXRsZQpgYGAKClRoYXQgc3RvcmVzIGF0IG1vc3QgODAgbG9jYWwtb25seSBjaGFyYWN0ZXJzIGZyb20gYSBob29rLXByb3ZpZGVkIHByb21wdCBvciB0aXRsZS4gTWV3cyBzdGlsbCBkb2VzIG5vdCB1cGxvYWQgcHJvbXB0cywgdHJhbnNjcmlwdHMsIG9yIHRlcm1pbmFsIG91dHB1dC4KClRoZSBhcHAgYnVuZGxlIGluY2x1ZGVzIHRoZSBNZXdzIGNhdCBsb2dvIGFzIGl0cyBtYWNPUyBpY29uLCBzbyBuYXRpdmUgbm90aWZpY2F0aW9ucyBhcmUgYnJhbmRlZCBhcyBNZXdzLiBXaGVuIGFuIGV2ZW50IGluY2x1ZGVzIGEgc2Vzc2lvbiBpZGVudGlmaWVyLCBjbGlja2luZyB0aGUgbm90aWZpY2F0aW9uIG9yIHNlbGVjdGluZyB0aGUgZXZlbnQgaW4gdGhlIG1lbnUgYmFyIGNvcGllcyBhIGxvY2FsIHJldHVybiBjb21tYW5kIHN1Y2ggYXMgYG13IGhpc3RvcnkgLS1zZXNzaW9uICdhYmMxMjMnYC4KClNldHVwIGluc3RhbGxzOgoKLSBDbGF1ZGUgQ29kZSBsaWZlY3ljbGUgaG9va3MgaW4gYH4vLmNsYXVkZS9zZXR0aW5ncy5qc29uYC4KLSBDb2RleCdzIHRvcC1sZXZlbCBgbm90aWZ5YCBjb21tYW5kIGluIGB+Ly5jb2RleC9jb25maWcudG9tbGAuCi0gQ29waWxvdCBDTEkgdXNlci1sZXZlbCBob29rcyBpbiBgfi8uY29waWxvdC9ob29rcy9tZXdzLmpzb25gLgoKRXhpc3RpbmcgQ2xhdWRlIGFuZCBDb2RleCBmaWxlcyBhcmUgYmFja2VkIHVwIGJlZm9yZSBlZGl0aW5nLiBNZXdzIHByZXNlcnZlcyB1bnJlbGF0ZWQgc2V0dGluZ3MsIHJlZnVzZXMgY29uZmxpY3Rpbmcgb3IgbWFsZm9ybWVkIHN0cnVjdHVyZXMgaXQgY2Fubm90IGVkaXQgc2FmZWx5LCBhbmQgcmVjb3JkcyBldmVyeSBtYW5hZ2VkIHBhdGggaW4gYGludGVncmF0aW9ucy5qc29uYC4gUmVzdGFydCB0aGUgYWdlbnQgQ0xJcyBhZnRlciBzZXR1cCBzbyB0aGV5IHJlbG9hZCB0aGVpciBjb25maWd1cmF0aW9uLgoKSWYgc29tZXRoaW5nIGNhbm5vdCBiZSBlbmFibGVkIHNhZmVseSwgTWV3cyBsZWF2ZXMgaXQgYWxvbmUgYW5kIGV4cGxhaW5zIHRoZSBmaXggaW4gYG13IGRvY3RvcmAuCgojIyBXaHkKCkFJIGFnZW50cyBhcmUgZWFzeSB0byBzdGFydCBhbmQgZWFzeSB0byBmb3JnZXQuCgpZb3UgYXNrIENsYXVkZSBDb2RlIHRvIHJlZmFjdG9yIGEgZmlsZSwgbGVhdmUgQ29kZXggcnVubmluZyB0ZXN0cywgb3IgbGV0IENvcGlsb3QgQ0xJIHdvcmsgdGhyb3VnaCBhIGNvbW1hbmQuIFRoZW4geW91IHN3aXRjaCBhcHBzLiBUZW4gbWludXRlcyBsYXRlciB0aGUgYWdlbnQgbWF5IGJlIGRvbmUsIHN0dWNrLCBvciB3YWl0aW5nIGZvciBwZXJtaXNzaW9uLCBidXQgdGhlIG9ubHkgc2lnbmFsIGlzIGJ1cmllZCBpbiBhIHRlcm1pbmFsIHBhbmUuCgpNZXdzIHR1cm5zIHRoYXQgaGlkZGVuIHN0YXRlIGludG8gYSBzbWFsbCBsb2NhbCBzaWduYWwuCgojIyBNVlAKCi0gTmF0aXZlIG1hY09TIG5vdGlmaWNhdGlvbnMgZm9yIGNvbXBsZXRpb24sIGZhaWx1cmUsIGFuZCBpbnB1dC1uZWVkZWQgZXZlbnRzLgotIEEgbG9jYWwgSlNPTkwgaGlzdG9yeSBzbyBtaXNzZWQgbm90aWZpY2F0aW9ucyBhcmUgbm90IGdvbmUgZm9yZXZlci4KLSBBIG1lbnUgYmFyIGNvbXBhbmlvbiB0aGF0IHNob3dzIHRoZSBsYXRlc3QgbG9jYWwgc3RhdGUgYW5kIHJlY2VudCBldmVudHMuCi0gQ2xlYXIgZG9jdG9yIG91dHB1dCBmb3Igc2V0dXAsIGFsbCBpbnRlZ3JhdGlvbnMsIG5vdGlmaWNhdGlvbiBwZXJtaXNzaW9uLCBMYXVuY2hBZ2VudCwgc29ja2V0LCBhbmQgdGhlIG1lbnUgYmFyIGFwcC4KLSBCb3VuZGVkIGxvY2FsIGV2ZW50IGhpc3RvcnkgYW5kIGFuIGlzb2xhdGVkIHBhY2thZ2Ugc21va2UgdGVzdC4KCiMjIE1hYyBDb21wYW5pb24KClRoZSBjdXJyZW50IG1lbnUgYmFyIGNvbXBhbmlvbiBpcyBpbnRlbnRpb25hbGx5IHRoaW4uIEl0IHN0YXJ0cyB0aGUgbG9jYWwgSVBDIGFnZW50LCByZWFkcyB0aGUgbG9jYWwgZXZlbnQgaGlzdG9yeSwgYW5kIGtlZXBzIHRoZSBsYXRlc3Qgc3RhdGUgdmlzaWJsZSBmcm9tIHRoZSBtZW51IGJhci4KCkxhdGVyLCAqKk1ld3MgZm9yIE1hYyoqIGNhbiBhZGQgdGhlIG5vdGNoIGNhdDogYSBzbWFsbCBjYXQgYXJvdW5kIHRoZSBNYWNCb29rIG5vdGNoIHRoYXQgd2Fsa3Mgd2hpbGUgYWdlbnRzIHJ1biwgbmFwcyB3aGVuIGlkbGUsIHBvdW5jZXMgd2hlbiBzb21ldGhpbmcgZmluaXNoZXMsIGFuZCBnZXRzIHlvdXIgYXR0ZW50aW9uIHdoZW4gYSBwcm9tcHQgaXMgd2FpdGluZy4KCiMjIFdoYXQgTWV3cyBXYXRjaGVzCgpNZXdzIHNob3VsZCB3b3JrIG91dCBvZiB0aGUgYm94IHdpdGggdGhlIHRvb2xzIHRlcm1pbmFsIEFJIHVzZXJzIGFscmVhZHkgaGF2ZToKCi0gQ2xhdWRlIENvZGUgdGhyb3VnaCB1c2VyLWxldmVsIGxpZmVjeWNsZSBob29rcwotIENvZGV4IHRocm91Z2ggaXRzIHVzZXItbGV2ZWwgYG5vdGlmeWAgY29tbWFuZAotIENvcGlsb3QgQ0xJIHRocm91Z2ggdXNlci1sZXZlbCBob29rcwotIGxvbmctcnVubmluZyBzaGVsbCBjb21tYW5kcyB0aHJvdWdoIGBtdyBydW4gLS0gPGNvbW1hbmQ+YAoKWW91IHNob3VsZCBub3QgbmVlZCB0byBjb3B5IGhvb2sgSlNPTiwgZWRpdCBjb25maWcgZmlsZXMsIG9yIGxlYXJuIGEgbm90aWZpY2F0aW9uIHByb3RvY29sIGJlZm9yZSBNZXdzIGJlY29tZXMgdXNlZnVsLgoKIyMgUHJpdmFjeQoKTWV3cyBzaG91bGQgYmUgYm9yaW5nbHkgcHJpdmF0ZS4KCi0gSXQgcnVucyBsb2NhbGx5IG9uIHlvdXIgTWFjLgotIEl0IGRvZXMgbm90IHVwbG9hZCBjb2RlLCBwcm9tcHRzLCB0cmFuc2NyaXB0cywgb3IgdGVybWluYWwgb3V0cHV0LgotIEl0IGRvZXMgbm90IHNjYW4gdGVybWluYWwgc2Nyb2xsYmFjayBieSBkZWZhdWx0LgotIEl0IG9ubHkgZW5hYmxlcyBpbnRlZ3JhdGlvbnMgeW91IGFwcHJvdmUuCi0gRXZlcnkgYXV0b21hdGljIGNoYW5nZSBzaG91bGQgYmUgcmV2ZXJzaWJsZS4KCiMjIENvbW1hbmRzCgpNb3N0IHVzZXJzIHNob3VsZCBvbmx5IG5lZWQgdGhlc2UgY29tbWFuZHM6CgpgYGBiYXNoCm13IHNldHVwICAgICAgICMgU2hvdyB0aGUgc2V0dXAgcGxhbgptdyBzZXR1cCAtLXllcyAjIEFwcGx5IE1ld3Mtb3duZWQgc2V0dXAKbXcgc2V0dXAgLS15ZXMgLS1pbmNsdWRlLXRhc2stdGl0bGUgIyBPcHQgaW4gdG8gc2hvcnQgbG9jYWwgdGFzayBsYWJlbHMKbXcgc3RhcnQgICAgICAgIyBTdGFydCB0aGUgbG9jYWwgYWdlbnQgYWZ0ZXIgc2V0dXAKbXcgc3RhdHVzICAgICAgIyBTaG93IHRoZSBjdXJyZW50IGxvY2FsIHN0YXRlCm13IGhpc3RvcnkgICAgICMgU2hvdyByZWNlbnQgbG9jYWwgZXZlbnRzCm13IGhpc3RvcnkgLS1zZXNzaW9uIDxpZD4gIyBTaG93IGV2ZW50cyBmb3Igb25lIHNlc3Npb24gcmVmZXJlbmNlCm13IGxpc3RlbiAgICAgICMgTGlzdGVuIGluIHRoZSB0ZXJtaW5hbCBhbmQgcHJpbnQgZXZlbnRzIGFzIHRoZXkgYXJyaXZlCm13IGRvY3RvciAgICAgICMgQ2hlY2sgc2V0dXAgYW5kIGZpeCBhbnl0aGluZyB0aGF0IG5lZWRzIGF0dGVudGlvbgptdyB1bmRvICAgICAgICAjIFJlbW92ZSBNZXdzLWluc3RhbGxlZCBpbnRlZ3JhdGlvbnMgYW5kIHNldHVwIHN0YXRlCmBgYAoKRm9yIHBlb3BsZSB3aG8gd2FudCB0byBzY3JpcHQgTWV3cyBkaXJlY3RseToKCmBgYGJhc2gKbXcgbm90aWZ5ICAgICAgIyBTZW5kIGEgY3VzdG9tIHN0YXR1cyBldmVudAptdyBydW4gLS0gY21kICAjIFJ1biBhIGNvbW1hbmQgYW5kIG5vdGlmeSB3aGVuIGl0IGV4aXRzCm13IHN0b3AgICAgICAgICMgU3RvcCB0aGUgbG9jYWwgYWdlbnQKbXcgcmVzZXQgLS15ZXMgIyBBZnRlciB1bmRvLCBkZWxldGUgbG9jYWwgTWV3cyBkYXRhIGFuZCBsb2dzCmBgYAoKIyMgV2hhdCBNZXdzIElzIE5vdAoKTWV3cyBpcyBub3QgYW4gQUkgY2hhdCBhcHAsIG5vdCBhIENsYXVkZSB3cmFwcGVyLCBub3QgYSBDb2RleCBkYXNoYm9hcmQsIG5vdCBhIENvcGlsb3QgcmVwbGFjZW1lbnQsIGFuZCBub3QgYSB0ZWFtIG1vbml0b3JpbmcgcHJvZHVjdC4KCkl0IGlzIGEgc21hbGwgTWFjIGNvbXBhbmlvbiBmb3IgcGVvcGxlIHdobyBydW4gQUkgYWdlbnRzIGluIHRlcm1pbmFscyBhbmQgZG8gbm90IHdhbnQgdG8gYmFieXNpdCB0aGVtLgoKIyMgUmVsZWFzZQoKTWFpbnRhaW5lcnMgY3JlYXRlIGEgc2lnbmVkIHJlbGVhc2UgYXJ0aWZhY3Qgb24gbWFjT1M6CgpgYGBiYXNoClZFUlNJT049dlguWS5aIG1ha2UgcmVsZWFzZS1jaGVjawoKVkVSU0lPTj12WC5ZLlogXApTSUdOX0lERU5USVRZPSJEZXZlbG9wZXIgSUQgQXBwbGljYXRpb246IC4uLiIgXApOT1RBUllfUFJPRklMRT1tZXdzLW5vdGFyeSBcCm1ha2UgcmVsZWFzZQpgYGAKCmBtYWtlIHJlbGVhc2UtY2hlY2tgIHJ1bnMgdGVzdHMsIGxpbnQsIHBhY2thZ2UgY2hlY2tzdW0gdmVyaWZpY2F0aW9uLCBhbmQgYW4gaXNvbGF0ZWQgaW5zdGFsbGVkLXJ1bnRpbWUgc21va2Ugd2l0aG91dCByZXF1aXJpbmcgc2lnbmluZyBjcmVkZW50aWFscy4gVGhlIGZvcm1hbCByZWxlYXNlIGNvbW1hbmQgbXVzdCBydW4gZnJvbSBhIGNsZWFuIGBtYWluYCBzeW5jaHJvbml6ZWQgd2l0aCBgb3JpZ2luL21haW5gOyBpdCByZXF1aXJlcyBzaWduaW5nIGFuZCBub3Rhcml6YXRpb24gY3JlZGVudGlhbHMsIHZlcmlmaWVzIHRoZSBhcHAgd2l0aCBHYXRla2VlcGVyLCBhbmQgcHJvZHVjZXMgYSB0YXJiYWxsLCBTSEEtMjU2IGNoZWNrc3VtLCBhbmQgdmVyc2lvbi1waW5uZWQgYGRpc3QvbWV3cy5yYmAgZm9ybXVsYSBmb3IgcHVibGljYXRpb24gdG8gYSBIb21lYnJldyB0YXAuIEl0IGZhaWxzIGluc3RlYWQgb2YgcHJvZHVjaW5nIGFuIHVuc2lnbmVkIGZvcm1hbCByZWxlYXNlLgoKIyMgUm9hZG1hcAoKLSBQdWJsaXNoIGFuZCBtYWludGFpbiBhIEhvbWVicmV3IHRhcC4KLSBBZGQgcmljaGVyIHF1aWV0LW1vZGUgYW5kIG5vdGlmaWNhdGlvbiBydWxlcy4KLSBJbXByb3ZlIG1lbnUgYmFyIHZpc3VhbCBwb2xpc2ggd2l0aG91dCBleHBhbmRpbmcgaW50byBhbiBhZ2VudCBkYXNoYm9hcmQuCgojIyBQcm9kdWN0IE5vdGVzCgpMb25nZXIgZGVzaWduIG5vdGVzIGxpdmUgdW5kZXIgW2RvY3MvXSguL2RvY3MvKS4K
+<div align="center">
+  <img src="./assets/mews-logo.svg" width="96" height="96" alt="Mews minimal cat logo">
+  <h1>Mews</h1>
+  <p><em>🐈 Never miss your AI agents again.</em></p>
+</div>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-local--first-black?style=flat-square" alt="macOS local first">
+  <img src="https://img.shields.io/badge/distribution-signed_release_pipeline-orange?style=flat-square" alt="Signed release pipeline">
+  <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/status-MVP_release_candidate-green?style=flat-square" alt="MVP release candidate">
+</p>
+
+[简体中文](./README_zh.md)
+
+Mews watches the AI agents you run from terminal and keeps their lifecycle events visible locally.
+
+When Claude Code, Codex, Copilot CLI, or a long-running terminal command finishes, fails, or needs you, Mews lets you know. You do not have to keep checking every pane.
+
+> Mews is an MVP release candidate. The local product path, three agent integrations, reversible setup, package verification, and signed/notarized release pipeline are implemented. A Homebrew tap is still a distribution follow-up.
+
+## Install
+
+From a GitHub release artifact:
+
+```bash
+tar -xzf mews-vX.Y.Z-darwin.tar.gz
+cd mews-vX.Y.Z-darwin
+sudo ./install.sh
+mw setup
+mw setup --yes
+mw start
+```
+
+Verify the downloaded archive with the adjacent `.sha256` file before installing.
+
+For development from this repository:
+
+```bash
+make build
+./bin/mw setup
+./bin/mw setup --yes
+./bin/mw start
+./bin/mw doctor
+```
+
+`mw setup` shows the local changes Mews wants to make before it writes anything. `mw setup --yes` applies the Mews-owned setup. `mw start` installs a per-user LaunchAgent and starts the thin menu bar companion packaged by `make build`.
+
+Mews.app delivers all notifications through the native macOS notification center. Notifications identify the agent and status in the title, then show the project and a shortened session identifier when the tool provides them. The body describes the lifecycle action without exposing the full working directory, full session identifier, prompt, or terminal output. To show a short task label in the body, opt in explicitly:
+
+```bash
+mw setup --yes --include-task-title
+```
+
+That stores at most 80 local-only characters from a hook-provided prompt or title. Mews still does not upload prompts, transcripts, or terminal output.
+
+The app bundle includes the Mews cat logo as its macOS icon, so native notifications are branded as Mews. When an event includes a session identifier, clicking the notification or selecting the event in the menu bar copies a local return command such as `mw history --session 'abc123'`.
+
+Setup installs:
+
+- Claude Code lifecycle hooks in `~/.claude/settings.json`.
+- Codex's top-level `notify` command in `~/.codex/config.toml`.
+- Copilot CLI user-level hooks in `~/.copilot/hooks/mews.json`.
+
+Existing Claude and Codex files are backed up before editing. Mews preserves unrelated settings, refuses conflicting or malformed structures it cannot edit safely, and records every managed path in `integrations.json`. Restart the agent CLIs after setup so they reload their configuration.
+
+If something cannot be enabled safely, Mews leaves it alone and explains the fix in `mw doctor`.
+
+## Why
+
+AI agents are easy to start and easy to forget.
+
+You ask Claude Code to refactor a file, leave Codex running tests, or let Copilot CLI work through a command. Then you switch apps. Ten minutes later the agent may be done, stuck, or waiting for permission, but the only signal is buried in a terminal pane.
+
+Mews turns that hidden state into a small local signal.
+
+## MVP
+
+- Native macOS notifications for completion, failure, and input-needed events.
+- A local JSONL history so missed notifications are not gone forever.
+- A menu bar companion that shows the latest local state and recent events.
+- Clear doctor output for setup, all integrations, notification permission, LaunchAgent, socket, and the menu bar app.
+- Bounded local event history and an isolated package smoke test.
+
+## Mac Companion
+
+The current menu bar companion is intentionally thin. It starts the local IPC agent, reads the local event history, and keeps the latest state visible from the menu bar.
+
+Later, **Mews for Mac** can add the notch cat: a small cat around the MacBook notch that walks while agents run, naps when idle, pounces when something finishes, and gets your attention when a prompt is waiting.
+
+## What Mews Watches
+
+Mews should work out of the box with the tools terminal AI users already have:
+
+- Claude Code through user-level lifecycle hooks
+- Codex through its user-level `notify` command
+- Copilot CLI through user-level hooks
+- long-running shell commands through `mw run -- <command>`
+
+You should not need to copy hook JSON, edit config files, or learn a notification protocol before Mews becomes useful.
+
+## Privacy
+
+Mews should be boringly private.
+
+- It runs locally on your Mac.
+- It does not upload code, prompts, transcripts, or terminal output.
+- It does not scan terminal scrollback by default.
+- It only enables integrations you approve.
+- Every automatic change should be reversible.
+
+## Commands
+
+Most users should only need these commands:
+
+```bash
+mw setup       # Show the setup plan
+mw setup --yes # Apply Mews-owned setup
+mw setup --yes --include-task-title # Opt in to short local task labels
+mw start       # Start the local agent after setup
+mw status      # Show the current local state
+mw history     # Show recent local events
+mw history --session <id> # Show events for one session reference
+mw listen      # Listen in the terminal and print events as they arrive
+mw doctor      # Check setup and fix anything that needs attention
+mw undo        # Remove Mews-installed integrations and setup state
+```
+
+For people who want to script Mews directly:
+
+```bash
+mw notify      # Send a custom status event
+mw run -- cmd  # Run a command and notify when it exits
+mw stop        # Stop the local agent
+mw reset --yes # After undo, delete local Mews data and logs
+```
+
+## What Mews Is Not
+
+Mews is not an AI chat app, not a Claude wrapper, not a Codex dashboard, not a Copilot replacement, and not a team monitoring product.
+
+It is a small Mac companion for people who run AI agents in terminals and do not want to babysit them.
+
+## Release
+
+Maintainers create a signed release artifact on macOS:
+
+```bash
+VERSION=vX.Y.Z make release-check
+
+VERSION=vX.Y.Z \
+SIGN_IDENTITY="Developer ID Application: ..." \
+NOTARY_PROFILE=mews-notary \
+make release
+```
+
+`make release-check` runs tests, lint, package checksum verification, and an isolated installed-runtime smoke without requiring signing credentials. The formal release command must run from a clean `main` synchronized with `origin/main`; it requires signing and notarization credentials, verifies the app with Gatekeeper, and produces a tarball, SHA-256 checksum, and version-pinned `dist/mews.rb` formula for publication to a Homebrew tap. It fails instead of producing an unsigned formal release.
+
+## Roadmap
+
+- Publish and maintain a Homebrew tap.
+- Add richer quiet-mode and notification rules.
+- Improve menu bar visual polish without expanding into an agent dashboard.
+
+## Product Notes
+
+Longer design notes live under [docs/](./docs/).

@@ -1,1 +1,171 @@
-PGRpdiBhbGlnbj0iY2VudGVyIj4KICA8aW1nIHNyYz0iLi9hc3NldHMvbWV3cy1sb2dvLnN2ZyIgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBhbHQ9Ik1ld3Mg5p6B566A54yr5ZKqIGxvZ28iPgogIDxoMT5NZXdzPC9oMT4KICA8cD48ZW0+8J+QiCDkuI3lho3plJnov4fkvaDnmoQgQUkgYWdlbnTjgII8L2VtPjwvcD4KPC9kaXY+Cgo8cCBhbGlnbj0iY2VudGVyIj4KICA8aW1nIHNyYz0iaHR0cHM6Ly9pbWcuc2hpZWxkcy5pby9iYWRnZS9tYWNPUy1sb2NhbC0tZmlyc3QtYmxhY2s/c3R5bGU9ZmxhdC1zcXVhcmUiIGFsdD0ibWFjT1MgbG9jYWwgZmlyc3QiPgogIDxpbWcgc3JjPSJodHRwczovL2ltZy5zaGllbGRzLmlvL2JhZGdlL2Rpc3RyaWJ1dGlvbi1zaWduZWRfcmVsZWFzZV9waXBlbGluZS1vcmFuZ2U/c3R5bGU9ZmxhdC1zcXVhcmUiIGFsdD0iU2lnbmVkIHJlbGVhc2UgcGlwZWxpbmUiPgogIDxpbWcgc3JjPSJodHRwczovL2ltZy5zaGllbGRzLmlvL2JhZGdlL2xpY2Vuc2UtR1BMX3YzLWJsdWUuc3ZnP3N0eWxlPWZsYXQtc3F1YXJlIiBhbHQ9IkxpY2Vuc2UiPgogIDxpbWcgc3JjPSJodHRwczovL2ltZy5zaGllbGRzLmlvL2JhZGdlL3N0YXR1cy1NVlBfcmVsZWFzZV9jYW5kaWRhdGUtZ3JlZW4/c3R5bGU9ZmxhdC1zcXVhcmUiIGFsdD0iTVZQIHJlbGVhc2UgY2FuZGlkYXRlIj4KPC9wPgoKW0VuZ2xpc2hdKC4vUkVBRE1FLm1kKQoKTWV3cyDkvJrnm6/nnYDkvaDlnKjnu4jnq6/ph4zov5DooYznmoQgQUkgYWdlbnTvvIzmiorlroPku6znmoTnlJ/lkb3lkajmnJ/kuovku7bnlZnlnKjmnKzmnLrvvIzorqnkvaDkuI3nlKjkuIDnm7TliIflm57nu4jnq6/nnIvnirbmgIHjgIIKCuW9kyBDbGF1ZGUgQ29kZeOAgUNvZGV444CBQ29waWxvdCBDTEkg5oiW5LiA5Liq6ZW/5pe26Ze06L+Q6KGM55qE57uI56uv5ZG95Luk5a6M5oiQ44CB5aSx6LSl5oiW6ZyA6KaB5L2g5aSE55CG5pe277yMTWV3cyDkvJrmj5DphpLkvaDjgIIKCj4gTWV3cyDnm67liY3mmK8gTVZQIHJlbGVhc2UgY2FuZGlkYXRl44CC5pys5Zyw5Lqn5ZOB6ZO+6Lev44CB5LiJ56eNIGFnZW50IOaOpeWFpeOAgeWPr+mAhiBzZXR1cOOAgeWuieijheWMhemqjOivge+8jOS7peWPiuetvuWQjeWSjOWFrOivgeWPkeW4g+a1geeoi+W3sue7j+WunueOsOOAgkhvbWVicmV3IHRhcCDku43mmK/lkI7nu63liIblj5Hlt6XkvZzjgIIKCiMjIOWuieijhQoK5LuOIEdpdEh1YiByZWxlYXNlIOWuieijhe+8mgoKYGBgYmFzaAp0YXIgLXh6ZiBtZXdzLXZYLlkuWi1kYXJ3aW4udGFyLmd6CmNkIG1ld3MtdlguWS5aLWRhcndpbgpzdWRvIC4vaW5zdGFsbC5zaAptdyBzZXR1cAptdyBzZXR1cCAtLXllcwptdyBzdGFydApgYGAKCuWuieijheWJjeivt+eUqCByZWxlYXNlIOmZhOW4pueahCBgLnNoYTI1NmAg5paH5Lu25qCh6aqM5Y6L57yp5YyF44CCCgrku47ku5PlupPlvIDlj5HlkozkvZPpqozvvJoKCmBgYGJhc2gKbWFrZSBidWlsZAouL2Jpbi9tdyBzZXR1cAouL2Jpbi9tdyBzZXR1cCAtLXllcwouL2Jpbi9tdyBzdGFydAouL2Jpbi9tdyBkb2N0b3IKYGBgCgpgbXcgc2V0dXBgIOS8muWFiOWxleekuiBNZXdzIOWHhuWkh+WGmeWFpeeahOacrOWcsOaUueWKqOOAgmBtdyBzZXR1cCAtLXllc2Ag5omN5Lya5bqU55So6L+Z5LqbIE1ld3Mtb3duZWQg6K6+572u44CCYG13IHN0YXJ0YCDkvJrlronoo4XlvZPliY3nlKjmiLfnmoQgTGF1bmNoQWdlbnTvvIzlubblkK/liqjnlLEgYG1ha2UgYnVpbGRgIOaJk+WMheWHuuadpeeahOi9u+mHj+iPnOWNleagjyBjb21wYW5pb27jgIIKCuaJgOaciemAmuefpemDveeUsSBNZXdzLmFwcCDpgJrov4cgbWFjT1Mg5Y6f55Sf6YCa55+l5Lit5b+D5Y+R6YCB44CC6YCa55+l5qCH6aKY5Lya5qCH5piOIGFnZW50IOWSjOeKtuaAge+8jOW5tuWcqOW3peWFt+aPkOS+m+ebuOWFs+S/oeaBr+aXtuaYvuekuumhueebruWQjeWSjOe8qeefreWQjueahCBzZXNzaW9uIGlk44CC5q2j5paH5Lya5o+P6L+w55Sf5ZG95ZGo5pyf5Yqo5L2c77yM5L2G5LiN5Lya5bGV56S65a6M5pW05bel5L2c55uu5b2V44CB5a6M5pW0IHNlc3Npb24gaWTjgIFwcm9tcHQg5oiW57uI56uv6L6T5Ye644CC5aaC5p6c5biM5pyb5q2j5paH5bim5LiA5Liq566A55+t5Lu75Yqh5qCH6aKY77yM6ZyA6KaB5pi+5byP5byA5ZCv77yaCgpgYGBiYXNoCm13IHNldHVwIC0teWVzIC0taW5jbHVkZS10YXNrLXRpdGxlCmBgYAoK6L+Z5Liq6YCJ6aG55pyA5aSa5L+d5a2YIDgwIOS4quadpeiHqiBob29rIHBheWxvYWQg55qE5pys5Zyw5a2X56ym44CCTWV3cyDku43nhLbkuI3kvJrkuIrkvKAgcHJvbXB044CBdHJhbnNjcmlwdCDmiJbnu4jnq6/ovpPlh7rjgIIKCkFwcCBidW5kbGUg5Lya5bim5LiKIE1ld3Mg54yr5ZKqIGxvZ28g5L2c5Li6IG1hY09TIOWbvuagh++8jOaJgOS7peWOn+eUn+mAmuefpeS8muaYvuekuiBNZXdzIOeahOWTgeeJjOivhuWIq+OAguS6i+S7tuW4puaciSBzZXNzaW9uIGlkIOaXtu+8jOeCueWHu+mAmuefpeaIluWcqOiPnOWNleagj+mHjOmAieaLqeWvueW6lOS6i+S7tu+8jOS8muWkjeWItuexu+S8vCBgbXcgaGlzdG9yeSAtLXNlc3Npb24gJ2FiYzEyMydgIOeahOacrOWcsOi/lOWbnuWRveS7pOOAggoKU2V0dXAg5Lya5a6J6KOF77yaCgotIENsYXVkZSBDb2RlIOeUn+WRveWRqOacnyBob29r77yaYH4vLmNsYXVkZS9zZXR0aW5ncy5qc29uYAotIENvZGV4IOmhtuWxgiBgbm90aWZ5YCDlkb3ku6TvvJpgfi8uY29kZXgvY29uZmlnLnRvbWxgCi0gQ29waWxvdCBDTEkgdXNlci1sZXZlbCBob29r77yaYH4vLmNvcGlsb3QvaG9va3MvbWV3cy5qc29uYAoKTWV3cyDkv67mlLkgQ2xhdWRlIOWSjCBDb2RleCDphY3nva7liY3kvJrliJvlu7rlpIfku73vvIzkv53nlZnml6DlhbPorr7nva7vvIzlubbmiornrqHnkIbot6/lvoTorrDlvZXliLAgYGludGVncmF0aW9ucy5qc29uYOOAgumBh+WIsOWGsueqgeaIluaXoOazleWuieWFqOWkhOeQhueahOmFjee9rue7k+aehOaXtuS8muaLkue7neS/ruaUueOAgnNldHVwIOWQjumcgOimgemHjeWQr+WvueW6lCBDTEnvvIzorqnlroPph43mlrDliqDovb3phY3nva7jgIIKCuWmguaenOafkOS4quaOpeWFpeS4jeiDveWuieWFqOWQr+eUqO+8jE1ld3Mg5Lya6Lez6L+H5a6D77yM5bm25ZyoIGBtdyBkb2N0b3JgIOmHjOivtOaYjuWOn+WboOOAggoKIyMg5Li65LuA5LmI5YGaCgpBSSBhZ2VudCDlvojlrrnmmJPlkK/liqjvvIzkuZ/lvojlrrnmmJPooqvlv5jmjonjgIIKCuS9oOiuqSBDbGF1ZGUgQ29kZSDmlLnkuIDkuKrmlofku7bvvIzorqkgQ29kZXgg6LeR5rWL6K+V77yM5oiW6ICF6K6pIENvcGlsb3QgQ0xJIOWkhOeQhuS4gOauteS7u+WKoe+8jOeEtuWQjuWIh+WOu+WBmuWIq+eahOS6i+OAguWNgeWIhumSn+WQjuWug+WPr+iDveW3sue7j+WujOaIkOOAgeWksei0peOAgeWNoeS9j+aIluWcqOetieS9oOehruiupO+8jOS9huS/oeWPt+i/mOWfi+WcqOafkOS4que7iOerr+eql+WPo+mHjOOAggoKTWV3cyDmiorov5nkupvpmpDol4/nirbmgIHlj5jmiJDmnKzlnLDjgIHkvY7miZPmibDnmoTmj5DphpLjgIIKCiMjIE1WUCDlt7LmnInog73lipsKCi0g5a6M5oiQ44CB5aSx6LSl5ZKM6ZyA6KaB6L6T5YWl5pe25Y+R6YCB5Y6f55SfIG1hY09TIOmAmuefpeOAggotIOacrOWcsCBKU09OTCDljoblj7LorrDlvZXvvIzplJnov4fpgJrnn6XlkI7ov5jog73mib7lm57jgIIKLSDoj5zljZXmoI8gY29tcGFuaW9uIOS8muaYvuekuuacgOaWsOacrOWcsOeKtuaAgeWSjOacgOi/keS6i+S7tuOAggotIGBkb2N0b3JgIOS8muaYvuekuiBzZXR1cOOAgeS4ieenjeaOpeWFpeOAgemAmuefpeadg+mZkOOAgUxhdW5jaEFnZW5044CBc29ja2V0IOWSjOiPnOWNleagjyBhcHAg54q25oCB44CCCi0g5pys5Zyw5LqL5Lu25pel5b+X5pyJ5a656YeP5LiK6ZmQ77yM5Y+R5biD5YyF5bim6ZqU56a7IHNtb2tlIHRlc3TjgIIKCiMjIE1hYyBjb21wYW5pb24KCuW9k+WJjeiPnOWNleagjyBjb21wYW5pb24g5pWF5oSP5L+d5oyB6L276YeP44CC5a6D5Lya5ZCv5Yqo5pys5ZywIElQQyBhZ2VudO+8jOivu+WPluacrOWcsOS6i+S7tuWOhuWPsu+8jOW5tuaKiuacgOaWsOeKtuaAgeeVmeWcqOiPnOWNleagj+mHjOOAggoK5LmL5ZCO55qEICoqTWV3cyBmb3IgTWFjKiog5Y+v5Lul5Yqg5YWl5YiY5rW35bCP54yr77yaYWdlbnQg6L+Q6KGM5pe25bCP54yr6LWw5Yqo77yM56m66Zey5pe2552h6KeJ77yM5a6M5oiQ5pe26Lez5LiA5LiL77yM6ZyA6KaB5L2g5aSE55CG5pe25ZC45byV5rOo5oSP44CCCgojIyBNZXdzIOebkeaOp+S7gOS5iAoKTWV3cyDpnaLlkJHnu4jnq68gQUkg55So5oi35bey57uP5Zyo55So55qE5bel5YW377yaCgotIENsYXVkZSBDb2Rl77ya6YCa6L+HIHVzZXItbGV2ZWwg55Sf5ZG95ZGo5pyfIGhvb2sg5o6l5YWlCi0gQ29kZXjvvJrpgJrov4cgdXNlci1sZXZlbCBgbm90aWZ5YCDlkb3ku6TmjqXlhaUKLSBDb3BpbG90IENMSe+8mumAmui/hyB1c2VyLWxldmVsIGhvb2sg5o6l5YWlCi0g6ZW/5pe26Ze06L+Q6KGM55qEIHNoZWxsIOWRveS7pO+8muS9v+eUqCBgbXcgcnVuIC0tIDxjb21tYW5kPmAKCueUqOaIt+S4jeW6lOivpeS4uuS6huiuqSBNZXdzIOacieeUqO+8jOWwseWFiOWtpiBob29rIEpTT07jgIHmiYvliqjmlLnphY3nva7miJbnkIbop6PpgJrnn6XljY/orq7jgIIKCiMjIOmakOengQoKTWV3cyDnmoTpmpDnp4HovrnnlYzlupTor6XnroDljZXjgIHlj6/lrqHorqHjgIIKCi0g5Y+q5Zyo5L2g55qEIE1hYyDmnKzmnLrov5DooYzjgIIKLSDkuI3kuIrkvKDku6PnoIHjgIFwcm9tcHTjgIF0cmFuc2NyaXB0IOaIlue7iOerr+i+k+WHuuOAggotIOm7mOiupOS4jeaJq+aPjyB0ZXJtaW5hbCBzY3JvbGxiYWNr44CCCi0g5Y+q5ZCv55So5L2g5ZCM5oSP55qE5o6l5YWl44CCCi0g6Ieq5Yqo5YaZ5YWl55qE5pS55Yqo6YO95bqU6K+l5Y+v5Lul5pKk6ZSA44CCCgojIyDlkb3ku6QKCuWkp+WkmuaVsOeUqOaIt+WPqumcgOimgei/meS6m+WRveS7pO+8mgoKYGBgYmFzaAptdyBzZXR1cCAgICAgICAjIOafpeeciyBzZXR1cCDorqHliJIKbXcgc2V0dXAgLS15ZXMgIyDlupTnlKggTWV3cy1vd25lZCBzZXR1cAptdyBzZXR1cCAtLXllcyAtLWluY2x1ZGUtdGFzay10aXRsZSAjIOaYvuW8j+W8gOWQr+acrOWcsOefreS7u+WKoeagh+mimAptdyBzdGFydCAgICAgICAjIHNldHVwIOWQjuWQr+WKqOacrOWcsCBhZ2VudAptdyBzdGF0dXMgICAgICAjIOafpeeci+W9k+WJjeacrOWcsOeKtuaAgQptdyBoaXN0b3J5ICAgICAjIOafpeeci+acgOi/keacrOWcsOS6i+S7tgptdyBoaXN0b3J5IC0tc2Vzc2lvbiA8aWQ+ICMg5p+l55yL5p+Q5LiqIHNlc3Npb24g55qE5LqL5Lu2Cm13IGxpc3RlbiAgICAgICMg5Zyo57uI56uv6YeM55uR5ZCs5bm25omT5Y2w5LqL5Lu2Cm13IGRvY3RvciAgICAgICMg5qOA5p+lIHNldHVwIOWSjOaOpeWFpeeKtuaAgQptdyB1bmRvICAgICAgICAjIOenu+mZpCBNZXdzIOWuieijheeahOaOpeWFpeWSjCBzZXR1cCBzdGF0ZQpgYGAKCuiEmuacrOWMluWcuuaZr+WPr+S7peeUqO+8mgoKYGBgYmFzaAptdyBub3RpZnkgICAgICAjIOWPkemAgeiHquWumuS5ieeKtuaAgeS6i+S7tgptdyBydW4gLS0gY21kICAjIOi/kOihjOWRveS7pO+8jOW5tuWcqOmAgOWHuuaXtumAmuefpQptdyBzdG9wICAgICAgICAjIOWBnOatouacrOWcsCBhZ2VudAptdyByZXNldCAtLXllcyAjIHVuZG8g5ZCO5Yig6ZmkIE1ld3Mg5pys5Zyw5pWw5o2u5ZKM5pel5b+XCmBgYAoKIyMgTWV3cyDkuI3mmK/ku4DkuYgKCk1ld3Mg5LiN5pivIEFJIOiBiuWkqeW6lOeUqO+8jOS4jeaYryBDbGF1ZGUgd3JhcHBlcu+8jOS4jeaYryBDb2RleCBkYXNoYm9hcmTvvIzkuI3mmK8gQ29waWxvdCDmm7/ku6Plk4HvvIzkuZ/kuI3mmK/lm6LpmJ/nm5Hmjqfkuqflk4HjgIIKCuWug+WPquaYr+S4gOS4que7mee7iOerryBBSSBhZ2VudCDnlKjmiLfnlKjnmoTlsI/lnosgTWFjIGNvbXBhbmlvbu+8jOiuqeS9oOS4jeeUqOS4gOebtOebr+edgOe7iOerr+OAggoKIyMg5Y+R5biDCgrnu7TmiqTogIXlj6/ku6XlhYjov5DooYzkuI3pnIDopoHnrb7lkI3lh63mja7nmoTlj5HluIPmo4Dmn6XvvJoKCmBgYGJhc2gKVkVSU0lPTj12WC5ZLlogbWFrZSByZWxlYXNlLWNoZWNrCmBgYAoK5q2j5byP5Y+R5biD6ZyA6KaB5Zyo5LiOIGBvcmlnaW4vbWFpbmAg5ZCM5q2l55qE5bmy5YeAIGBtYWluYCDliIbmlK/kuIrov5DooYzvvJoKCmBgYGJhc2gKVkVSU0lPTj12WC5ZLlogXApTSUdOX0lERU5USVRZPSJEZXZlbG9wZXIgSUQgQXBwbGljYXRpb246IC4uLiIgXApOT1RBUllfUFJPRklMRT1tZXdzLW5vdGFyeSBcCm1ha2UgcmVsZWFzZQpgYGAKCmBtYWtlIHJlbGVhc2UtY2hlY2tgIOS8mui/kOihjOa1i+ivleOAgWxpbnTjgIHlronoo4XljIXmoKHpqozlkozmo4Dmn6XvvIzku6Xlj4rpmpTnprvnmoTlronoo4XlkI7ov5DooYwgc21va2XvvIzkuI3pnIDopoHnrb7lkI3lh63mja7jgILmraPlvI/lj5HluIPlkb3ku6TlvLrliLbopoHmsYLnrb7lkI3lkozlhazor4Hlh63mja7vvIzkvb/nlKggR2F0ZWtlZXBlciDmoKHpqowgQXBw77yM5bm255Sf5oiQIHRhcmJhbGzjgIFTSEEtMjU2IOagoemqjOaWh+S7tu+8jOS7peWPiueUqOS6juWPkeW4g+WIsCBIb21lYnJldyB0YXAg55qE54mI5pys5Zu65a6aIGBkaXN0L21ld3MucmJgIGZvcm11bGHjgILnvLrlsJHlh63mja7ml7bkuI3kvJrnlJ/miJDlvaLlvI/kuIrlg4/mraPlvI/lj5HluIPjgIHlrp7pmYXmnKrnrb7lkI3nmoTkuqfnianjgIIKCiMjIOi3r+e6v+WbvgoKLSDlj5HluIPlubbnu7TmiqQgSG9tZWJyZXcgdGFw44CCCi0g5aKe5YqgIHF1aWV0IG1vZGUg5ZKM5pu057uG55qE6YCa55+l6KeE5YiZ44CCCi0g5pS56L+b6I+c5Y2V5qCP6KeG6KeJ77yM5L2G5LiN5omp5byg5Li6IGFnZW50IGRhc2hib2FyZOOAggoKIyMg5Lqn5ZOB6K+05piOCgrmm7Tplb/nmoTorr7orqHor7TmmI7lnKggW2RvY3MvXSguL2RvY3MvKeOAggo=
+<div align="center">
+  <img src="./assets/mews-logo.svg" width="96" height="96" alt="Mews 极简猫咪 logo">
+  <h1>Mews</h1>
+  <p><em>🐈 不再错过你的 AI agent。</em></p>
+</div>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-local--first-black?style=flat-square" alt="macOS local first">
+  <img src="https://img.shields.io/badge/distribution-signed_release_pipeline-orange?style=flat-square" alt="Signed release pipeline">
+  <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/status-MVP_release_candidate-green?style=flat-square" alt="MVP release candidate">
+</p>
+
+[English](./README.md)
+
+Mews 会盯着你在终端里运行的 AI agent，把它们的生命周期事件留在本机，让你不用一直切回终端看状态。
+
+当 Claude Code、Codex、Copilot CLI 或一个长时间运行的终端命令完成、失败或需要你处理时，Mews 会提醒你。
+
+> Mews 目前是 MVP release candidate。本地产品链路、三种 agent 接入、可逆 setup、安装包验证，以及签名和公证发布流程已经实现。Homebrew tap 仍是后续分发工作。
+
+## 安装
+
+从 GitHub release 安装：
+
+```bash
+tar -xzf mews-vX.Y.Z-darwin.tar.gz
+cd mews-vX.Y.Z-darwin
+sudo ./install.sh
+mw setup
+mw setup --yes
+mw start
+```
+
+安装前请用 release 附带的 `.sha256` 文件校验压缩包。
+
+从仓库开发和体验：
+
+```bash
+make build
+./bin/mw setup
+./bin/mw setup --yes
+./bin/mw start
+./bin/mw doctor
+```
+
+`mw setup` 会先展示 Mews 准备写入的本地改动。`mw setup --yes` 才会应用这些 Mews-owned 设置。`mw start` 会安装当前用户的 LaunchAgent，并启动由 `make build` 打包出来的轻量菜单栏 companion。
+
+所有通知都由 Mews.app 通过 macOS 原生通知中心发送。通知标题会标明 agent 和状态，并在工具提供相关信息时显示项目名和缩短后的 session id。正文会描述生命周期动作，但不会展示完整工作目录、完整 session id、prompt 或终端输出。如果希望正文带一个简短任务标题，需要显式开启：
+
+```bash
+mw setup --yes --include-task-title
+```
+
+这个选项最多保存 80 个来自 hook payload 的本地字符。Mews 仍然不会上传 prompt、transcript 或终端输出。
+
+App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标，所以原生通知会显示 Mews 的品牌识别。事件带有 session id 时，点击通知或在菜单栏里选择对应事件，会复制类似 `mw history --session 'abc123'` 的本地返回命令。
+
+Setup 会安装：
+
+- Claude Code 生命周期 hook：`~/.claude/settings.json`
+- Codex 顶层 `notify` 命令：`~/.codex/config.toml`
+- Copilot CLI user-level hook：`~/.copilot/hooks/mews.json`
+
+Mews 修改 Claude 和 Codex 配置前会创建备份，保留无关设置，并把管理路径记录到 `integrations.json`。遇到冲突或无法安全处理的配置结构时会拒绝修改。setup 后需要重启对应 CLI，让它重新加载配置。
+
+如果某个接入不能安全启用，Mews 会跳过它，并在 `mw doctor` 里说明原因。
+
+## 为什么做
+
+AI agent 很容易启动，也很容易被忘掉。
+
+你让 Claude Code 改一个文件，让 Codex 跑测试，或者让 Copilot CLI 处理一段任务，然后切去做别的事。十分钟后它可能已经完成、失败、卡住或在等你确认，但信号还埋在某个终端窗口里。
+
+Mews 把这些隐藏状态变成本地、低打扰的提醒。
+
+## MVP 已有能力
+
+- 完成、失败和需要输入时发送原生 macOS 通知。
+- 本地 JSONL 历史记录，错过通知后还能找回。
+- 菜单栏 companion 会显示最新本地状态和最近事件。
+- `doctor` 会显示 setup、三种接入、通知权限、LaunchAgent、socket 和菜单栏 app 状态。
+- 本地事件日志有容量上限，发布包带隔离 smoke test。
+
+## Mac companion
+
+当前菜单栏 companion 故意保持轻量。它会启动本地 IPC agent，读取本地事件历史，并把最新状态留在菜单栏里。
+
+之后的 **Mews for Mac** 可以加入刘海小猫：agent 运行时小猫走动，空闲时睡觉，完成时跳一下，需要你处理时吸引注意。
+
+## Mews 监控什么
+
+Mews 面向终端 AI 用户已经在用的工具：
+
+- Claude Code：通过 user-level 生命周期 hook 接入
+- Codex：通过 user-level `notify` 命令接入
+- Copilot CLI：通过 user-level hook 接入
+- 长时间运行的 shell 命令：使用 `mw run -- <command>`
+
+用户不应该为了让 Mews 有用，就先学 hook JSON、手动改配置或理解通知协议。
+
+## 隐私
+
+Mews 的隐私边界应该简单、可审计。
+
+- 只在你的 Mac 本机运行。
+- 不上传代码、prompt、transcript 或终端输出。
+- 默认不扫描 terminal scrollback。
+- 只启用你同意的接入。
+- 自动写入的改动都应该可以撤销。
+
+## 命令
+
+大多数用户只需要这些命令：
+
+```bash
+mw setup       # 查看 setup 计划
+mw setup --yes # 应用 Mews-owned setup
+mw setup --yes --include-task-title # 显式开启本地短任务标题
+mw start       # setup 后启动本地 agent
+mw status      # 查看当前本地状态
+mw history     # 查看最近本地事件
+mw history --session <id> # 查看某个 session 的事件
+mw listen      # 在终端里监听并打印事件
+mw doctor      # 检查 setup 和接入状态
+mw undo        # 移除 Mews 安装的接入和 setup state
+```
+
+脚本化场景可以用：
+
+```bash
+mw notify      # 发送自定义状态事件
+mw run -- cmd  # 运行命令，并在退出时通知
+mw stop        # 停止本地 agent
+mw reset --yes # undo 后删除 Mews 本地数据和日志
+```
+
+## Mews 不是什么
+
+Mews 不是 AI 聊天应用，不是 Claude wrapper，不是 Codex dashboard，不是 Copilot 替代品，也不是团队监控产品。
+
+它只是一个给终端 AI agent 用户用的小型 Mac companion，让你不用一直盯着终端。
+
+## 发布
+
+维护者可以先运行不需要签名凭据的发布检查：
+
+```bash
+VERSION=vX.Y.Z make release-check
+```
+
+正式发布需要在与 `origin/main` 同步的干净 `main` 分支上运行：
+
+```bash
+VERSION=vX.Y.Z \
+SIGN_IDENTITY="Developer ID Application: ..." \
+NOTARY_PROFILE=mews-notary \
+make release
+```
+
+`make release-check` 会运行测试、lint、安装包校验和检查，以及隔离的安装后运行 smoke，不需要签名凭据。正式发布命令强制要求签名和公证凭据，使用 Gatekeeper 校验 App，并生成 tarball、SHA-256 校验文件，以及用于发布到 Homebrew tap 的版本固定 `dist/mews.rb` formula。缺少凭据时不会生成形式上像正式发布、实际未签名的产物。
+
+## 路线图
+
+- 发布并维护 Homebrew tap。
+- 增加 quiet mode 和更细的通知规则。
+- 改进菜单栏视觉，但不扩张为 agent dashboard。
+
+## 产品说明
+
+更长的设计说明在 [docs/](./docs/)。

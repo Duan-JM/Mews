@@ -1,1 +1,650 @@
-cGFja2FnZSBjbGkKCmltcG9ydCAoCgkiYnl0ZXMiCgkiZW5jb2RpbmcvanNvbiIKCSJlcnJvcnMiCgkiZm10IgoJImlvIgoJIm9zIgoJInBhdGgvZmlsZXBhdGgiCgkic3RyY29udiIKCSJzdHJpbmdzIgoJInRlc3RpbmciCgkidGltZSIKCgkiZ2l0aHViLmNvbS9EdWFuLUpNL21ld3MvaW50ZXJuYWwvZXZlbnRzIgoJImdpdGh1Yi5jb20vRHVhbi1KTS9tZXdzL2ludGVybmFsL2ludGVncmF0aW9ucyIKCSJnaXRodWIuY29tL0R1YW4tSk0vbWV3cy9pbnRlcm5hbC9zdG9yZSIKKQoKdHlwZSBib290c3RyYXBFeGl0RXJyb3IgaW50CgpmdW5jIChlIGJvb3RzdHJhcEV4aXRFcnJvcikgRXJyb3IoKSBzdHJpbmcgewoJcmV0dXJuIGZtdC5TcHJpbnRmKCJleGl0IHN0YXR1cyAlZCIsIGUpCn0KCmZ1bmMgKGUgYm9vdHN0cmFwRXhpdEVycm9yKSBFeGl0Q29kZSgpIGludCB7CglyZXR1cm4gaW50KGUpCn0KCmZ1bmMgVGVzdFJ1bkNvbW1hbmRGb3J3YXJkc1N0ZGluKHQgKnRlc3RpbmcuVCkgewoJdC5TZXRlbnYoIkhPTUUiLCB0LlRlbXBEaXIoKSkKCgl2YXIgc3Rkb3V0IGJ5dGVzLkJ1ZmZlcgoJdmFyIHN0ZGVyciBieXRlcy5CdWZmZXIKCgljb2RlIDo9IFJ1bigKCQlbXXN0cmluZ3sicnVuIiwgIi0tIiwgInNoIiwgIi1jIiwgYHJlYWQgbGluZTsgcHJpbnRmICdnb3Q6JXNcbicgIiRsaW5lImB9LAoJCXN0cmluZ3MuTmV3UmVhZGVyKCJoZWxsb1xuIiksCgkJJnN0ZG91dCwKCQkmc3RkZXJyLAoJKQoKCWlmIGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoIlJ1biByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHN0ZGVyci5TdHJpbmcoKSkKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKHN0ZG91dC5TdHJpbmcoKSwgImdvdDpoZWxsb1xuIikgewoJCXQuRmF0YWxmKCJzdGRvdXQgZGlkIG5vdCBpbmNsdWRlIGZvcndhcmRlZCBzdGRpbiBvdXRwdXQ6ICVxIiwgc3Rkb3V0LlN0cmluZygpKQoJfQp9CgpmdW5jIFRlc3RSdW5Db21tYW5kUmVjb3Jkc1N1Y2Nlc3ModCAqdGVzdGluZy5UKSB7Cgl0LlNldGVudigiSE9NRSIsIHQuVGVtcERpcigpKQoKCXZhciBzdGRvdXQsIHN0ZGVyciBieXRlcy5CdWZmZXIKCWNvZGUgOj0gUnVuKFtdc3RyaW5neyJydW4iLCAiLS0iLCAic2giLCAiLWMiLCAiZXhpdCAwIn0sIHN0cmluZ3MuTmV3UmVhZGVyKCIiKSwgJnN0ZG91dCwgJnN0ZGVycikKCWlmIGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoIlJ1biByZXR1cm5lZCAlZCwgd2FudCAwOyBzdGRlcnI9JXEiLCBjb2RlLCBzdGRlcnIuU3RyaW5nKCkpCgl9CgoJcGF0aHMsIGVyciA6PSBzdG9yZS5QYXRocygpCglpZiBlcnIgIT0gbmlsIHsKCQl0LkZhdGFsZigiUGF0aHMgcmV0dXJuZWQgZXJyb3I6ICV2IiwgZXJyKQoJfQoJZ290LCBlcnIgOj0gc3RvcmUuUmVhZEV2ZW50cyhwYXRocy5FdmVudHMsIDIpCglpZiBlcnIgIT0gbmlsIHsKCQl0LkZhdGFsZigiUmVhZEV2ZW50cyByZXR1cm5lZCBlcnJvcjogJXYiLCBlcnIpCgl9CglpZiBsZW4oZ290KSAhPSAyIHsKCQl0LkZhdGFsZigiUmVhZEV2ZW50cyByZXR1cm5lZCAlZCBldmVudHMsIHdhbnQgMiIsIGxlbihnb3QpKQoJfQoJaWYgZ290WzBdLlN0YXR1cyAhPSBldmVudHMuU3RhdHVzUnVubmluZyB8fCBnb3RbMV0uU3RhdHVzICE9IGV2ZW50cy5TdGF0dXNEb25lIHsKCQl0LkZhdGFsZigic3RhdHVzZXMgPSAlcSwgJXE7IHdhbnQgcnVubmluZywgZG9uZSIsIGdvdFswXS5TdGF0dXMsIGdvdFsxXS5TdGF0dXMpCgl9Cn0KCmZ1bmMgVGVzdFJ1bkNvbW1hbmRSZWNvcmRzRmFpbHVyZUV4aXRDb2RlKHQgKnRlc3RpbmcuVCkgewoJdC5TZXRlbnYoIkhPTUUiLCB0LlRlbXBEaXIoKSkKCgl2YXIgc3Rkb3V0LCBzdGRlcnIgYnl0ZXMuQnVmZmVyCgljb2RlIDo9IFJ1bihbXXN0cmluZ3sicnVuIiwgIi0tIiwgInNoIiwgIi1jIiwgImV4aXQgNyJ9LCBzdHJpbmdzLk5ld1JlYWRlcigiIiksICZzdGRvdXQsICZzdGRlcnIpCglpZiBjb2RlICE9IDcgewoJCXQuRmF0YWxmKCJSdW4gcmV0dXJuZWQgJWQsIHdhbnQgNzsgc3RkZXJyPSVxIiwgY29kZSwgc3RkZXJyLlN0cmluZygpKQoJfQoKCXBhdGhzLCBlcnIgOj0gc3RvcmUuUGF0aHMoKQoJaWYgZXJyICE9IG5pbCB7CgkJdC5GYXRhbGYoIlBhdGhzIHJldHVybmVkIGVycm9yOiAldiIsIGVycikKCX0KCWdvdCwgZXJyIDo9IHN0b3JlLlJlYWRFdmVudHMocGF0aHMuRXZlbnRzLCAyKQoJaWYgZXJyICE9IG5pbCB7CgkJdC5GYXRhbGYoIlJlYWRFdmVudHMgcmV0dXJuZWQgZXJyb3I6ICV2IiwgZXJyKQoJfQoJaWYgbGVuKGdvdCkgIT0gMiB7CgkJdC5GYXRhbGYoIlJlYWRFdmVudHMgcmV0dXJuZWQgJWQgZXZlbnRzLCB3YW50IDIiLCBsZW4oZ290KSkKCX0KCWlmIGdvdFswXS5TdGF0dXMgIT0gZXZlbnRzLlN0YXR1c1J1bm5pbmcgfHwgZ290WzFdLlN0YXR1cyAhPSBldmVudHMuU3RhdHVzRmFpbGVkIHsKCQl0LkZhdGFsZigic3RhdHVzZXMgPSAlcSwgJXE7IHdhbnQgcnVubmluZywgZmFpbGVkIiwgZ290WzBdLlN0YXR1cywgZ290WzFdLlN0YXR1cykKCX0KfQoKZnVuYyBUZXN0UnVuQ29tbWFuZFRydW5jYXRlc0xvbmdFdmVudE1lc3NhZ2UodCAqdGVzdGluZy5UKSB7Cgl0LlNldGVudigiSE9NRSIsIHQuVGVtcERpcigpKQoKCWxvbmdBcmd1bWVudCA6PSBzdHJpbmdzLlJlcGVhdCgieCIsIDIwMDApCgl2YXIgc3Rkb3V0LCBzdGRlcnIgYnl0ZXMuQnVmZmVyCgljb2RlIDo9IFJ1bigKCQlbXXN0cmluZ3sicnVuIiwgIi0tIiwgInNoIiwgIi1jIiwgImV4aXQgMCIsIGxvbmdBcmd1bWVudH0sCgkJc3RyaW5ncy5OZXdSZWFkZXIoIiIpLAoJCSZzdGRvdXQsCgkJJnN0ZGVyciwKCSkKCWlmIGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoIlJ1biByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHN0ZGVyci5TdHJpbmcoKSkKCX0KCXBhdGhzLCBlcnIgOj0gc3RvcmUuUGF0aHMoKQoJaWYgZXJyICE9IG5pbCB7CgkJdC5GYXRhbChlcnIpCgl9Cglnb3QsIGVyciA6PSBzdG9yZS5SZWFkRXZlbnRzKHBhdGhzLkV2ZW50cywgMikKCWlmIGVyciAhPSBuaWwgewoJCXQuRmF0YWwoZXJyKQoJfQoJaWYgbGVuKGdvdCkgIT0gMiB8fCBsZW4oW11ydW5lKGdvdFsxXS5NZXNzYWdlKSkgPiAxMDI0IHsKCQl0LkZhdGFsZigibG9uZyBjb21tYW5kIGV2ZW50IHdhcyBub3Qgc2FmZWx5IHRydW5jYXRlZDogJSN2IiwgZ290KQoJfQp9CgpmdW5jIFRlc3RSdW5Db21tYW5kVGVybWluYXRlc1Byb2Nlc3NHcm91cFdoZW5FdmVudERlbGl2ZXJ5RmFpbHModCAqdGVzdGluZy5UKSB7Cgl0LlNldGVudigiSE9NRSIsIHQuVGVtcERpcigpKQoJb3JpZ2luYWxEZWxpdmVyIDo9IGRlbGl2ZXJFdmVudEZuCgl0LkNsZWFudXAoZnVuYygpIHsgZGVsaXZlckV2ZW50Rm4gPSBvcmlnaW5hbERlbGl2ZXIgfSkKCWRlbGl2ZXJFdmVudEZuID0gZnVuYyhzdG9yZS5TdG9yZVBhdGhzLCBldmVudHMuRXZlbnQsIGlvLldyaXRlcikgZXJyb3IgewoJCXJldHVybiBlcnJvcnMuTmV3KCJkZWxpdmVyeSBmYWlsZWQiKQoJfQoKCW1hcmtlciA6PSBmaWxlcGF0aC5Kb2luKHQuVGVtcERpcigpLCAiZmluaXNoZWQiKQoJdmFyIHN0ZG91dCwgc3RkZXJyIGJ5dGVzLkJ1ZmZlcgoJY29kZSA6PSBSdW4oCgkJW11zdHJpbmd7InJ1biIsICItLSIsICJzaCIsICItYyIsICJzbGVlcCAxOyB0b3VjaCBcIiQxXCIiLCAic2giLCBtYXJrZXJ9LAoJCXN0cmluZ3MuTmV3UmVhZGVyKCIiKSwKCQkmc3Rkb3V0LAoJCSZzdGRlcnIsCgkpCglpZiBjb2RlICE9IDEgewoJCXQuRmF0YWxmKCJSdW4gcmV0dXJuZWQgJWQsIHdhbnQgMSIsIGNvZGUpCgl9Cgl0aW1lLlNsZWVwKDEyMDAgKiB0aW1lLk1pbGxpc2Vjb25kKQoJaWYgXywgZXJyIDo9IG9zLlN0YXQobWFya2VyKTsgIW9zLklzTm90RXhpc3QoZXJyKSB7CgkJdC5GYXRhbGYoImNvbW1hbmQgY29udGludWVkIGFmdGVyIGRlbGl2ZXJ5IGZhaWx1cmU6ICV2IiwgZXJyKQoJfQp9CgpmdW5jIFRlc3RCb290c3RyYXBXaXRoUmV0cnlIYW5kbGVzTGF1bmNoZElucHV0T3V0cHV0UmFjZSh0ICp0ZXN0aW5nLlQpIHsKCW9yaWdpbmFsQm9vdHN0cmFwIDo9IGJvb3RzdHJhcExhdW5jaEFnZW50CglvcmlnaW5hbERlbGF5IDo9IGJvb3RzdHJhcFJldHJ5RGVsYXkKCXQuQ2xlYW51cChmdW5jKCkgewoJCWJvb3RzdHJhcExhdW5jaEFnZW50ID0gb3JpZ2luYWxCb290c3RyYXAKCQlib290c3RyYXBSZXRyeURlbGF5ID0gb3JpZ2luYWxEZWxheQoJfSkKCgljYWxscyA6PSAwCglib290c3RyYXBSZXRyeURlbGF5ID0gMAoJYm9vdHN0cmFwTGF1bmNoQWdlbnQgPSBmdW5jKCkgZXJyb3IgewoJCWNhbGxzKysKCQlpZiBjYWxscyA9PSAxIHsKCQkJcmV0dXJuIGJvb3RzdHJhcEV4aXRFcnJvcig1KQoJCX0KCQlyZXR1cm4gbmlsCgl9CgoJaWYgZXJyIDo9IGJvb3RzdHJhcFdpdGhSZXRyeSh0aW1lLlNlY29uZCk7IGVyciAhPSBuaWwgewoJCXQuRmF0YWxmKCJib290c3RyYXBXaXRoUmV0cnkgcmV0dXJuZWQgZXJyb3I6ICV2IiwgZXJyKQoJfQoJaWYgY2FsbHMgIT0gMiB7CgkJdC5GYXRhbGYoImJvb3RzdHJhcCBjYWxscyA9ICVkLCB3YW50IDIiLCBjYWxscykKCX0KfQoKZnVuYyBUZXN0Qm9vdHN0cmFwV2l0aFJldHJ5RG9lc05vdEhpZGVQZXJtYW5lbnRGYWlsdXJlKHQgKnRlc3RpbmcuVCkgewoJb3JpZ2luYWxCb290c3RyYXAgOj0gYm9vdHN0cmFwTGF1bmNoQWdlbnQKCXQuQ2xlYW51cChmdW5jKCkgeyBib290c3RyYXBMYXVuY2hBZ2VudCA9IG9yaWdpbmFsQm9vdHN0cmFwIH0pCgoJY2FsbHMgOj0gMAoJYm9vdHN0cmFwTGF1bmNoQWdlbnQgPSBmdW5jKCkgZXJyb3IgewoJCWNhbGxzKysKCQlyZXR1cm4gZXJyb3JzLk5ldygiQm9vdHN0cmFwIGZhaWxlZDogMTI1OiBEb21haW4gZG9lcyBub3Qgc3VwcG9ydCBzcGVjaWZpZWQgYWN0aW9uIikKCX0KCgllcnIgOj0gYm9vdHN0cmFwV2l0aFJldHJ5KHRpbWUuU2Vjb25kKQoJaWYgZXJyID09IG5pbCB8fCAhc3RyaW5ncy5Db250YWlucyhlcnIuRXJyb3IoKSwgIkRvbWFpbiBkb2VzIG5vdCBzdXBwb3J0IikgewoJCXQuRmF0YWxmKCJib290c3RyYXBXaXRoUmV0cnkgZXJyb3IgPSAldiIsIGVycikKCX0KCWlmIGNhbGxzICE9IDEgewoJCXQuRmF0YWxmKCJib290c3RyYXAgY2FsbHMgPSAlZCwgd2FudCAxIiwgY2FsbHMpCgl9Cn0KCmZ1bmMgVGVzdFdhaXRGb3JBZ2VudFN0b3BBY2NlcHRzQ2xvc2luZ1NvY2tldEVPRih0ICp0ZXN0aW5nLlQpIHsKCW9yaWdpbmFsUGluZyA6PSBwaW5nQWdlbnQKCXQuQ2xlYW51cChmdW5jKCkgeyBwaW5nQWdlbnQgPSBvcmlnaW5hbFBpbmcgfSkKCXBpbmdBZ2VudCA9IGZ1bmMoc3RyaW5nKSBlcnJvciB7CgkJcmV0dXJuIGlvLkVPRgoJfQoKCWlmIGVyciA6PSB3YWl0Rm9yQWdlbnRTdG9wKCIvdG1wL21ld3Muc29jayIsIHRpbWUuU2Vjb25kKTsgZXJyICE9IG5pbCB7CgkJdC5GYXRhbGYoIndhaXRGb3JBZ2VudFN0b3AgcmV0dXJuZWQgZXJyb3I6ICV2IiwgZXJyKQoJfQp9CgpmdW5jIFRlc3RDb21tYW5kRXZlbnRVc2VzV29ya2luZ0RpcmVjdG9yeU5hbWUodCAqdGVzdGluZy5UKSB7CglldmVudCA6PSBjb21tYW5kRXZlbnQoZXZlbnRzLlN0YXR1c0RvbmUsICJlY2hvIG9rIiwgZmlsZXBhdGguSm9pbihzdHJpbmcoZmlsZXBhdGguU2VwYXJhdG9yKSwgInRtcCIsICJtZXdzIiksIDEyMykKCWlmIGV2ZW50LlNvdXJjZSAhPSAicnVubmVyIiB7CgkJdC5GYXRhbGYoInNvdXJjZSA9ICVxLCB3YW50IHJ1bm5lciIsIGV2ZW50LlNvdXJjZSkKCX0KCWlmIGV2ZW50LlByb2plY3QgIT0gIm1ld3MiIHsKCQl0LkZhdGFsZigicHJvamVjdCA9ICVxLCB3YW50IG1ld3MiLCBldmVudC5Qcm9qZWN0KQoJfQoJaWYgZXZlbnQuUElEICE9IDEyMyB7CgkJdC5GYXRhbGYoInBpZCA9ICVkLCB3YW50IDEyMyIsIGV2ZW50LlBJRCkKCX0KfQoKZnVuYyBUZXN0U3RhcnRSZXF1aXJlc1NldHVwKHQgKnRlc3RpbmcuVCkgewoJdC5TZXRlbnYoIkhPTUUiLCB0LlRlbXBEaXIoKSkKCgl2YXIgc3Rkb3V0IGJ5dGVzLkJ1ZmZlcgoJdmFyIHN0ZGVyciBieXRlcy5CdWZmZXIKCWNvZGUgOj0gUnVuKFtdc3RyaW5neyJzdGFydCJ9LCBzdHJpbmdzLk5ld1JlYWRlcigiIiksICZzdGRvdXQsICZzdGRlcnIpCgoJaWYgY29kZSAhPSAxIHsKCQl0LkZhdGFsZigiUnVuIHJldHVybmVkICVkLCB3YW50IDEiLCBjb2RlKQoJfQoJaWYgIXN0cmluZ3MuQ29udGFpbnMoc3Rkb3V0LlN0cmluZygpLCAiTWV3cyBpcyBub3Qgc2V0IHVwIHlldC4iKSB7CgkJdC5GYXRhbGYoInN0ZG91dCBkaWQgbm90IGV4cGxhaW4gc2V0dXAgcmVxdWlyZW1lbnQ6ICVxIiwgc3Rkb3V0LlN0cmluZygpKQoJfQp9CgpmdW5jIFRlc3RTZXR1cFllc1JlY29yZHNTdGF0ZUFuZFVuZG9SZW1vdmVzSXQodCAqdGVzdGluZy5UKSB7Cglob21lIDo9IHQuVGVtcERpcigpCgljb3BpbG90SG9tZSA6PSBmaWxlcGF0aC5Kb2luKGhvbWUsICIuY29waWxvdCIpCgl0LlNldGVudigiSE9NRSIsIGhvbWUpCgl0LlNldGVudigiQ09QSUxPVF9IT01FIiwgY29waWxvdEhvbWUpCgoJdmFyIHNldHVwT3V0IGJ5dGVzLkJ1ZmZlcgoJdmFyIHNldHVwRXJyIGJ5dGVzLkJ1ZmZlcgoJaWYgY29kZSA6PSBSdW4oW11zdHJpbmd7InNldHVwIiwgIi0teWVzIn0sIHN0cmluZ3MuTmV3UmVhZGVyKCIiKSwgJnNldHVwT3V0LCAmc2V0dXBFcnIpOyBjb2RlICE9IDAgewoJCXQuRmF0YWxmKCJzZXR1cCByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHNldHVwRXJyLlN0cmluZygpKQoJfQoJaG9va1BhdGggOj0gZmlsZXBhdGguSm9pbihjb3BpbG90SG9tZSwgImhvb2tzIiwgIm1ld3MuanNvbiIpCglob29rRGF0YSwgZXJyIDo9IG9zLlJlYWRGaWxlKGhvb2tQYXRoKQoJaWYgZXJyICE9IG5pbCB7CgkJdC5GYXRhbGYoInNldHVwIGRpZCBub3Qgd3JpdGUgQ29waWxvdCBob29rOiAldiIsIGVycikKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKHN0cmluZyhob29rRGF0YSksICJhZ2VudFN0b3AiKSB8fAoJCSFzdHJpbmdzLkNvbnRhaW5zKHN0cmluZyhob29rRGF0YSksICJub3RpZnkiKSB8fAoJCSFzdHJpbmdzLkNvbnRhaW5zKHN0cmluZyhob29rRGF0YSksICJjb3BpbG90IikgewoJCXQuRmF0YWxmKCJob29rIGZpbGUgZG9lcyBub3QgaW5jbHVkZSBleHBlY3RlZCBDb3BpbG90IGhvb2sgY29tbWFuZDogJXMiLCBzdHJpbmcoaG9va0RhdGEpKQoJfQoKCXZhciB1bmRvT3V0IGJ5dGVzLkJ1ZmZlcgoJdmFyIHVuZG9FcnIgYnl0ZXMuQnVmZmVyCglpZiBjb2RlIDo9IFJ1bihbXXN0cmluZ3sidW5kbyJ9LCBzdHJpbmdzLk5ld1JlYWRlcigiIiksICZ1bmRvT3V0LCAmdW5kb0Vycik7IGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoInVuZG8gcmV0dXJuZWQgJWQsIHN0ZGVycjogJXMiLCBjb2RlLCB1bmRvRXJyLlN0cmluZygpKQoJfQoJaWYgIXN0cmluZ3MuQ29udGFpbnModW5kb091dC5TdHJpbmcoKSwgIlJlbW92ZWQgTWV3cyBzZXR1cCBzdGF0ZS4iKSB7CgkJdC5GYXRhbGYoInN0ZG91dCBkaWQgbm90IGRlc2NyaWJlIHVuZG86ICVxIiwgdW5kb091dC5TdHJpbmcoKSkKCX0KCWlmIF8sIGVyciA6PSBvcy5TdGF0KGhvb2tQYXRoKTsgIW9zLklzTm90RXhpc3QoZXJyKSB7CgkJdC5GYXRhbGYoInVuZG8gZGlkIG5vdCByZW1vdmUgQ29waWxvdCBob29rLCBzdGF0IGVycjogJXYiLCBlcnIpCgl9Cn0KCmZ1bmMgVGVzdE5vdGlmeVdyaXRlc0V2ZW50TG9nKHQgKnRlc3RpbmcuVCkgewoJaG9tZSA6PSB0LlRlbXBEaXIoKQoJdC5TZXRlbnYoIkhPTUUiLCBob21lKQoKCXZhciBzdGRvdXQgYnl0ZXMuQnVmZmVyCgl2YXIgc3RkZXJyIGJ5dGVzLkJ1ZmZlcgoJY29kZSA6PSBSdW4oCgkJW11zdHJpbmd7Im5vdGlmeSIsICItLXNvdXJjZSIsICJjb3BpbG90IiwgIi0tc3RhdHVzIiwgImRvbmUiLCAiLS1tZXNzYWdlIiwgIkFnZW50IHN0b3BwZWQifSwKCQlzdHJpbmdzLk5ld1JlYWRlcigiIiksCgkJJnN0ZG91dCwKCQkmc3RkZXJyLAoJKQoKCWlmIGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoIm5vdGlmeSByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHN0ZGVyci5TdHJpbmcoKSkKCX0KCWV2ZW50UGF0aCA6PSBmaWxlcGF0aC5Kb2luKGhvbWUsICJMaWJyYXJ5IiwgIkFwcGxpY2F0aW9uIFN1cHBvcnQiLCAiTWV3cyIsICJldmVudHMuanNvbmwiKQoJZGF0YSwgZXJyIDo9IG9zLlJlYWRGaWxlKGV2ZW50UGF0aCkKCWlmIGVyciAhPSBuaWwgewoJCXQuRmF0YWxmKCJub3RpZnkgZGlkIG5vdCB3cml0ZSBldmVudCBsb2c6ICV2IiwgZXJyKQoJfQoJaWYgIXN0cmluZ3MuQ29udGFpbnMoc3RyaW5nKGRhdGEpLCBgInNvdXJjZSI6ImNvcGlsb3QiYCkgfHwgIXN0cmluZ3MuQ29udGFpbnMoc3RyaW5nKGRhdGEpLCBgInN0YXR1cyI6ImRvbmUiYCkgewoJCXQuRmF0YWxmKCJldmVudCBsb2cgZGlkIG5vdCBpbmNsdWRlIGV4cGVjdGVkIGV2ZW50OiAlcyIsIHN0cmluZyhkYXRhKSkKCX0KfQoKZnVuYyBUZXN0SGlzdG9yeVByaW50c1Nlc3Npb25SZXR1cm5Db21tYW5kKHQgKnRlc3RpbmcuVCkgewoJaG9tZSA6PSB0LlRlbXBEaXIoKQoJdC5TZXRlbnYoIkhPTUUiLCBob21lKQoKCXZhciBub3RpZnlPdXQsIG5vdGlmeUVyciBieXRlcy5CdWZmZXIKCWNvZGUgOj0gUnVuKAoJCVtdc3RyaW5newoJCQkibm90aWZ5IiwKCQkJIi0tc291cmNlIiwgImNvcGlsb3QiLAoJCQkiLS1zdGF0dXMiLCAiZG9uZSIsCgkJCSItLXNlc3Npb24iLCAic2Vzc2lvbi0xMjMiLAoJCQkiLS1wcm9qZWN0IiwgIk1ld3MiLAoJCQkiLS1tZXNzYWdlIiwgIkFnZW50IHN0b3BwZWQiLAoJCX0sCgkJc3RyaW5ncy5OZXdSZWFkZXIoIiIpLAoJCSZub3RpZnlPdXQsCgkJJm5vdGlmeUVyciwKCSkKCWlmIGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoIm5vdGlmeSByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIG5vdGlmeUVyci5TdHJpbmcoKSkKCX0KCgl2YXIgaGlzdG9yeU91dCwgaGlzdG9yeUVyciBieXRlcy5CdWZmZXIKCWNvZGUgPSBSdW4oW11zdHJpbmd7Imhpc3RvcnkifSwgc3RyaW5ncy5OZXdSZWFkZXIoIiIpLCAmaGlzdG9yeU91dCwgJmhpc3RvcnlFcnIpCglpZiBjb2RlICE9IDAgewoJCXQuRmF0YWxmKCJoaXN0b3J5IHJldHVybmVkICVkLCBzdGRlcnI6ICVzIiwgY29kZSwgaGlzdG9yeUVyci5TdHJpbmcoKSkKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKGhpc3RvcnlPdXQuU3RyaW5nKCksICJyZXR1cm46IG13IGhpc3RvcnkgLS1zZXNzaW9uICdzZXNzaW9uLTEyMyciKSB7CgkJdC5GYXRhbGYoImhpc3RvcnkgZGlkIG5vdCBpbmNsdWRlIHJldHVybiBjb21tYW5kOiAlcSIsIGhpc3RvcnlPdXQuU3RyaW5nKCkpCgl9Cn0KCmZ1bmMgVGVzdEhpc3RvcnlGaWx0ZXJzQnlTZXNzaW9uKHQgKnRlc3RpbmcuVCkgewoJaG9tZSA6PSB0LlRlbXBEaXIoKQoJdC5TZXRlbnYoIkhPTUUiLCBob21lKQoKCWZvciBfLCBzZXNzaW9uIDo9IHJhbmdlIFtdc3RyaW5neyJ0YXJnZXQtc2Vzc2lvbiIsICJvdGhlci1zZXNzaW9uIn0gewoJCXZhciBzdGRvdXQsIHN0ZGVyciBieXRlcy5CdWZmZXIKCQljb2RlIDo9IFJ1bigKCQkJW11zdHJpbmd7CgkJCQkibm90aWZ5IiwKCQkJCSItLXNvdXJjZSIsICJjb3BpbG90IiwKCQkJCSItLXN0YXR1cyIsICJkb25lIiwKCQkJCSItLXNlc3Npb24iLCBzZXNzaW9uLAoJCQkJIi0tbWVzc2FnZSIsIHNlc3Npb24sCgkJCX0sCgkJCXN0cmluZ3MuTmV3UmVhZGVyKCIiKSwKCQkJJnN0ZG91dCwKCQkJJnN0ZGVyciwKCQkpCgkJaWYgY29kZSAhPSAwIHsKCQkJdC5GYXRhbGYoIm5vdGlmeSAlcyByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIHNlc3Npb24sIGNvZGUsIHN0ZGVyci5TdHJpbmcoKSkKCQl9Cgl9CgoJdmFyIGhpc3RvcnlPdXQsIGhpc3RvcnlFcnIgYnl0ZXMuQnVmZmVyCgljb2RlIDo9IFJ1bihbXXN0cmluZ3siaGlzdG9yeSIsICItLXNlc3Npb24iLCAidGFyZ2V0LXNlc3Npb24ifSwgc3RyaW5ncy5OZXdSZWFkZXIoIiIpLCAmaGlzdG9yeU91dCwgJmhpc3RvcnlFcnIpCglpZiBjb2RlICE9IDAgewoJCXQuRmF0YWxmKCJoaXN0b3J5IHJldHVybmVkICVkLCBzdGRlcnI6ICVzIiwgY29kZSwgaGlzdG9yeUVyci5TdHJpbmcoKSkKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKGhpc3RvcnlPdXQuU3RyaW5nKCksICJ0YXJnZXQtc2Vzc2lvbiIpIHsKCQl0LkZhdGFsZigiaGlzdG9yeSBkaWQgbm90IGluY2x1ZGUgdGFyZ2V0IHNlc3Npb246ICVxIiwgaGlzdG9yeU91dC5TdHJpbmcoKSkKCX0KCWlmIHN0cmluZ3MuQ29udGFpbnMoaGlzdG9yeU91dC5TdHJpbmcoKSwgIm90aGVyLXNlc3Npb24iKSB7CgkJdC5GYXRhbGYoImhpc3RvcnkgaW5jbHVkZWQgYSBkaWZmZXJlbnQgc2Vzc2lvbjogJXEiLCBoaXN0b3J5T3V0LlN0cmluZygpKQoJfQp9CgpmdW5jIFRlc3ROb3RpZnlGcm9tSG9va0FkZHNTYWZlQ29udGV4dFdpdGhvdXRUYXNrVGl0bGVCeURlZmF1bHQodCAqdGVzdGluZy5UKSB7Cglob21lIDo9IHQuVGVtcERpcigpCgl0LlNldGVudigiSE9NRSIsIGhvbWUpCgoJcGF5bG9hZCA6PSBgeyJjd2QiOiIvdG1wL01ld3MiLCJzZXNzaW9uX2lkIjoiYWJjMTIzIiwicHJvbXB0Ijoic2VjcmV0IHRhc2sgZGV0YWlscyJ9YAoJdmFyIHN0ZG91dCBieXRlcy5CdWZmZXIKCXZhciBzdGRlcnIgYnl0ZXMuQnVmZmVyCgljb2RlIDo9IFJ1bigKCQlbXXN0cmluZ3sibm90aWZ5IiwgIi0tc291cmNlIiwgImNvcGlsb3QiLCAiLS1ob29rLWV2ZW50IiwgImFnZW50U3RvcCIsICItLXN0YXR1cyIsICJkb25lIn0sCgkJc3RyaW5ncy5OZXdSZWFkZXIocGF5bG9hZCksCgkJJnN0ZG91dCwKCQkmc3RkZXJyLAoJKQoKCWlmIGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoIm5vdGlmeSByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHN0ZGVyci5TdHJpbmcoKSkKCX0KCWV2ZW50UGF0aCA6PSBmaWxlcGF0aC5Kb2luKGhvbWUsICJMaWJyYXJ5IiwgIkFwcGxpY2F0aW9uIFN1cHBvcnQiLCAiTWV3cyIsICJldmVudHMuanNvbmwiKQoJZGF0YSwgZXJyIDo9IG9zLlJlYWRGaWxlKGV2ZW50UGF0aCkKCWlmIGVyciAhPSBuaWwgewoJCXQuRmF0YWxmKCJub3RpZnkgZGlkIG5vdCB3cml0ZSBldmVudCBsb2c6ICV2IiwgZXJyKQoJfQoJY29udGVudCA6PSBzdHJpbmcoZGF0YSkKCWZvciBfLCB3YW50IDo9IHJhbmdlIFtdc3RyaW5ne2AiaG9va19ldmVudCI6ImFnZW50U3RvcCJgLCBgInNlc3Npb25faWQiOiJhYmMxMjMiYCwgYCJwcm9qZWN0IjoiTWV3cyJgLCBgImN3ZCI6Ii90bXAvTWV3cyJgLCBgIm1lc3NhZ2UiOiJjb3BpbG90IGRvbmU6IE1ld3MiYH0gewoJCWlmICFzdHJpbmdzLkNvbnRhaW5zKGNvbnRlbnQsIHdhbnQpIHsKCQkJdC5GYXRhbGYoImV2ZW50IGxvZyBtaXNzaW5nICVzOiAlcyIsIHdhbnQsIGNvbnRlbnQpCgkJfQoJfQoJaWYgc3RyaW5ncy5Db250YWlucyhjb250ZW50LCAic2VjcmV0IHRhc2sgZGV0YWlscyIpIHx8IHN0cmluZ3MuQ29udGFpbnMoY29udGVudCwgInRhc2tfdGl0bGUiKSB7CgkJdC5GYXRhbGYoImV2ZW50IGxvZyBjYXB0dXJlZCB0YXNrIHRpdGxlIHdpdGhvdXQgb3B0LWluOiAlcyIsIGNvbnRlbnQpCgl9Cn0KCmZ1bmMgVGVzdE5vdGlmeUZyb21Ib29rSW5jbHVkZXNUcnVuY2F0ZWRUYXNrVGl0bGVXaGVuRW5hYmxlZCh0ICp0ZXN0aW5nLlQpIHsKCWhvbWUgOj0gdC5UZW1wRGlyKCkKCWNvcGlsb3RIb21lIDo9IGZpbGVwYXRoLkpvaW4oaG9tZSwgIi5jb3BpbG90IikKCXQuU2V0ZW52KCJIT01FIiwgaG9tZSkKCXQuU2V0ZW52KCJDT1BJTE9UX0hPTUUiLCBjb3BpbG90SG9tZSkKCgl2YXIgc2V0dXBPdXQgYnl0ZXMuQnVmZmVyCgl2YXIgc2V0dXBFcnIgYnl0ZXMuQnVmZmVyCglpZiBjb2RlIDo9IFJ1bihbXXN0cmluZ3sic2V0dXAiLCAiLS15ZXMiLCAiLS1pbmNsdWRlLXRhc2stdGl0bGUifSwgc3RyaW5ncy5OZXdSZWFkZXIoIiIpLCAmc2V0dXBPdXQsICZzZXR1cEVycik7IGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoInNldHVwIHJldHVybmVkICVkLCBzdGRlcnI6ICVzIiwgY29kZSwgc2V0dXBFcnIuU3RyaW5nKCkpCgl9CgoJcGF5bG9hZCA6PSBgeyJjd2QiOiIvdG1wL01ld3MiLCJzZXNzaW9uSWQiOiJhYmMxMjMiLCJwcm9tcHQiOiJmaXggdGhlIGRvY3RvciBjb21tYW5kIHNvIHVzZXJzIGNhbiBzZWUgZXhhY3RseSB3aGljaCBpbnRlZ3JhdGlvbiBpcyBicm9rZW4gYW5kIHdoeSJ9YAoJdmFyIHN0ZG91dCBieXRlcy5CdWZmZXIKCXZhciBzdGRlcnIgYnl0ZXMuQnVmZmVyCgljb2RlIDo9IFJ1bigKCQlbXXN0cmluZ3sibm90aWZ5IiwgIi0tc291cmNlIiwgImNvcGlsb3QiLCAiLS1ob29rLWV2ZW50IiwgImFnZW50U3RvcCIsICItLXN0YXR1cyIsICJkb25lIn0sCgkJc3RyaW5ncy5OZXdSZWFkZXIocGF5bG9hZCksCgkJJnN0ZG91dCwKCQkmc3RkZXJyLAoJKQoKCWlmIGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoIm5vdGlmeSByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHN0ZGVyci5TdHJpbmcoKSkKCX0KCWV2ZW50UGF0aCA6PSBmaWxlcGF0aC5Kb2luKGhvbWUsICJMaWJyYXJ5IiwgIkFwcGxpY2F0aW9uIFN1cHBvcnQiLCAiTWV3cyIsICJldmVudHMuanNvbmwiKQoJZGF0YSwgZXJyIDo9IG9zLlJlYWRGaWxlKGV2ZW50UGF0aCkKCWlmIGVyciAhPSBuaWwgewoJCXQuRmF0YWxmKCJub3RpZnkgZGlkIG5vdCB3cml0ZSBldmVudCBsb2c6ICV2IiwgZXJyKQoJfQoJY29udGVudCA6PSBzdHJpbmcoZGF0YSkKCWlmICFzdHJpbmdzLkNvbnRhaW5zKGNvbnRlbnQsIGAidGFza190aXRsZSI6ImZpeCB0aGUgZG9jdG9yIGNvbW1hbmRgKSB7CgkJdC5GYXRhbGYoImV2ZW50IGxvZyBkaWQgbm90IGluY2x1ZGUgdGFzayB0aXRsZSBhZnRlciBvcHQtaW46ICVzIiwgY29udGVudCkKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKGNvbnRlbnQsIGAibWVzc2FnZSI6ImNvcGlsb3QgZG9uZTogTWV3cyAtIGZpeCB0aGUgZG9jdG9yIGNvbW1hbmRgKSB7CgkJdC5GYXRhbGYoImV2ZW50IGxvZyBkaWQgbm90IGluY2x1ZGUgdGFzayB0aXRsZSBpbiBtZXNzYWdlOiAlcyIsIGNvbnRlbnQpCgl9Cn0KCmZ1bmMgVGVzdFJlc2V0UmVxdWlyZXNVbmRvV2hlbkludGVncmF0aW9uc0FyZUNvbmZpZ3VyZWQodCAqdGVzdGluZy5UKSB7Cglob21lIDo9IHQuVGVtcERpcigpCgl0LlNldGVudigiSE9NRSIsIGhvbWUpCgl0LlNldGVudigiQ09QSUxPVF9IT01FIiwgZmlsZXBhdGguSm9pbihob21lLCAiY29waWxvdCIpKQoJdC5TZXRlbnYoIkNMQVVERV9DT05GSUdfRElSIiwgZmlsZXBhdGguSm9pbihob21lLCAiY2xhdWRlIikpCgl0LlNldGVudigiQ09ERVhfSE9NRSIsIGZpbGVwYXRoLkpvaW4oaG9tZSwgImNvZGV4IikpCgoJdmFyIHNldHVwT3V0LCBzZXR1cEVyciBieXRlcy5CdWZmZXIKCWlmIGNvZGUgOj0gUnVuKFtdc3RyaW5neyJzZXR1cCIsICItLXllcyJ9LCBzdHJpbmdzLk5ld1JlYWRlcigiIiksICZzZXR1cE91dCwgJnNldHVwRXJyKTsgY29kZSAhPSAwIHsKCQl0LkZhdGFsZigic2V0dXAgcmV0dXJuZWQgJWQsIHN0ZGVycjogJXMiLCBjb2RlLCBzZXR1cEVyci5TdHJpbmcoKSkKCX0KCgl2YXIgcmVzZXRPdXQsIHJlc2V0RXJyIGJ5dGVzLkJ1ZmZlcgoJaWYgY29kZSA6PSBSdW4oW11zdHJpbmd7InJlc2V0IiwgIi0teWVzIn0sIHN0cmluZ3MuTmV3UmVhZGVyKCIiKSwgJnJlc2V0T3V0LCAmcmVzZXRFcnIpOyBjb2RlICE9IDEgewoJCXQuRmF0YWxmKCJyZXNldCByZXR1cm5lZCAlZCwgd2FudCAxIiwgY29kZSkKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKHJlc2V0RXJyLlN0cmluZygpLCAiUnVuIGBtdyB1bmRvYCIpIHsKCQl0LkZhdGFsZigicmVzZXQgZGlkIG5vdCBleHBsYWluIHJlcXVpcmVkIHVuZG86ICVxIiwgcmVzZXRFcnIuU3RyaW5nKCkpCgl9Cglob29rUGF0aCwgXyA6PSBpbnRlZ3JhdGlvbnMuQ29waWxvdEhvb2tQYXRoKCkKCWlmIF8sIGVyciA6PSBvcy5TdGF0KGhvb2tQYXRoKTsgZXJyICE9IG5pbCB7CgkJdC5GYXRhbGYoInJlc2V0IHJlbW92ZWQgaW50ZWdyYXRpb24gYmVmb3JlIHVuZG86ICV2IiwgZXJyKQoJfQp9CgpmdW5jIFRlc3RTZXR1cENhbkJlUmVwZWF0ZWRXaXRob3V0TG9zaW5nVW5kb093bmVyc2hpcCh0ICp0ZXN0aW5nLlQpIHsKCWhvbWUgOj0gdC5UZW1wRGlyKCkKCXQuU2V0ZW52KCJIT01FIiwgaG9tZSkKCXQuU2V0ZW52KCJDT1BJTE9UX0hPTUUiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjb3BpbG90IikpCgl0LlNldGVudigiQ0xBVURFX0NPTkZJR19ESVIiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjbGF1ZGUiKSkKCXQuU2V0ZW52KCJDT0RFWF9IT01FIiwgZmlsZXBhdGguSm9pbihob21lLCAiY29kZXgiKSkKCglmb3IgYXR0ZW1wdCA6PSAwOyBhdHRlbXB0IDwgMjsgYXR0ZW1wdCsrIHsKCQl2YXIgc3Rkb3V0LCBzdGRlcnIgYnl0ZXMuQnVmZmVyCgkJaWYgY29kZSA6PSBSdW4oW11zdHJpbmd7InNldHVwIiwgIi0teWVzIn0sIHN0cmluZ3MuTmV3UmVhZGVyKCIiKSwgJnN0ZG91dCwgJnN0ZGVycik7IGNvZGUgIT0gMCB7CgkJCXQuRmF0YWxmKCJzZXR1cCBhdHRlbXB0ICVkIHJldHVybmVkICVkLCBzdGRlcnI6ICVzIiwgYXR0ZW1wdCsxLCBjb2RlLCBzdGRlcnIuU3RyaW5nKCkpCgkJfQoJfQoJdmFyIHVuZG9PdXQsIHVuZG9FcnIgYnl0ZXMuQnVmZmVyCglpZiBjb2RlIDo9IFJ1bihbXXN0cmluZ3sidW5kbyJ9LCBzdHJpbmdzLk5ld1JlYWRlcigiIiksICZ1bmRvT3V0LCAmdW5kb0Vycik7IGNvZGUgIT0gMCB7CgkJdC5GYXRhbGYoInVuZG8gcmV0dXJuZWQgJWQsIHN0ZGVycjogJXMiLCBjb2RlLCB1bmRvRXJyLlN0cmluZygpKQoJfQoJaG9va1BhdGgsIF8gOj0gaW50ZWdyYXRpb25zLkNvcGlsb3RIb29rUGF0aCgpCglpZiBfLCBlcnIgOj0gb3MuU3RhdChob29rUGF0aCk7ICFvcy5Jc05vdEV4aXN0KGVycikgewoJCXQuRmF0YWxmKCJDb3BpbG90IGhvb2sgcmVtYWlucyBhZnRlciByZXBlYXRlZCBzZXR1cCBhbmQgdW5kbzogJXYiLCBlcnIpCgl9Cn0KCmZ1bmMgVGVzdFVuZG9Vc2VzSW50ZWdyYXRpb25TdGF0ZVdpdGhvdXRTZXR1cFN0YXRlKHQgKnRlc3RpbmcuVCkgewoJaG9tZSA6PSB0LlRlbXBEaXIoKQoJdC5TZXRlbnYoIkhPTUUiLCBob21lKQoJdC5TZXRlbnYoIkNPUElMT1RfSE9NRSIsIGZpbGVwYXRoLkpvaW4oaG9tZSwgImNvcGlsb3QiKSkKCXQuU2V0ZW52KCJDTEFVREVfQ09ORklHX0RJUiIsIGZpbGVwYXRoLkpvaW4oaG9tZSwgImNsYXVkZSIpKQoJdC5TZXRlbnYoIkNPREVYX0hPTUUiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjb2RleCIpKQoJaWYgXywgZXJyIDo9IGludGVncmF0aW9ucy5JbnN0YWxsQWxsKCIvb3B0L21ld3MvYmluL213Iik7IGVyciAhPSBuaWwgewoJCXQuRmF0YWxmKCJJbnN0YWxsQWxsIHJldHVybmVkIGVycm9yOiAldiIsIGVycikKCX0KCgl2YXIgc3Rkb3V0LCBzdGRlcnIgYnl0ZXMuQnVmZmVyCglpZiBjb2RlIDo9IFJ1bihbXXN0cmluZ3sidW5kbyJ9LCBzdHJpbmdzLk5ld1JlYWRlcigiIiksICZzdGRvdXQsICZzdGRlcnIpOyBjb2RlICE9IDAgewoJCXQuRmF0YWxmKCJ1bmRvIHJldHVybmVkICVkLCBzdGRlcnI6ICVzIiwgY29kZSwgc3RkZXJyLlN0cmluZygpKQoJfQoJaWYgXywgY29uZmlndXJlZCwgZXJyIDo9IHN0b3JlLkxvYWRJbnRlZ3JhdGlvblN0YXRlKCk7IGVyciAhPSBuaWwgfHwgY29uZmlndXJlZCB7CgkJdC5GYXRhbGYoImludGVncmF0aW9uIHN0YXRlIHJlbWFpbnM6IGNvbmZpZ3VyZWQ9JXYgZXJyPSV2IiwgY29uZmlndXJlZCwgZXJyKQoJfQp9CgpmdW5jIFRlc3RMZWdhY3lVbmRvVXNlc1JlY29yZGVkQ29waWxvdFBhdGgodCAqdGVzdGluZy5UKSB7Cglob21lIDo9IHQuVGVtcERpcigpCgl0LlNldGVudigiSE9NRSIsIGhvbWUpCglmaXJzdEhvbWUgOj0gZmlsZXBhdGguSm9pbihob21lLCAiY29waWxvdC1hIikKCXQuU2V0ZW52KCJDT1BJTE9UX0hPTUUiLCBmaXJzdEhvbWUpCgl0LlNldGVudigiQ0xBVURFX0NPTkZJR19ESVIiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjbGF1ZGUiKSkKCXQuU2V0ZW52KCJDT0RFWF9IT01FIiwgZmlsZXBhdGguSm9pbihob21lLCAiY29kZXgiKSkKCglob29rUGF0aCA6PSBmaWxlcGF0aC5Kb2luKGZpcnN0SG9tZSwgImhvb2tzIiwgIm1ld3MuanNvbiIpCglpZiBlcnIgOj0gb3MuTWtkaXJBbGwoZmlsZXBhdGguRGlyKGhvb2tQYXRoKSwgMG83MDApOyBlcnIgIT0gbmlsIHsKCQl0LkZhdGFsKGVycikKCX0KCWlmIGVyciA6PSBvcy5Xcml0ZUZpbGUoaG9va1BhdGgsIGxlZ2FjeUNvcGlsb3RIb29rSlNPTigpLCAwbzYwMCk7IGVyciAhPSBuaWwgewoJCXQuRmF0YWwoZXJyKQoJfQoJaWYgZXJyIDo9IHN0b3JlLlNhdmVTZXR1cFN0YXRlKHN0b3JlLlNldHVwU3RhdGV7CgkJVmVyc2lvbjogICAgIDEsCgkJU2V0dXBBdDogICAgIHRpbWUuTm93KCksCgkJQWdlbnQ6ICAgICAgICJub3QgcGFja2FnZWQgeWV0IiwKCQlDb3BpbG90OiAgICAgImhvb2tzIGluc3RhbGxlZCIsCgkJQ29waWxvdEhvb2s6IGhvb2tQYXRoLAoJCUNsYXVkZTogICAgICAiaG9va3Mgbm90IGluc3RhbGxlZCIsCgkJVW5kb1JlYWR5OiAgIHRydWUsCgl9KTsgZXJyICE9IG5pbCB7CgkJdC5GYXRhbChlcnIpCgl9CgoJdC5TZXRlbnYoIkNPUElMT1RfSE9NRSIsIGZpbGVwYXRoLkpvaW4oaG9tZSwgImNvcGlsb3QtYiIpKQoJdmFyIHN0ZG91dCwgc3RkZXJyIGJ5dGVzLkJ1ZmZlcgoJaWYgY29kZSA6PSBSdW4oW11zdHJpbmd7InVuZG8ifSwgc3RyaW5ncy5OZXdSZWFkZXIoIiIpLCAmc3Rkb3V0LCAmc3RkZXJyKTsgY29kZSAhPSAwIHsKCQl0LkZhdGFsZigibGVnYWN5IHVuZG8gcmV0dXJuZWQgJWQsIHN0ZGVycjogJXMiLCBjb2RlLCBzdGRlcnIuU3RyaW5nKCkpCgl9CglpZiBfLCBlcnIgOj0gb3MuU3RhdChob29rUGF0aCk7ICFvcy5Jc05vdEV4aXN0KGVycikgewoJCXQuRmF0YWxmKCJyZWNvcmRlZCBsZWdhY3kgQ29waWxvdCBob29rIHJlbWFpbnM6ICV2IiwgZXJyKQoJfQp9CgpmdW5jIFRlc3RVbmRvUmVmdXNlc1doZW5DdXJyZW50SW50ZWdyYXRpb25TdGF0ZUlzTWlzc2luZyh0ICp0ZXN0aW5nLlQpIHsKCWhvbWUgOj0gdC5UZW1wRGlyKCkKCXQuU2V0ZW52KCJIT01FIiwgaG9tZSkKCXQuU2V0ZW52KCJDT1BJTE9UX0hPTUUiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjb3BpbG90IikpCgl0LlNldGVudigiQ0xBVURFX0NPTkZJR19ESVIiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjbGF1ZGUiKSkKCXQuU2V0ZW52KCJDT0RFWF9IT01FIiwgZmlsZXBhdGguSm9pbihob21lLCAiY29kZXgiKSkKCgl2YXIgc2V0dXBPdXQsIHNldHVwRXJyIGJ5dGVzLkJ1ZmZlcgoJaWYgY29kZSA6PSBSdW4oW11zdHJpbmd7InNldHVwIiwgIi0teWVzIn0sIHN0cmluZ3MuTmV3UmVhZGVyKCIiKSwgJnNldHVwT3V0LCAmc2V0dXBFcnIpOyBjb2RlICE9IDAgewoJCXQuRmF0YWxmKCJzZXR1cCByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHNldHVwRXJyLlN0cmluZygpKQoJfQoJaWYgZXJyIDo9IHN0b3JlLlJlbW92ZUludGVncmF0aW9uU3RhdGUoKTsgZXJyICE9IG5pbCB7CgkJdC5GYXRhbChlcnIpCgl9CgoJdmFyIHN0ZG91dCwgc3RkZXJyIGJ5dGVzLkJ1ZmZlcgoJaWYgY29kZSA6PSBSdW4oW11zdHJpbmd7InVuZG8ifSwgc3RyaW5ncy5OZXdSZWFkZXIoIiIpLCAmc3Rkb3V0LCAmc3RkZXJyKTsgY29kZSAhPSAxIHsKCQl0LkZhdGFsZigidW5kbyByZXR1cm5lZCAlZCwgd2FudCAxIiwgY29kZSkKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKHN0ZGVyci5TdHJpbmcoKSwgImludGVncmF0aW9uIHJvbGxiYWNrIHN0YXRlIGlzIG1pc3NpbmciKSB7CgkJdC5GYXRhbGYoInVuZG8gZGlkIG5vdCBleHBsYWluIG1pc3Npbmcgcm9sbGJhY2sgc3RhdGU6ICVxIiwgc3RkZXJyLlN0cmluZygpKQoJfQoJaWYgXywgY29uZmlndXJlZCwgZXJyIDo9IHN0b3JlLkxvYWRTZXR1cFN0YXRlKCk7IGVyciAhPSBuaWwgfHwgIWNvbmZpZ3VyZWQgewoJCXQuRmF0YWxmKCJzZXR1cCBzdGF0ZSB3YXMgcmVtb3ZlZDogY29uZmlndXJlZD0ldiBlcnI9JXYiLCBjb25maWd1cmVkLCBlcnIpCgl9Cglmb3IgXywgcGF0aCA6PSByYW5nZSBbXXN0cmluZ3sKCQlmaWxlcGF0aC5Kb2luKGhvbWUsICJjb3BpbG90IiwgImhvb2tzIiwgIm1ld3MuanNvbiIpLAoJCWZpbGVwYXRoLkpvaW4oaG9tZSwgImNsYXVkZSIsICJzZXR0aW5ncy5qc29uIiksCgkJZmlsZXBhdGguSm9pbihob21lLCAiY29kZXgiLCAiY29uZmlnLnRvbWwiKSwKCX0gewoJCWlmIF8sIGVyciA6PSBvcy5TdGF0KHBhdGgpOyBlcnIgIT0gbmlsIHsKCQkJdC5GYXRhbGYoImludGVncmF0aW9uIHdhcyBjaGFuZ2VkIGFmdGVyIGZhaWxlZCB1bmRvOiAlczogJXYiLCBwYXRoLCBlcnIpCgkJfQoJfQp9CgpmdW5jIFRlc3RTZXR1cE1pZ3JhdGVzUmVjb3JkZWRMZWdhY3lDb3BpbG90SG9vayh0ICp0ZXN0aW5nLlQpIHsKCWhvbWUgOj0gdC5UZW1wRGlyKCkKCXQuU2V0ZW52KCJIT01FIiwgaG9tZSkKCXQuU2V0ZW52KCJDT1BJTE9UX0hPTUUiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjb3BpbG90IikpCgl0LlNldGVudigiQ0xBVURFX0NPTkZJR19ESVIiLCBmaWxlcGF0aC5Kb2luKGhvbWUsICJjbGF1ZGUiKSkKCXQuU2V0ZW52KCJDT0RFWF9IT01FIiwgZmlsZXBhdGguSm9pbihob21lLCAiY29kZXgiKSkKCgl2YXIgc3Rkb3V0LCBzdGRlcnIgYnl0ZXMuQnVmZmVyCglpZiBjb2RlIDo9IFJ1bihbXXN0cmluZ3sic2V0dXAiLCAiLS15ZXMifSwgc3RyaW5ncy5OZXdSZWFkZXIoIiIpLCAmc3Rkb3V0LCAmc3RkZXJyKTsgY29kZSAhPSAwIHsKCQl0LkZhdGFsZigiaW5pdGlhbCBzZXR1cCByZXR1cm5lZCAlZCwgc3RkZXJyOiAlcyIsIGNvZGUsIHN0ZGVyci5TdHJpbmcoKSkKCX0KCWhvb2tQYXRoLCBfIDo9IGludGVncmF0aW9ucy5Db3BpbG90SG9va1BhdGgoKQoJaWYgZXJyIDo9IG9zLldyaXRlRmlsZShob29rUGF0aCwgbGVnYWN5Q29waWxvdEhvb2tKU09OKCksIDBvNjAwKTsgZXJyICE9IG5pbCB7CgkJdC5GYXRhbChlcnIpCgl9CglpZiBlcnIgOj0gc3RvcmUuUmVtb3ZlSW50ZWdyYXRpb25TdGF0ZSgpOyBlcnIgIT0gbmlsIHsKCQl0LkZhdGFsKGVycikKCX0KCglzdGRvdXQuUmVzZXQoKQoJc3RkZXJyLlJlc2V0KCkKCWlmIGNvZGUgOj0gUnVuKFtdc3RyaW5neyJzZXR1cCIsICItLXllcyJ9LCBzdHJpbmdzLk5ld1JlYWRlcigiIiksICZzdGRvdXQsICZzdGRlcnIpOyBjb2RlICE9IDAgewoJCXQuRmF0YWxmKCJtaWdyYXRpb24gc2V0dXAgcmV0dXJuZWQgJWQsIHN0ZGVycjogJXMiLCBjb2RlLCBzdGRlcnIuU3RyaW5nKCkpCgl9CglkYXRhLCBlcnIgOj0gb3MuUmVhZEZpbGUoaG9va1BhdGgpCglpZiBlcnIgIT0gbmlsIHsKCQl0LkZhdGFsKGVycikKCX0KCWlmICFzdHJpbmdzLkNvbnRhaW5zKHN0cmluZyhkYXRhKSwgIk1FV1NfTUFOQUdFRF9JTlRFR1JBVElPTiIpIHsKCQl0LkZhdGFsZigibGVnYWN5IGhvb2sgd2FzIG5vdCBtaWdyYXRlZDogJXMiLCBkYXRhKQoJfQp9CgpmdW5jIGxlZ2FjeUNvcGlsb3RIb29rSlNPTigpIFtdYnl0ZSB7Cgl0eXBlIGhvb2sgc3RydWN0IHsKCQlUeXBlICAgICAgIHN0cmluZyBganNvbjoidHlwZSJgCgkJQmFzaCAgICAgICBzdHJpbmcgYGpzb246ImJhc2giYAoJCVRpbWVvdXRTZWMgaW50ICAgIGBqc29uOiJ0aW1lb3V0U2VjImAKCX0KCWNvbmZpZyA6PSBzdHJ1Y3QgewoJCVZlcnNpb24gaW50ICAgICAgICAgICAgICAgYGpzb246InZlcnNpb24iYAoJCUhvb2tzICAgbWFwW3N0cmluZ11bXWhvb2sgYGpzb246Imhvb2tzImAKCX17CgkJVmVyc2lvbjogMSwKCQlIb29rczogICBtYWtlKG1hcFtzdHJpbmddW11ob29rKSwKCX0KCWV2ZW50cyA6PSBtYXBbc3RyaW5nXVsyXXN0cmluZ3sKCQkiYWdlbnRTdG9wIjogICAgIHsiZG9uZSIsICJDb3BpbG90IGFnZW50IHN0b3BwZWQifSwKCQkic2Vzc2lvbkVuZCI6ICAgIHsiaWRsZSIsICJDb3BpbG90IHNlc3Npb24gZW5kZWQifSwKCQkiZXJyb3JPY2N1cnJlZCI6IHsiZmFpbGVkIiwgIkNvcGlsb3QgZXJyb3Igb2NjdXJyZWQifSwKCX0KCWZvciBldmVudCwgdmFsdWVzIDo9IHJhbmdlIGV2ZW50cyB7CgkJcGFydHMgOj0gW11zdHJpbmd7CgkJCSIvbGVnYWN5L213IiwgIm5vdGlmeSIsCgkJCSItLXNvdXJjZSIsICJjb3BpbG90IiwKCQkJIi0taG9vay1ldmVudCIsIGV2ZW50LAoJCQkiLS1zdGF0dXMiLCB2YWx1ZXNbMF0sCgkJCSItLW1lc3NhZ2UiLCB2YWx1ZXNbMV0sCgkJfQoJCWZvciBpbmRleCwgcGFydCA6PSByYW5nZSBwYXJ0cyB7CgkJCXBhcnRzW2luZGV4XSA9IHN0cmNvbnYuUXVvdGUocGFydCkKCQl9CgkJY29uZmlnLkhvb2tzW2V2ZW50XSA9IFtdaG9va3t7CgkJCVR5cGU6ICAgICAgICJjb21tYW5kIiwKCQkJQmFzaDogICAgICAgc3RyaW5ncy5Kb2luKHBhcnRzLCAiICIpICsgIiA+L2Rldi9udWxsIiwKCQkJVGltZW91dFNlYzogNSwKCQl9fQoJfQoJZGF0YSwgXyA6PSBqc29uLk1hcnNoYWwoY29uZmlnKQoJcmV0dXJuIGRhdGEKfQo=
+package cli
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Duan-JM/mews/internal/events"
+	"github.com/Duan-JM/mews/internal/integrations"
+	"github.com/Duan-JM/mews/internal/store"
+)
+
+type bootstrapExitError int
+
+func (e bootstrapExitError) Error() string {
+	return fmt.Sprintf("exit status %d", e)
+}
+
+func (e bootstrapExitError) ExitCode() int {
+	return int(e)
+}
+
+func TestRunCommandForwardsStdin(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	code := Run(
+		[]string{"run", "--", "sh", "-c", `read line; printf 'got:%s\n' "$line"`},
+		strings.NewReader("hello\n"),
+		&stdout,
+		&stderr,
+	)
+
+	if code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "got:hello\n") {
+		t.Fatalf("stdout did not include forwarded stdin output: %q", stdout.String())
+	}
+}
+
+func TestRunCommandRecordsSuccess(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"run", "--", "sh", "-c", "exit 0"}, strings.NewReader(""), &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run returned %d, want 0; stderr=%q", code, stderr.String())
+	}
+
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatalf("Paths returned error: %v", err)
+	}
+	got, err := store.ReadEvents(paths.Events, 2)
+	if err != nil {
+		t.Fatalf("ReadEvents returned error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("ReadEvents returned %d events, want 2", len(got))
+	}
+	if got[0].Status != events.StatusRunning || got[1].Status != events.StatusDone {
+		t.Fatalf("statuses = %q, %q; want running, done", got[0].Status, got[1].Status)
+	}
+}
+
+func TestRunCommandRecordsFailureExitCode(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	var stdout, stderr bytes.Buffer
+	code := Run([]string{"run", "--", "sh", "-c", "exit 7"}, strings.NewReader(""), &stdout, &stderr)
+	if code != 7 {
+		t.Fatalf("Run returned %d, want 7; stderr=%q", code, stderr.String())
+	}
+
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatalf("Paths returned error: %v", err)
+	}
+	got, err := store.ReadEvents(paths.Events, 2)
+	if err != nil {
+		t.Fatalf("ReadEvents returned error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("ReadEvents returned %d events, want 2", len(got))
+	}
+	if got[0].Status != events.StatusRunning || got[1].Status != events.StatusFailed {
+		t.Fatalf("statuses = %q, %q; want running, failed", got[0].Status, got[1].Status)
+	}
+}
+
+func TestRunCommandTruncatesLongEventMessage(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	longArgument := strings.Repeat("x", 2000)
+	var stdout, stderr bytes.Buffer
+	code := Run(
+		[]string{"run", "--", "sh", "-c", "exit 0", longArgument},
+		strings.NewReader(""),
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("Run returned %d, stderr: %s", code, stderr.String())
+	}
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.ReadEvents(paths.Events, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || len([]rune(got[1].Message)) > 1024 {
+		t.Fatalf("long command event was not safely truncated: %#v", got)
+	}
+}
+
+func TestRunCommandTerminatesProcessGroupWhenEventDeliveryFails(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	originalDeliver := deliverEventFn
+	t.Cleanup(func() { deliverEventFn = originalDeliver })
+	deliverEventFn = func(store.StorePaths, events.Event, io.Writer) error {
+		return errors.New("delivery failed")
+	}
+
+	marker := filepath.Join(t.TempDir(), "finished")
+	var stdout, stderr bytes.Buffer
+	code := Run(
+		[]string{"run", "--", "sh", "-c", "sleep 1; touch \"$1\"", "sh", marker},
+		strings.NewReader(""),
+		&stdout,
+		&stderr,
+	)
+	if code != 1 {
+		t.Fatalf("Run returned %d, want 1", code)
+	}
+	time.Sleep(1200 * time.Millisecond)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("command continued after delivery failure: %v", err)
+	}
+}
+
+func TestBootstrapWithRetryHandlesLaunchdInputOutputRace(t *testing.T) {
+	originalBootstrap := bootstrapLaunchAgent
+	originalDelay := bootstrapRetryDelay
+	t.Cleanup(func() {
+		bootstrapLaunchAgent = originalBootstrap
+		bootstrapRetryDelay = originalDelay
+	})
+
+	calls := 0
+	bootstrapRetryDelay = 0
+	bootstrapLaunchAgent = func() error {
+		calls++
+		if calls == 1 {
+			return bootstrapExitError(5)
+		}
+		return nil
+	}
+
+	if err := bootstrapWithRetry(time.Second); err != nil {
+		t.Fatalf("bootstrapWithRetry returned error: %v", err)
+	}
+	if calls != 2 {
+		t.Fatalf("bootstrap calls = %d, want 2", calls)
+	}
+}
+
+func TestBootstrapWithRetryDoesNotHidePermanentFailure(t *testing.T) {
+	originalBootstrap := bootstrapLaunchAgent
+	t.Cleanup(func() { bootstrapLaunchAgent = originalBootstrap })
+
+	calls := 0
+	bootstrapLaunchAgent = func() error {
+		calls++
+		return errors.New("Bootstrap failed: 125: Domain does not support specified action")
+	}
+
+	err := bootstrapWithRetry(time.Second)
+	if err == nil || !strings.Contains(err.Error(), "Domain does not support") {
+		t.Fatalf("bootstrapWithRetry error = %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("bootstrap calls = %d, want 1", calls)
+	}
+}
+
+func TestWaitForAgentStopAcceptsClosingSocketEOF(t *testing.T) {
+	originalPing := pingAgent
+	t.Cleanup(func() { pingAgent = originalPing })
+	pingAgent = func(string) error {
+		return io.EOF
+	}
+
+	if err := waitForAgentStop("/tmp/mews.sock", time.Second); err != nil {
+		t.Fatalf("waitForAgentStop returned error: %v", err)
+	}
+}
+
+func TestCommandEventUsesWorkingDirectoryName(t *testing.T) {
+	event := commandEvent(events.StatusDone, "echo ok", filepath.Join(string(filepath.Separator), "tmp", "mews"), 123)
+	if event.Source != "runner" {
+		t.Fatalf("source = %q, want runner", event.Source)
+	}
+	if event.Project != "mews" {
+		t.Fatalf("project = %q, want mews", event.Project)
+	}
+	if event.PID != 123 {
+		t.Fatalf("pid = %d, want 123", event.PID)
+	}
+}
+
+func TestStartRequiresSetup(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run([]string{"start"}, strings.NewReader(""), &stdout, &stderr)
+
+	if code != 1 {
+		t.Fatalf("Run returned %d, want 1", code)
+	}
+	if !strings.Contains(stdout.String(), "Mews is not set up yet.") {
+		t.Fatalf("stdout did not explain setup requirement: %q", stdout.String())
+	}
+}
+
+func TestSetupYesRecordsStateAndUndoRemovesIt(t *testing.T) {
+	home := t.TempDir()
+	copilotHome := filepath.Join(home, ".copilot")
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", copilotHome)
+
+	var setupOut bytes.Buffer
+	var setupErr bytes.Buffer
+	if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &setupOut, &setupErr); code != 0 {
+		t.Fatalf("setup returned %d, stderr: %s", code, setupErr.String())
+	}
+	hookPath := filepath.Join(copilotHome, "hooks", "mews.json")
+	hookData, err := os.ReadFile(hookPath)
+	if err != nil {
+		t.Fatalf("setup did not write Copilot hook: %v", err)
+	}
+	if !strings.Contains(string(hookData), "agentStop") ||
+		!strings.Contains(string(hookData), "notify") ||
+		!strings.Contains(string(hookData), "copilot") {
+		t.Fatalf("hook file does not include expected Copilot hook command: %s", string(hookData))
+	}
+
+	var undoOut bytes.Buffer
+	var undoErr bytes.Buffer
+	if code := Run([]string{"undo"}, strings.NewReader(""), &undoOut, &undoErr); code != 0 {
+		t.Fatalf("undo returned %d, stderr: %s", code, undoErr.String())
+	}
+	if !strings.Contains(undoOut.String(), "Removed Mews setup state.") {
+		t.Fatalf("stdout did not describe undo: %q", undoOut.String())
+	}
+	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
+		t.Fatalf("undo did not remove Copilot hook, stat err: %v", err)
+	}
+}
+
+func TestNotifyWritesEventLog(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(
+		[]string{"notify", "--source", "copilot", "--status", "done", "--message", "Agent stopped"},
+		strings.NewReader(""),
+		&stdout,
+		&stderr,
+	)
+
+	if code != 0 {
+		t.Fatalf("notify returned %d, stderr: %s", code, stderr.String())
+	}
+	eventPath := filepath.Join(home, "Library", "Application Support", "Mews", "events.jsonl")
+	data, err := os.ReadFile(eventPath)
+	if err != nil {
+		t.Fatalf("notify did not write event log: %v", err)
+	}
+	if !strings.Contains(string(data), `"source":"copilot"`) || !strings.Contains(string(data), `"status":"done"`) {
+		t.Fatalf("event log did not include expected event: %s", string(data))
+	}
+}
+
+func TestHistoryPrintsSessionReturnCommand(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	var notifyOut, notifyErr bytes.Buffer
+	code := Run(
+		[]string{
+			"notify",
+			"--source", "copilot",
+			"--status", "done",
+			"--session", "session-123",
+			"--project", "Mews",
+			"--message", "Agent stopped",
+		},
+		strings.NewReader(""),
+		&notifyOut,
+		&notifyErr,
+	)
+	if code != 0 {
+		t.Fatalf("notify returned %d, stderr: %s", code, notifyErr.String())
+	}
+
+	var historyOut, historyErr bytes.Buffer
+	code = Run([]string{"history"}, strings.NewReader(""), &historyOut, &historyErr)
+	if code != 0 {
+		t.Fatalf("history returned %d, stderr: %s", code, historyErr.String())
+	}
+	if !strings.Contains(historyOut.String(), "return: mw history --session 'session-123'") {
+		t.Fatalf("history did not include return command: %q", historyOut.String())
+	}
+}
+
+func TestHistoryFiltersBySession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	for _, session := range []string{"target-session", "other-session"} {
+		var stdout, stderr bytes.Buffer
+		code := Run(
+			[]string{
+				"notify",
+				"--source", "copilot",
+				"--status", "done",
+				"--session", session,
+				"--message", session,
+			},
+			strings.NewReader(""),
+			&stdout,
+			&stderr,
+		)
+		if code != 0 {
+			t.Fatalf("notify %s returned %d, stderr: %s", session, code, stderr.String())
+		}
+	}
+
+	var historyOut, historyErr bytes.Buffer
+	code := Run([]string{"history", "--session", "target-session"}, strings.NewReader(""), &historyOut, &historyErr)
+	if code != 0 {
+		t.Fatalf("history returned %d, stderr: %s", code, historyErr.String())
+	}
+	if !strings.Contains(historyOut.String(), "target-session") {
+		t.Fatalf("history did not include target session: %q", historyOut.String())
+	}
+	if strings.Contains(historyOut.String(), "other-session") {
+		t.Fatalf("history included a different session: %q", historyOut.String())
+	}
+}
+
+func TestNotifyFromHookAddsSafeContextWithoutTaskTitleByDefault(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	payload := `{"cwd":"/tmp/Mews","session_id":"abc123","prompt":"secret task details"}`
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(
+		[]string{"notify", "--source", "copilot", "--hook-event", "agentStop", "--status", "done"},
+		strings.NewReader(payload),
+		&stdout,
+		&stderr,
+	)
+
+	if code != 0 {
+		t.Fatalf("notify returned %d, stderr: %s", code, stderr.String())
+	}
+	eventPath := filepath.Join(home, "Library", "Application Support", "Mews", "events.jsonl")
+	data, err := os.ReadFile(eventPath)
+	if err != nil {
+		t.Fatalf("notify did not write event log: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{`"hook_event":"agentStop"`, `"session_id":"abc123"`, `"project":"Mews"`, `"cwd":"/tmp/Mews"`, `"message":"copilot done: Mews"`} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("event log missing %s: %s", want, content)
+		}
+	}
+	if strings.Contains(content, "secret task details") || strings.Contains(content, "task_title") {
+		t.Fatalf("event log captured task title without opt-in: %s", content)
+	}
+}
+
+func TestNotifyFromHookIncludesTruncatedTaskTitleWhenEnabled(t *testing.T) {
+	home := t.TempDir()
+	copilotHome := filepath.Join(home, ".copilot")
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", copilotHome)
+
+	var setupOut bytes.Buffer
+	var setupErr bytes.Buffer
+	if code := Run([]string{"setup", "--yes", "--include-task-title"}, strings.NewReader(""), &setupOut, &setupErr); code != 0 {
+		t.Fatalf("setup returned %d, stderr: %s", code, setupErr.String())
+	}
+
+	payload := `{"cwd":"/tmp/Mews","sessionId":"abc123","prompt":"fix the doctor command so users can see exactly which integration is broken and why"}`
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(
+		[]string{"notify", "--source", "copilot", "--hook-event", "agentStop", "--status", "done"},
+		strings.NewReader(payload),
+		&stdout,
+		&stderr,
+	)
+
+	if code != 0 {
+		t.Fatalf("notify returned %d, stderr: %s", code, stderr.String())
+	}
+	eventPath := filepath.Join(home, "Library", "Application Support", "Mews", "events.jsonl")
+	data, err := os.ReadFile(eventPath)
+	if err != nil {
+		t.Fatalf("notify did not write event log: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, `"task_title":"fix the doctor command`) {
+		t.Fatalf("event log did not include task title after opt-in: %s", content)
+	}
+	if !strings.Contains(content, `"message":"copilot done: Mews - fix the doctor command`) {
+		t.Fatalf("event log did not include task title in message: %s", content)
+	}
+}
+
+func TestResetRequiresUndoWhenIntegrationsAreConfigured(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+
+	var setupOut, setupErr bytes.Buffer
+	if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &setupOut, &setupErr); code != 0 {
+		t.Fatalf("setup returned %d, stderr: %s", code, setupErr.String())
+	}
+
+	var resetOut, resetErr bytes.Buffer
+	if code := Run([]string{"reset", "--yes"}, strings.NewReader(""), &resetOut, &resetErr); code != 1 {
+		t.Fatalf("reset returned %d, want 1", code)
+	}
+	if !strings.Contains(resetErr.String(), "Run `mw undo`") {
+		t.Fatalf("reset did not explain required undo: %q", resetErr.String())
+	}
+	hookPath, _ := integrations.CopilotHookPath()
+	if _, err := os.Stat(hookPath); err != nil {
+		t.Fatalf("reset removed integration before undo: %v", err)
+	}
+}
+
+func TestSetupCanBeRepeatedWithoutLosingUndoOwnership(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+
+	for attempt := 0; attempt < 2; attempt++ {
+		var stdout, stderr bytes.Buffer
+		if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+			t.Fatalf("setup attempt %d returned %d, stderr: %s", attempt+1, code, stderr.String())
+		}
+	}
+	var undoOut, undoErr bytes.Buffer
+	if code := Run([]string{"undo"}, strings.NewReader(""), &undoOut, &undoErr); code != 0 {
+		t.Fatalf("undo returned %d, stderr: %s", code, undoErr.String())
+	}
+	hookPath, _ := integrations.CopilotHookPath()
+	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
+		t.Fatalf("Copilot hook remains after repeated setup and undo: %v", err)
+	}
+}
+
+func TestUndoUsesIntegrationStateWithoutSetupState(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+	if _, err := integrations.InstallAll("/opt/mews/bin/mw"); err != nil {
+		t.Fatalf("InstallAll returned error: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"undo"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("undo returned %d, stderr: %s", code, stderr.String())
+	}
+	if _, configured, err := store.LoadIntegrationState(); err != nil || configured {
+		t.Fatalf("integration state remains: configured=%v err=%v", configured, err)
+	}
+}
+
+func TestLegacyUndoUsesRecordedCopilotPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	firstHome := filepath.Join(home, "copilot-a")
+	t.Setenv("COPILOT_HOME", firstHome)
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+
+	hookPath := filepath.Join(firstHome, "hooks", "mews.json")
+	if err := os.MkdirAll(filepath.Dir(hookPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hookPath, legacyCopilotHookJSON(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveSetupState(store.SetupState{
+		Version:     1,
+		SetupAt:     time.Now(),
+		Agent:       "not packaged yet",
+		Copilot:     "hooks installed",
+		CopilotHook: hookPath,
+		Claude:      "hooks not installed",
+		UndoReady:   true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot-b"))
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"undo"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("legacy undo returned %d, stderr: %s", code, stderr.String())
+	}
+	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
+		t.Fatalf("recorded legacy Copilot hook remains: %v", err)
+	}
+}
+
+func TestUndoRefusesWhenCurrentIntegrationStateIsMissing(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+
+	var setupOut, setupErr bytes.Buffer
+	if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &setupOut, &setupErr); code != 0 {
+		t.Fatalf("setup returned %d, stderr: %s", code, setupErr.String())
+	}
+	if err := store.RemoveIntegrationState(); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"undo"}, strings.NewReader(""), &stdout, &stderr); code != 1 {
+		t.Fatalf("undo returned %d, want 1", code)
+	}
+	if !strings.Contains(stderr.String(), "integration rollback state is missing") {
+		t.Fatalf("undo did not explain missing rollback state: %q", stderr.String())
+	}
+	if _, configured, err := store.LoadSetupState(); err != nil || !configured {
+		t.Fatalf("setup state was removed: configured=%v err=%v", configured, err)
+	}
+	for _, path := range []string{
+		filepath.Join(home, "copilot", "hooks", "mews.json"),
+		filepath.Join(home, "claude", "settings.json"),
+		filepath.Join(home, "codex", "config.toml"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("integration was changed after failed undo: %s: %v", path, err)
+		}
+	}
+}
+
+func TestSetupMigratesRecordedLegacyCopilotHook(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+
+	var stdout, stderr bytes.Buffer
+	if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("initial setup returned %d, stderr: %s", code, stderr.String())
+	}
+	hookPath, _ := integrations.CopilotHookPath()
+	if err := os.WriteFile(hookPath, legacyCopilotHookJSON(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RemoveIntegrationState(); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run([]string{"setup", "--yes"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("migration setup returned %d, stderr: %s", code, stderr.String())
+	}
+	data, err := os.ReadFile(hookPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "MEWS_MANAGED_INTEGRATION") {
+		t.Fatalf("legacy hook was not migrated: %s", data)
+	}
+}
+
+func legacyCopilotHookJSON() []byte {
+	type hook struct {
+		Type       string `json:"type"`
+		Bash       string `json:"bash"`
+		TimeoutSec int    `json:"timeoutSec"`
+	}
+	config := struct {
+		Version int               `json:"version"`
+		Hooks   map[string][]hook `json:"hooks"`
+	}{
+		Version: 1,
+		Hooks:   make(map[string][]hook),
+	}
+	events := map[string][2]string{
+		"agentStop":     {"done", "Copilot agent stopped"},
+		"sessionEnd":    {"idle", "Copilot session ended"},
+		"errorOccurred": {"failed", "Copilot error occurred"},
+	}
+	for event, values := range events {
+		parts := []string{
+			"/legacy/mw", "notify",
+			"--source", "copilot",
+			"--hook-event", event,
+			"--status", values[0],
+			"--message", values[1],
+		}
+		for index, part := range parts {
+			parts[index] = strconv.Quote(part)
+		}
+		config.Hooks[event] = []hook{{
+			Type:       "command",
+			Bash:       strings.Join(parts, " ") + " >/dev/null",
+			TimeoutSec: 5,
+		}}
+	}
+	data, _ := json.Marshal(config)
+	return data
+}

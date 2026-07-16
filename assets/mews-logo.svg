@@ -1,1 +1,45 @@
-PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiByb2xlPSJpbWciIGFyaWEtbGFiZWxsZWRieT0idGl0bGUgZGVzYyI+CiAgPHRpdGxlIGlkPSJ0aXRsZSI+TWV3cyBsb2dvPC90aXRsZT4KICA8ZGVzYyBpZD0iZGVzYyI+QSBtaW5pbWFsIHJvdW5kZWQgY2F0IGZhY2UgbG9nbyB3aXRoIGVhcnMsIHdoaXNrZXJzLCBhbmQgYSBjdXJsZWQgdGFpbC48L2Rlc2M+CiAgPHJlY3Qgd2lkdGg9IjI1NiIgaGVpZ2h0PSIyNTYiIHJ4PSI1NiIgZmlsbD0iI0Y3RjFFOCIvPgogIDxwYXRoCiAgICBkPSJNNzIgMTE4QzcyIDgwIDk2IDU1IDEyOCA1NUMxNjAgNTUgMTg0IDgwIDE4NCAxMThWMTQ5QzE4NCAxODEgMTYwIDIwMyAxMjggMjAzQzk2IDIwMyA3MiAxODEgNzIgMTQ5VjExOFoiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSIjMUYyOTM3IgogICAgc3Ryb2tlLXdpZHRoPSIxNCIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KICA8cGF0aAogICAgZD0iTTgzIDg0TDY3IDQ2TDEwNSA2NE0xNzMgODRMMTg5IDQ2TDE1MSA2NCIKICAgIGZpbGw9Im5vbmUiCiAgICBzdHJva2U9IiMxRjI5MzciCiAgICBzdHJva2Utd2lkdGg9IjE0IgogICAgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIgogICAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxwYXRoCiAgICBkPSJNMTEzIDEyOEgxMTMuMDFNMTQzIDEyOEgxNDMuMDEiCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSIjMUYyOTM3IgogICAgc3Ryb2tlLXdpZHRoPSIxNiIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxwYXRoCiAgICBkPSJNMTI4IDE0NFYxNTNNMTEyIDE2NEMxMjIgMTczIDEzNCAxNzMgMTQ0IDE2NCIKICAgIGZpbGw9Im5vbmUiCiAgICBzdHJva2U9IiMxRjI5MzciCiAgICBzdHJva2Utd2lkdGg9IjEwIgogICAgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIgogICAgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxwYXRoCiAgICBkPSJNODggMTQ5SDU1TTkwIDE2OUg2ME0xNjggMTQ5SDIwMU0xNjYgMTY5SDE5NiIKICAgIGZpbGw9Im5vbmUiCiAgICBzdHJva2U9IiMxRjI5MzciCiAgICBzdHJva2Utd2lkdGg9IjgiCiAgICBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aAogICAgZD0iTTE4NCAxNTFDMjA5IDE1MyAyMjAgMTY5IDIxNSAxODZDMjEwIDIwNSAxODcgMjExIDE3MyAxOTciCiAgICBmaWxsPSJub25lIgogICAgc3Ryb2tlPSIjRDk3NzA2IgogICAgc3Ryb2tlLXdpZHRoPSIxMiIKICAgIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIKICAgIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+Cg==
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Mews logo</title>
+  <desc id="desc">A minimal rounded cat face logo with ears, whiskers, and a curled tail.</desc>
+  <rect width="256" height="256" rx="56" fill="#F7F1E8"/>
+  <path
+    d="M72 118C72 80 96 55 128 55C160 55 184 80 184 118V149C184 181 160 203 128 203C96 203 72 181 72 149V118Z"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <path
+    d="M83 84L67 46L105 64M173 84L189 46L151 64"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <path
+    d="M113 128H113.01M143 128H143.01"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="16"
+    stroke-linecap="round"/>
+  <path
+    d="M128 144V153M112 164C122 173 134 173 144 164"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <path
+    d="M88 149H55M90 169H60M168 149H201M166 169H196"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="8"
+    stroke-linecap="round"/>
+  <path
+    d="M184 151C209 153 220 169 215 186C210 205 187 211 173 197"
+    fill="none"
+    stroke="#D97706"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+</svg>

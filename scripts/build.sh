@@ -1,1 +1,139 @@
-IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLWV1byBwaXBlZmFpbAoKUk9PVD0iJChjZCAiJChkaXJuYW1lICIke0JBU0hfU09VUkNFWzBdfSIpLy4uIiAmJiBwd2QpIgpjZCAiJFJPT1QiCgpWRVJTSU9OPSIke1ZFUlNJT046LWRldn0iClNFTVZFUl9SRT0nXnYoMHxbMS05XVswLTldKilcLigwfFsxLTldWzAtOV0qKVwuKDB8WzEtOV1bMC05XSopJCcKCmlmIFtbICIkVkVSU0lPTiIgPT0gImRldiIgXV07IHRoZW4KICBBUFBfU0hPUlRfVkVSU0lPTj0iMC4wLjAiCiAgQVBQX0JVSUxEX1ZFUlNJT049IjAiCmVsaWYgW1sgIiRWRVJTSU9OIiA9fiAkU0VNVkVSX1JFIF1dOyB0aGVuCiAgQVBQX1NIT1JUX1ZFUlNJT049IiR7QkFTSF9SRU1BVENIWzFdfS4ke0JBU0hfUkVNQVRDSFsyXX0uJHtCQVNIX1JFTUFUQ0hbM119IgogIEFQUF9CVUlMRF9WRVJTSU9OPSIkQVBQX1NIT1JUX1ZFUlNJT04iCmVsc2UKICBlY2hvICJWRVJTSU9OIG11c3QgYmUgZGV2IG9yIGEgY2xlYW4gc2VtdmVyIHRhZyBzdWNoIGFzIHYxLjIuMyAoZ290OiAkVkVSU0lPTikiID4mMgogIGV4aXQgMQpmaQoKbWtkaXIgLXAgYmluCnJtIC1mIGJpbi9tdwoKaWYgW1sgIiQodW5hbWUgLXMpIiA9PSAiRGFyd2luIiBdXTsgdGhlbgogIGlmICEgY29tbWFuZCAtdiBsaXBvID4vZGV2L251bGwgMj4mMTsgdGhlbgogICAgZWNobyAibGlwbyBpcyByZXF1aXJlZCB0byBidWlsZCB1bml2ZXJzYWwgbWFjT1MgYmluYXJpZXMiID4mMgogICAgZXhpdCAxCiAgZmkKICBCVUlMRF9ESVI9IiRST09UL2Rpc3QvLmJ1aWxkLSR7VkVSU0lPTn0iCiAgcm0gLXJmICIkQlVJTERfRElSIgogIG1rZGlyIC1wICIkQlVJTERfRElSIgogIGZvciBhcmNoIGluIGFybTY0IGFtZDY0OyBkbwogICAgQ0dPX0VOQUJMRUQ9MCBHT09TPWRhcndpbiBHT0FSQ0g9IiRhcmNoIiBnbyBidWlsZCBcCiAgICAgIC1sZGZsYWdzPSItcyAtdyAtWCBnaXRodWIuY29tL0R1YW4tSk0vbWV3cy9pbnRlcm5hbC9jbGkudmVyc2lvbj0ke1ZFUlNJT059IiBcCiAgICAgIC1vICIkQlVJTERfRElSL213LSRhcmNoIiBcCiAgICAgIC4vY21kL213CiAgZG9uZQogIGxpcG8gLWNyZWF0ZSAiJEJVSUxEX0RJUi9tdy1hcm02NCIgIiRCVUlMRF9ESVIvbXctYW1kNjQiIC1vdXRwdXQgYmluL213CmVsc2UKICBnbyBidWlsZCBcCiAgICAtbGRmbGFncz0iLXMgLXcgLVggZ2l0aHViLmNvbS9EdWFuLUpNL21ld3MvaW50ZXJuYWwvY2xpLnZlcnNpb249JHtWRVJTSU9OfSIgXAogICAgLW8gYmluL213IFwKICAgIC4vY21kL213CmZpCgp2ZXJzaW9uX291dHB1dD0iJCgiJFJPT1QvYmluL213IiAtLXZlcnNpb24pIgppZiBbWyAiJHZlcnNpb25fb3V0cHV0IiAhPSAibXcgJFZFUlNJT04iIF1dOyB0aGVuCiAgZWNobyAiQnVpbGQgZGlkIG5vdCBpbmplY3QgVkVSU0lPTjogZXhwZWN0ZWQgJ213ICRWRVJTSU9OJywgZ290ICckdmVyc2lvbl9vdXRwdXQnIiA+JjIKICBleGl0IDEKZmkKCmlmIFtbICIkKHVuYW1lIC1zKSIgIT0gIkRhcndpbiIgXV07IHRoZW4KICBlY2hvICJTa2lwcGluZyBNZXdzLmFwcCBidWlsZDsgbWFjT1MgaXMgcmVxdWlyZWQuIgogIGV4aXQgMApmaQoKaWYgISBjb21tYW5kIC12IHN3aWZ0YyA+L2Rldi9udWxsIDI+JjE7IHRoZW4KICBlY2hvICJzd2lmdGMgaXMgcmVxdWlyZWQgdG8gYnVpbGQgTWV3cy5hcHAiID4mMgogIGV4aXQgMQpmaQppZiAhIGNvbW1hbmQgLXYgY29kZXNpZ24gPi9kZXYvbnVsbCAyPiYxOyB0aGVuCiAgZWNobyAiY29kZXNpZ24gaXMgcmVxdWlyZWQgdG8gYnVpbGQgTWV3cy5hcHAiID4mMgogIGV4aXQgMQpmaQppZiAhIGNvbW1hbmQgLXYgaWNvbnV0aWwgPi9kZXYvbnVsbCAyPiYxOyB0aGVuCiAgZWNobyAiaWNvbnV0aWwgaXMgcmVxdWlyZWQgdG8gYnVpbGQgTWV3cy5hcHAgaWNvbiIgPiYyCiAgZXhpdCAxCmZpCgpBUFA9IiRST09UL2xpYi9NZXdzLmFwcCIKcm0gLXJmICIkQVBQIgpta2RpciAtcCAiJEFQUC9Db250ZW50cy9NYWNPUyIgIiRBUFAvQ29udGVudHMvUmVzb3VyY2VzIgoKc3dpZnRjIFwKICAtTyBcCiAgLXBhcnNlLWFzLWxpYnJhcnkgXAogIC10YXJnZXQgYXJtNjQtYXBwbGUtbWFjb3MxMy4wIFwKICAtZnJhbWV3b3JrIEFwcEtpdCBcCiAgLW8gIiRCVUlMRF9ESVIvTWV3cy1hcm02NCIgXAogICIkUk9PVC9pbnRlcm5hbC9hcHAvbWFjb3MvTWV3c0FwcC5zd2lmdCIKc3dpZnRjIFwKICAtTyBcCiAgLXBhcnNlLWFzLWxpYnJhcnkgXAogIC10YXJnZXQgeDg2XzY0LWFwcGxlLW1hY29zMTMuMCBcCiAgLWZyYW1ld29yayBBcHBLaXQgXAogIC1vICIkQlVJTERfRElSL01ld3MtYW1kNjQiIFwKICAiJFJPT1QvaW50ZXJuYWwvYXBwL21hY29zL01ld3NBcHAuc3dpZnQiCmxpcG8gLWNyZWF0ZSAiJEJVSUxEX0RJUi9NZXdzLWFybTY0IiAiJEJVSUxEX0RJUi9NZXdzLWFtZDY0IiBcCiAgLW91dHB1dCAiJEFQUC9Db250ZW50cy9NYWNPUy9NZXdzIgoKY3AgIiRST09UL2Jpbi9tdyIgIiRBUFAvQ29udGVudHMvUmVzb3VyY2VzL213IgpjcCAiJFJPT1QvYXNzZXRzL21ld3MtbG9nby5zdmciICIkQVBQL0NvbnRlbnRzL1Jlc291cmNlcy9tZXdzLWxvZ28uc3ZnIgpzd2lmdCAiJFJPT1Qvc2NyaXB0cy9nZW5lcmF0ZS1pY29uLnN3aWZ0IiBcCiAgIiRCVUlMRF9ESVIvTWV3cy5pY29uc2V0IiBcCiAgIiRBUFAvQ29udGVudHMvUmVzb3VyY2VzL21ld3MtbG9nby0yNTYucG5nIgppY29udXRpbCAtYyBpY25zICIkQlVJTERfRElSL01ld3MuaWNvbnNldCIgLW8gIiRBUFAvQ29udGVudHMvUmVzb3VyY2VzL01ld3MuaWNucyIKY2htb2QgMDc1NSAiJEFQUC9Db250ZW50cy9NYWNPUy9NZXdzIiAiJEFQUC9Db250ZW50cy9SZXNvdXJjZXMvbXciCgpjYXQgPiAiJEFQUC9Db250ZW50cy9JbmZvLnBsaXN0IiA8PFBMSVNUCjw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9IlVURi04Ij8+CjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPgo8cGxpc3QgdmVyc2lvbj0iMS4wIj4KPGRpY3Q+CiAgPGtleT5DRkJ1bmRsZUV4ZWN1dGFibGU8L2tleT4KICA8c3RyaW5nPk1ld3M8L3N0cmluZz4KICA8a2V5PkNGQnVuZGxlSWRlbnRpZmllcjwva2V5PgogIDxzdHJpbmc+ZGV2Lm1ld3MuTWV3czwvc3RyaW5nPgogIDxrZXk+Q0ZCdW5kbGVJY29uRmlsZTwva2V5PgogIDxzdHJpbmc+TWV3czwvc3RyaW5nPgogIDxrZXk+Q0ZCdW5kbGVOYW1lPC9rZXk+CiAgPHN0cmluZz5NZXdzPC9zdHJpbmc+CiAgPGtleT5DRkJ1bmRsZVBhY2thZ2VUeXBlPC9rZXk+CiAgPHN0cmluZz5BUFBMPC9zdHJpbmc+CiAgPGtleT5DRkJ1bmRsZVNob3J0VmVyc2lvblN0cmluZzwva2V5PgogIDxzdHJpbmc+JHtBUFBfU0hPUlRfVkVSU0lPTn08L3N0cmluZz4KICA8a2V5PkNGQnVuZGxlVmVyc2lvbjwva2V5PgogIDxzdHJpbmc+JHtBUFBfQlVJTERfVkVSU0lPTn08L3N0cmluZz4KICA8a2V5PkxTTWluaW11bVN5c3RlbVZlcnNpb248L2tleT4KICA8c3RyaW5nPjEzLjA8L3N0cmluZz4KICA8a2V5PkxTVUlFbGVtZW50PC9rZXk+CiAgPHRydWUvPgogIDxrZXk+TlNIdW1hblJlYWRhYmxlQ29weXJpZ2h0PC9rZXk+CiAgPHN0cmluZz5Db3B5cmlnaHQgwqkgTWV3cyBjb250cmlidXRvcnM8L3N0cmluZz4KPC9kaWN0Pgo8L3BsaXN0PgpQTElTVAoKcGx1dGlsIC1saW50ICIkQVBQL0NvbnRlbnRzL0luZm8ucGxpc3QiID4vZGV2L251bGwKCmNvZGVzaWduIC0tZm9yY2UgLS1zaWduIC0gIiRBUFAvQ29udGVudHMvUmVzb3VyY2VzL213Igpjb2Rlc2lnbiAtLWZvcmNlIC0tc2lnbiAtICIkQVBQL0NvbnRlbnRzL01hY09TL01ld3MiCmNvZGVzaWduIC0tZm9yY2UgLS1zaWduIC0gIiRBUFAiCmNvZGVzaWduIC0tdmVyaWZ5IC0tZGVlcCAtLXN0cmljdCAtLXZlcmJvc2U9MiAiJEFQUCIKCmFwcF9pZGVudGlmaWVyPSIkKGNvZGVzaWduIC1kdiAtLXZlcmJvc2U9NCAiJEFQUCIgMj4mMSB8IHNlZCAtbiAncy9eSWRlbnRpZmllcj0vL3AnKSIKaWYgW1sgIiRhcHBfaWRlbnRpZmllciIgIT0gImRldi5tZXdzLk1ld3MiIF1dOyB0aGVuCiAgZWNobyAiQnVpbHQgYXBwIGhhcyB1bmV4cGVjdGVkIGNvZGUtc2lnbmluZyBpZGVudGlmaWVyOiAkYXBwX2lkZW50aWZpZXIiID4mMgogIGV4aXQgMQpmaQo=
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+VERSION="${VERSION:-dev}"
+SEMVER_RE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+
+if [[ "$VERSION" == "dev" ]]; then
+  APP_SHORT_VERSION="0.0.0"
+  APP_BUILD_VERSION="0"
+elif [[ "$VERSION" =~ $SEMVER_RE ]]; then
+  APP_SHORT_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+  APP_BUILD_VERSION="$APP_SHORT_VERSION"
+else
+  echo "VERSION must be dev or a clean semver tag such as v1.2.3 (got: $VERSION)" >&2
+  exit 1
+fi
+
+mkdir -p bin
+rm -f bin/mw
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  if ! command -v lipo >/dev/null 2>&1; then
+    echo "lipo is required to build universal macOS binaries" >&2
+    exit 1
+  fi
+  BUILD_DIR="$ROOT/dist/.build-${VERSION}"
+  rm -rf "$BUILD_DIR"
+  mkdir -p "$BUILD_DIR"
+  for arch in arm64 amd64; do
+    CGO_ENABLED=0 GOOS=darwin GOARCH="$arch" go build \
+      -ldflags="-s -w -X github.com/Duan-JM/mews/internal/cli.version=${VERSION}" \
+      -o "$BUILD_DIR/mw-$arch" \
+      ./cmd/mw
+  done
+  lipo -create "$BUILD_DIR/mw-arm64" "$BUILD_DIR/mw-amd64" -output bin/mw
+else
+  go build \
+    -ldflags="-s -w -X github.com/Duan-JM/mews/internal/cli.version=${VERSION}" \
+    -o bin/mw \
+    ./cmd/mw
+fi
+
+version_output="$("$ROOT/bin/mw" --version)"
+if [[ "$version_output" != "mw $VERSION" ]]; then
+  echo "Build did not inject VERSION: expected 'mw $VERSION', got '$version_output'" >&2
+  exit 1
+fi
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "Skipping Mews.app build; macOS is required."
+  exit 0
+fi
+
+if ! command -v swiftc >/dev/null 2>&1; then
+  echo "swiftc is required to build Mews.app" >&2
+  exit 1
+fi
+if ! command -v codesign >/dev/null 2>&1; then
+  echo "codesign is required to build Mews.app" >&2
+  exit 1
+fi
+if ! command -v iconutil >/dev/null 2>&1; then
+  echo "iconutil is required to build Mews.app icon" >&2
+  exit 1
+fi
+
+APP="$ROOT/lib/Mews.app"
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+
+swiftc \
+  -O \
+  -parse-as-library \
+  -target arm64-apple-macos13.0 \
+  -framework AppKit \
+  -o "$BUILD_DIR/Mews-arm64" \
+  "$ROOT/internal/app/macos/MewsApp.swift"
+swiftc \
+  -O \
+  -parse-as-library \
+  -target x86_64-apple-macos13.0 \
+  -framework AppKit \
+  -o "$BUILD_DIR/Mews-amd64" \
+  "$ROOT/internal/app/macos/MewsApp.swift"
+lipo -create "$BUILD_DIR/Mews-arm64" "$BUILD_DIR/Mews-amd64" \
+  -output "$APP/Contents/MacOS/Mews"
+
+cp "$ROOT/bin/mw" "$APP/Contents/Resources/mw"
+cp "$ROOT/assets/mews-logo.svg" "$APP/Contents/Resources/mews-logo.svg"
+swift "$ROOT/scripts/generate-icon.swift" \
+  "$BUILD_DIR/Mews.iconset" \
+  "$APP/Contents/Resources/mews-logo-256.png"
+iconutil -c icns "$BUILD_DIR/Mews.iconset" -o "$APP/Contents/Resources/Mews.icns"
+chmod 0755 "$APP/Contents/MacOS/Mews" "$APP/Contents/Resources/mw"
+
+cat > "$APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>Mews</string>
+  <key>CFBundleIdentifier</key>
+  <string>dev.mews.Mews</string>
+  <key>CFBundleIconFile</key>
+  <string>Mews</string>
+  <key>CFBundleName</key>
+  <string>Mews</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>${APP_SHORT_VERSION}</string>
+  <key>CFBundleVersion</key>
+  <string>${APP_BUILD_VERSION}</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright © Mews contributors</string>
+</dict>
+</plist>
+PLIST
+
+plutil -lint "$APP/Contents/Info.plist" >/dev/null
+
+codesign --force --sign - "$APP/Contents/Resources/mw"
+codesign --force --sign - "$APP/Contents/MacOS/Mews"
+codesign --force --sign - "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
+
+app_identifier="$(codesign -dv --verbose=4 "$APP" 2>&1 | sed -n 's/^Identifier=//p')"
+if [[ "$app_identifier" != "dev.mews.Mews" ]]; then
+  echo "Built app has unexpected code-signing identifier: $app_identifier" >&2
+  exit 1
+fi

@@ -1,1 +1,120 @@
-aW1wb3J0IENvcmVHcmFwaGljcwppbXBvcnQgRm91bmRhdGlvbgppbXBvcnQgSW1hZ2VJTwppbXBvcnQgVW5pZm9ybVR5cGVJZGVudGlmaWVycwoKZ3VhcmQgQ29tbWFuZExpbmUuYXJndW1lbnRzLmNvdW50ID09IDMgZWxzZSB7CiAgICBGaWxlSGFuZGxlLnN0YW5kYXJkRXJyb3Iud3JpdGUoRGF0YSgiVXNhZ2U6IGdlbmVyYXRlLWljb24uc3dpZnQgPGljb25zZXQtZGlyPiA8cHJldmlldy1wbmc+XG4iLnV0ZjgpKQogICAgZXhpdCgyKQp9CgpsZXQgaWNvbnNldCA9IFVSTChmaWxlVVJMV2l0aFBhdGg6IENvbW1hbmRMaW5lLmFyZ3VtZW50c1sxXSkKbGV0IHByZXZpZXcgPSBVUkwoZmlsZVVSTFdpdGhQYXRoOiBDb21tYW5kTGluZS5hcmd1bWVudHNbMl0pCnRyeSBGaWxlTWFuYWdlci5kZWZhdWx0LmNyZWF0ZURpcmVjdG9yeShhdDogaWNvbnNldCwgd2l0aEludGVybWVkaWF0ZURpcmVjdG9yaWVzOiB0cnVlKQp0cnkgRmlsZU1hbmFnZXIuZGVmYXVsdC5jcmVhdGVEaXJlY3RvcnkoYXQ6IHByZXZpZXcuZGVsZXRpbmdMYXN0UGF0aENvbXBvbmVudCgpLCB3aXRoSW50ZXJtZWRpYXRlRGlyZWN0b3JpZXM6IHRydWUpCgpsZXQgaW5rID0gQ0dDb2xvcihyZWQ6IDAuMTIyLCBncmVlbjogMC4xNjEsIGJsdWU6IDAuMjE2LCBhbHBoYTogMSkKbGV0IGFjY2VudCA9IENHQ29sb3IocmVkOiAwLjg1MSwgZ3JlZW46IDAuNDY3LCBibHVlOiAwLjAyNCwgYWxwaGE6IDEpCmxldCBwYXBlciA9IENHQ29sb3IocmVkOiAwLjk2OSwgZ3JlZW46IDAuOTQ1LCBibHVlOiAwLjkxMCwgYWxwaGE6IDEpCgpmdW5jIHN0cm9rZShfIGNvbnRleHQ6IENHQ29udGV4dCwgY29sb3I6IENHQ29sb3IsIHdpZHRoOiBDR0Zsb2F0LCBkcmF3OiAoQ0dNdXRhYmxlUGF0aCkgLT4gVm9pZCkgewogICAgbGV0IHBhdGggPSBDR011dGFibGVQYXRoKCkKICAgIGRyYXcocGF0aCkKICAgIGNvbnRleHQuc2V0U3Ryb2tlQ29sb3IoY29sb3IpCiAgICBjb250ZXh0LnNldExpbmVXaWR0aCh3aWR0aCkKICAgIGNvbnRleHQuc2V0TGluZUNhcCgucm91bmQpCiAgICBjb250ZXh0LnNldExpbmVKb2luKC5yb3VuZCkKICAgIGNvbnRleHQuYWRkUGF0aChwYXRoKQogICAgY29udGV4dC5zdHJva2VQYXRoKCkKfQoKZnVuYyB3cml0ZVBORyhzaXplOiBJbnQsIHRvIHVybDogVVJMKSB0aHJvd3MgewogICAgbGV0IGNvbG9yU3BhY2UgPSBDR0NvbG9yU3BhY2VDcmVhdGVEZXZpY2VSR0IoKQogICAgZ3VhcmQgbGV0IGNvbnRleHQgPSBDR0NvbnRleHQoCiAgICAgICAgZGF0YTogbmlsLAogICAgICAgIHdpZHRoOiBzaXplLAogICAgICAgIGhlaWdodDogc2l6ZSwKICAgICAgICBiaXRzUGVyQ29tcG9uZW50OiA4LAogICAgICAgIGJ5dGVzUGVyUm93OiAwLAogICAgICAgIHNwYWNlOiBjb2xvclNwYWNlLAogICAgICAgIGJpdG1hcEluZm86IENHSW1hZ2VBbHBoYUluZm8ucHJlbXVsdGlwbGllZExhc3QucmF3VmFsdWUKICAgICkgZWxzZSB7CiAgICAgICAgdGhyb3cgTlNFcnJvcihkb21haW46ICJNZXdzSWNvbiIsIGNvZGU6IDEpCiAgICB9CgogICAgbGV0IHNjYWxlID0gQ0dGbG9hdChzaXplKSAvIDI1Ni4wCiAgICBjb250ZXh0LnNjYWxlQnkoeDogc2NhbGUsIHk6IHNjYWxlKQoKICAgIGNvbnRleHQuc2V0RmlsbENvbG9yKHBhcGVyKQogICAgY29udGV4dC5hZGRQYXRoKENHUGF0aChyb3VuZGVkUmVjdDogQ0dSZWN0KHg6IDAsIHk6IDAsIHdpZHRoOiAyNTYsIGhlaWdodDogMjU2KSwgY29ybmVyV2lkdGg6IDU2LCBjb3JuZXJIZWlnaHQ6IDU2LCB0cmFuc2Zvcm06IG5pbCkpCiAgICBjb250ZXh0LmZpbGxQYXRoKCkKCiAgICBzdHJva2UoY29udGV4dCwgY29sb3I6IGluaywgd2lkdGg6IDE0KSB7IHBhdGggaW4KICAgICAgICBwYXRoLm1vdmUodG86IENHUG9pbnQoeDogNzIsIHk6IDExOCkpCiAgICAgICAgcGF0aC5hZGRDdXJ2ZSh0bzogQ0dQb2ludCh4OiAxMjgsIHk6IDU1KSwgY29udHJvbDE6IENHUG9pbnQoeDogNzIsIHk6IDgwKSwgY29udHJvbDI6IENHUG9pbnQoeDogOTYsIHk6IDU1KSkKICAgICAgICBwYXRoLmFkZEN1cnZlKHRvOiBDR1BvaW50KHg6IDE4NCwgeTogMTE4KSwgY29udHJvbDE6IENHUG9pbnQoeDogMTYwLCB5OiA1NSksIGNvbnRyb2wyOiBDR1BvaW50KHg6IDE4NCwgeTogODApKQogICAgICAgIHBhdGguYWRkTGluZSh0bzogQ0dQb2ludCh4OiAxODQsIHk6IDE0OSkpCiAgICAgICAgcGF0aC5hZGRDdXJ2ZSh0bzogQ0dQb2ludCh4OiAxMjgsIHk6IDIwMyksIGNvbnRyb2wxOiBDR1BvaW50KHg6IDE4NCwgeTogMTgxKSwgY29udHJvbDI6IENHUG9pbnQoeDogMTYwLCB5OiAyMDMpKQogICAgICAgIHBhdGguYWRkQ3VydmUodG86IENHUG9pbnQoeDogNzIsIHk6IDE0OSksIGNvbnRyb2wxOiBDR1BvaW50KHg6IDk2LCB5OiAyMDMpLCBjb250cm9sMjogQ0dQb2ludCh4OiA3MiwgeTogMTgxKSkKICAgICAgICBwYXRoLmNsb3NlU3VicGF0aCgpCiAgICB9CiAgICBzdHJva2UoY29udGV4dCwgY29sb3I6IGluaywgd2lkdGg6IDE0KSB7IHBhdGggaW4KICAgICAgICBwYXRoLm1vdmUodG86IENHUG9pbnQoeDogODMsIHk6IDg0KSkKICAgICAgICBwYXRoLmFkZExpbmUodG86IENHUG9pbnQoeDogNjcsIHk6IDQ2KSkKICAgICAgICBwYXRoLmFkZExpbmUodG86IENHUG9pbnQoeDogMTA1LCB5OiA2NCkpCiAgICAgICAgcGF0aC5tb3ZlKHRvOiBDR1BvaW50KHg6IDE3MywgeTogODQpKQogICAgICAgIHBhdGguYWRkTGluZSh0bzogQ0dQb2ludCh4OiAxODksIHk6IDQ2KSkKICAgICAgICBwYXRoLmFkZExpbmUodG86IENHUG9pbnQoeDogMTUxLCB5OiA2NCkpCiAgICB9CiAgICBjb250ZXh0LnNldEZpbGxDb2xvcihpbmspCiAgICBjb250ZXh0LmZpbGxFbGxpcHNlKGluOiBDR1JlY3QoeDogMTA1LCB5OiAxMjAsIHdpZHRoOiAxNiwgaGVpZ2h0OiAxNikpCiAgICBjb250ZXh0LmZpbGxFbGxpcHNlKGluOiBDR1JlY3QoeDogMTM1LCB5OiAxMjAsIHdpZHRoOiAxNiwgaGVpZ2h0OiAxNikpCiAgICBzdHJva2UoY29udGV4dCwgY29sb3I6IGluaywgd2lkdGg6IDEwKSB7IHBhdGggaW4KICAgICAgICBwYXRoLm1vdmUodG86IENHUG9pbnQoeDogMTI4LCB5OiAxNDQpKQogICAgICAgIHBhdGguYWRkTGluZSh0bzogQ0dQb2ludCh4OiAxMjgsIHk6IDE1MykpCiAgICAgICAgcGF0aC5tb3ZlKHRvOiBDR1BvaW50KHg6IDExMiwgeTogMTY0KSkKICAgICAgICBwYXRoLmFkZEN1cnZlKHRvOiBDR1BvaW50KHg6IDE0NCwgeTogMTY0KSwgY29udHJvbDE6IENHUG9pbnQoeDogMTIyLCB5OiAxNzMpLCBjb250cm9sMjogQ0dQb2ludCh4OiAxMzQsIHk6IDE3MykpCiAgICB9CiAgICBzdHJva2UoY29udGV4dCwgY29sb3I6IGluaywgd2lkdGg6IDgpIHsgcGF0aCBpbgogICAgICAgIHBhdGgubW92ZSh0bzogQ0dQb2ludCh4OiA4OCwgeTogMTQ5KSkKICAgICAgICBwYXRoLmFkZExpbmUodG86IENHUG9pbnQoeDogNTUsIHk6IDE0OSkpCiAgICAgICAgcGF0aC5tb3ZlKHRvOiBDR1BvaW50KHg6IDkwLCB5OiAxNjkpKQogICAgICAgIHBhdGguYWRkTGluZSh0bzogQ0dQb2ludCh4OiA2MCwgeTogMTY5KSkKICAgICAgICBwYXRoLm1vdmUodG86IENHUG9pbnQoeDogMTY4LCB5OiAxNDkpKQogICAgICAgIHBhdGguYWRkTGluZSh0bzogQ0dQb2ludCh4OiAyMDEsIHk6IDE0OSkpCiAgICAgICAgcGF0aC5tb3ZlKHRvOiBDR1BvaW50KHg6IDE2NiwgeTogMTY5KSkKICAgICAgICBwYXRoLmFkZExpbmUodG86IENHUG9pbnQoeDogMTk2LCB5OiAxNjkpKQogICAgfQogICAgc3Ryb2tlKGNvbnRleHQsIGNvbG9yOiBhY2NlbnQsIHdpZHRoOiAxMikgeyBwYXRoIGluCiAgICAgICAgcGF0aC5tb3ZlKHRvOiBDR1BvaW50KHg6IDE4NCwgeTogMTUxKSkKICAgICAgICBwYXRoLmFkZEN1cnZlKHRvOiBDR1BvaW50KHg6IDIxNSwgeTogMTg2KSwgY29udHJvbDE6IENHUG9pbnQoeDogMjA5LCB5OiAxNTMpLCBjb250cm9sMjogQ0dQb2ludCh4OiAyMjAsIHk6IDE2OSkpCiAgICAgICAgcGF0aC5hZGRDdXJ2ZSh0bzogQ0dQb2ludCh4OiAxNzMsIHk6IDE5NyksIGNvbnRyb2wxOiBDR1BvaW50KHg6IDIxMCwgeTogMjA1KSwgY29udHJvbDI6IENHUG9pbnQoeDogMTg3LCB5OiAyMTEpKQogICAgfQoKICAgIGd1YXJkIGxldCBpbWFnZSA9IGNvbnRleHQubWFrZUltYWdlKCksCiAgICAgICAgICBsZXQgZGVzdGluYXRpb24gPSBDR0ltYWdlRGVzdGluYXRpb25DcmVhdGVXaXRoVVJMKHVybCBhcyBDRlVSTCwgVVRUeXBlLnBuZy5pZGVudGlmaWVyIGFzIENGU3RyaW5nLCAxLCBuaWwpIGVsc2UgewogICAgICAgIHRocm93IE5TRXJyb3IoZG9tYWluOiAiTWV3c0ljb24iLCBjb2RlOiAyKQogICAgfQogICAgQ0dJbWFnZURlc3RpbmF0aW9uQWRkSW1hZ2UoZGVzdGluYXRpb24sIGltYWdlLCBuaWwpCiAgICBpZiAhQ0dJbWFnZURlc3RpbmF0aW9uRmluYWxpemUoZGVzdGluYXRpb24pIHsKICAgICAgICB0aHJvdyBOU0Vycm9yKGRvbWFpbjogIk1ld3NJY29uIiwgY29kZTogMykKICAgIH0KfQoKbGV0IGZpbGVzOiBbKFN0cmluZywgSW50KV0gPSBbCiAgICAoImljb25fMTZ4MTYucG5nIiwgMTYpLAogICAgKCJpY29uXzE2eDE2QDJ4LnBuZyIsIDMyKSwKICAgICgiaWNvbl8zMngzMi5wbmciLCAzMiksCiAgICAoImljb25fMzJ4MzJAMngucG5nIiwgNjQpLAogICAgKCJpY29uXzEyOHgxMjgucG5nIiwgMTI4KSwKICAgICgiaWNvbl8xMjh4MTI4QDJ4LnBuZyIsIDI1NiksCiAgICAoImljb25fMjU2eDI1Ni5wbmciLCAyNTYpLAogICAgKCJpY29uXzI1NngyNTZAMngucG5nIiwgNTEyKSwKICAgICgiaWNvbl81MTJ4NTEyLnBuZyIsIDUxMiksCiAgICAoImljb25fNTEyeDUxMkAyeC5wbmciLCAxMDI0KSwKXQoKZm9yIChuYW1lLCBzaXplKSBpbiBmaWxlcyB7CiAgICB0cnkgd3JpdGVQTkcoc2l6ZTogc2l6ZSwgdG86IGljb25zZXQuYXBwZW5kaW5nUGF0aENvbXBvbmVudChuYW1lKSkKfQp0cnkgd3JpdGVQTkcoc2l6ZTogMjU2LCB0bzogcHJldmlldykK
+import CoreGraphics
+import Foundation
+import ImageIO
+import UniformTypeIdentifiers
+
+guard CommandLine.arguments.count == 3 else {
+    FileHandle.standardError.write(Data("Usage: generate-icon.swift <iconset-dir> <preview-png>\n".utf8))
+    exit(2)
+}
+
+let iconset = URL(fileURLWithPath: CommandLine.arguments[1])
+let preview = URL(fileURLWithPath: CommandLine.arguments[2])
+try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
+try FileManager.default.createDirectory(at: preview.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+let ink = CGColor(red: 0.122, green: 0.161, blue: 0.216, alpha: 1)
+let accent = CGColor(red: 0.851, green: 0.467, blue: 0.024, alpha: 1)
+let paper = CGColor(red: 0.969, green: 0.945, blue: 0.910, alpha: 1)
+
+func stroke(_ context: CGContext, color: CGColor, width: CGFloat, draw: (CGMutablePath) -> Void) {
+    let path = CGMutablePath()
+    draw(path)
+    context.setStrokeColor(color)
+    context.setLineWidth(width)
+    context.setLineCap(.round)
+    context.setLineJoin(.round)
+    context.addPath(path)
+    context.strokePath()
+}
+
+func writePNG(size: Int, to url: URL) throws {
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    guard let context = CGContext(
+        data: nil,
+        width: size,
+        height: size,
+        bitsPerComponent: 8,
+        bytesPerRow: 0,
+        space: colorSpace,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else {
+        throw NSError(domain: "MewsIcon", code: 1)
+    }
+
+    let scale = CGFloat(size) / 256.0
+    context.scaleBy(x: scale, y: scale)
+
+    context.setFillColor(paper)
+    context.addPath(CGPath(roundedRect: CGRect(x: 0, y: 0, width: 256, height: 256), cornerWidth: 56, cornerHeight: 56, transform: nil))
+    context.fillPath()
+
+    stroke(context, color: ink, width: 14) { path in
+        path.move(to: CGPoint(x: 72, y: 118))
+        path.addCurve(to: CGPoint(x: 128, y: 55), control1: CGPoint(x: 72, y: 80), control2: CGPoint(x: 96, y: 55))
+        path.addCurve(to: CGPoint(x: 184, y: 118), control1: CGPoint(x: 160, y: 55), control2: CGPoint(x: 184, y: 80))
+        path.addLine(to: CGPoint(x: 184, y: 149))
+        path.addCurve(to: CGPoint(x: 128, y: 203), control1: CGPoint(x: 184, y: 181), control2: CGPoint(x: 160, y: 203))
+        path.addCurve(to: CGPoint(x: 72, y: 149), control1: CGPoint(x: 96, y: 203), control2: CGPoint(x: 72, y: 181))
+        path.closeSubpath()
+    }
+    stroke(context, color: ink, width: 14) { path in
+        path.move(to: CGPoint(x: 83, y: 84))
+        path.addLine(to: CGPoint(x: 67, y: 46))
+        path.addLine(to: CGPoint(x: 105, y: 64))
+        path.move(to: CGPoint(x: 173, y: 84))
+        path.addLine(to: CGPoint(x: 189, y: 46))
+        path.addLine(to: CGPoint(x: 151, y: 64))
+    }
+    context.setFillColor(ink)
+    context.fillEllipse(in: CGRect(x: 105, y: 120, width: 16, height: 16))
+    context.fillEllipse(in: CGRect(x: 135, y: 120, width: 16, height: 16))
+    stroke(context, color: ink, width: 10) { path in
+        path.move(to: CGPoint(x: 128, y: 144))
+        path.addLine(to: CGPoint(x: 128, y: 153))
+        path.move(to: CGPoint(x: 112, y: 164))
+        path.addCurve(to: CGPoint(x: 144, y: 164), control1: CGPoint(x: 122, y: 173), control2: CGPoint(x: 134, y: 173))
+    }
+    stroke(context, color: ink, width: 8) { path in
+        path.move(to: CGPoint(x: 88, y: 149))
+        path.addLine(to: CGPoint(x: 55, y: 149))
+        path.move(to: CGPoint(x: 90, y: 169))
+        path.addLine(to: CGPoint(x: 60, y: 169))
+        path.move(to: CGPoint(x: 168, y: 149))
+        path.addLine(to: CGPoint(x: 201, y: 149))
+        path.move(to: CGPoint(x: 166, y: 169))
+        path.addLine(to: CGPoint(x: 196, y: 169))
+    }
+    stroke(context, color: accent, width: 12) { path in
+        path.move(to: CGPoint(x: 184, y: 151))
+        path.addCurve(to: CGPoint(x: 215, y: 186), control1: CGPoint(x: 209, y: 153), control2: CGPoint(x: 220, y: 169))
+        path.addCurve(to: CGPoint(x: 173, y: 197), control1: CGPoint(x: 210, y: 205), control2: CGPoint(x: 187, y: 211))
+    }
+
+    guard let image = context.makeImage(),
+          let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
+        throw NSError(domain: "MewsIcon", code: 2)
+    }
+    CGImageDestinationAddImage(destination, image, nil)
+    if !CGImageDestinationFinalize(destination) {
+        throw NSError(domain: "MewsIcon", code: 3)
+    }
+}
+
+let files: [(String, Int)] = [
+    ("icon_16x16.png", 16),
+    ("icon_16x16@2x.png", 32),
+    ("icon_32x32.png", 32),
+    ("icon_32x32@2x.png", 64),
+    ("icon_128x128.png", 128),
+    ("icon_128x128@2x.png", 256),
+    ("icon_256x256.png", 256),
+    ("icon_256x256@2x.png", 512),
+    ("icon_512x512.png", 512),
+    ("icon_512x512@2x.png", 1024),
+]
+
+for (name, size) in files {
+    try writePNG(size: size, to: iconset.appendingPathComponent(name))
+}
+try writePNG(size: 256, to: preview)
