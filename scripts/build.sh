@@ -62,6 +62,10 @@ if ! command -v codesign >/dev/null 2>&1; then
   echo "codesign is required to build Mews.app" >&2
   exit 1
 fi
+if ! command -v iconutil >/dev/null 2>&1; then
+  echo "iconutil is required to build Mews.app icon" >&2
+  exit 1
+fi
 
 APP="$ROOT/lib/Mews.app"
 rm -rf "$APP"
@@ -85,6 +89,11 @@ lipo -create "$BUILD_DIR/Mews-arm64" "$BUILD_DIR/Mews-amd64" \
   -output "$APP/Contents/MacOS/Mews"
 
 cp "$ROOT/bin/mw" "$APP/Contents/Resources/mw"
+cp "$ROOT/assets/mews-logo.svg" "$APP/Contents/Resources/mews-logo.svg"
+swift "$ROOT/scripts/generate-icon.swift" \
+  "$BUILD_DIR/Mews.iconset" \
+  "$APP/Contents/Resources/mews-logo-256.png"
+iconutil -c icns "$BUILD_DIR/Mews.iconset" -o "$APP/Contents/Resources/Mews.icns"
 chmod 0755 "$APP/Contents/MacOS/Mews" "$APP/Contents/Resources/mw"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -96,6 +105,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <string>Mews</string>
   <key>CFBundleIdentifier</key>
   <string>dev.mews.Mews</string>
+  <key>CFBundleIconFile</key>
+  <string>Mews</string>
   <key>CFBundleName</key>
   <string>Mews</string>
   <key>CFBundlePackageType</key>

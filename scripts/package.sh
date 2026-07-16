@@ -65,6 +65,7 @@ else
 fi
 cp README.md README_zh.md LICENSE SECURITY.md SECURITY_AUDIT.md CONTRIBUTING.md install.sh "$OUT/"
 cp -R docs "$OUT/docs"
+cp -R assets "$OUT/assets"
 
 rm -f "$ARCHIVE" "$CHECKSUM"
 tar -czf "$ARCHIVE" -C dist "mews-${VERSION}-darwin"

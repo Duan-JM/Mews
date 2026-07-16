@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import UserNotifications
 
-final class MewsApp: NSObject, NSApplicationDelegate {
+final class MewsApp: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var statusItem: NSStatusItem?
     private var timer: Timer?
     private var agent: Process?
@@ -167,6 +167,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
     private func configureNotifications() {
         let center = UNUserNotificationCenter.current()
+        center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, error in
             if let error {
                 self?.appendAppLog("Could not request notification permission: \(error)")
@@ -191,8 +192,10 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         content.subtitle = notificationSubtitle(for: event)
         content.body = notificationBody(for: event)
         content.sound = .default
+        content.userInfo = notificationUserInfo(for: event)
+        content.attachments = notificationAttachments()
         let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
+            identifier: event.id ?? UUID().uuidString,
             content: content,
             trigger: nil
         )
@@ -200,6 +203,46 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             if let error {
                 self?.appendAppLog("Could not deliver notification: \(error)")
             }
+        }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+           let command = response.notification.request.content.userInfo["return_command"] as? String {
+            copyToPasteboard(command)
+            appendAppLog("Copied return command from notification: \(command)")
+        }
+        completionHandler()
+    }
+
+    private func notificationUserInfo(for event: MewsEvent) -> [String: String] {
+        var info: [String: String] = [:]
+        if let id = nonEmpty(event.id) {
+            info["event_id"] = id
+        }
+        if let source = nonEmpty(event.source) {
+            info["source"] = source
+        }
+        if let session = nonEmpty(event.sessionID) {
+            info["session_id"] = session
+            info["return_command"] = sessionReturnCommand(session)
+        }
+        return info
+    }
+
+    private func notificationAttachments() -> [UNNotificationAttachment] {
+        guard let iconURL = Bundle.main.url(forResource: "mews-logo-256", withExtension: "png") else {
+            return []
+        }
+        do {
+            return [try UNNotificationAttachment(identifier: "mews-logo", url: iconURL)]
+        } catch {
+            appendAppLog("Could not attach Mews notification logo: \(error)")
+            return []
         }
     }
 
@@ -330,13 +373,19 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         if let latest {
-            menu.addItem(NSMenuItem(title: summary(for: latest), action: nil, keyEquivalent: ""))
+            menu.addItem(eventMenuItem(for: latest, title: summary(for: latest)))
+            if let command = returnCommand(for: latest) {
+                let copy = NSMenuItem(title: "Copy latest return command", action: #selector(copyReturnCommandClicked(_:)), keyEquivalent: "c")
+                copy.target = self
+                copy.representedObject = command
+                menu.addItem(copy)
+            }
         } else {
             menu.addItem(NSMenuItem(title: "No events yet", action: nil, keyEquivalent: ""))
         }
         menu.addItem(NSMenuItem.separator())
         for event in events.reversed().prefix(5) {
-            menu.addItem(NSMenuItem(title: summary(for: event), action: nil, keyEquivalent: ""))
+            menu.addItem(eventMenuItem(for: event, title: summary(for: event)))
         }
         if !events.isEmpty {
             menu.addItem(NSMenuItem.separator())
@@ -354,8 +403,26 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         reloadEvents()
     }
 
+    @objc private func copyReturnCommandClicked(_ sender: NSMenuItem) {
+        guard let command = sender.representedObject as? String else {
+            return
+        }
+        copyToPasteboard(command)
+        appendAppLog("Copied return command from menu: \(command)")
+    }
+
     @objc private func quitClicked() {
         NSApp.terminate(nil)
+    }
+
+    private func eventMenuItem(for event: MewsEvent, title: String) -> NSMenuItem {
+        guard let command = returnCommand(for: event) else {
+            return NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        }
+        let item = NSMenuItem(title: "\(title) [copy return]", action: #selector(copyReturnCommandClicked(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = command
+        return item
     }
 
     private func title(for event: MewsEvent?) -> String {
@@ -379,7 +446,35 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private func summary(for event: MewsEvent) -> String {
         let project = event.project?.isEmpty == false ? event.project! : "unknown project"
         let message = event.message?.isEmpty == false ? event.message! : "no message"
-        return "\(event.source) \(event.status) (\(project)) \(message)"
+        var text = "\(event.source) \(event.status) (\(project)) \(message)"
+        if let session = nonEmpty(event.sessionID) {
+            text += " session \(shortLabel(session, max: 8))"
+        }
+        return text
+    }
+
+    private func returnCommand(for event: MewsEvent) -> String? {
+        guard let session = nonEmpty(event.sessionID) else {
+            return nil
+        }
+        return sessionReturnCommand(session)
+    }
+
+    private func sessionReturnCommand(_ sessionID: String) -> String {
+        return "mw history --session \(shellQuoteForDisplay(sessionID))"
+    }
+
+    private func shellQuoteForDisplay(_ value: String) -> String {
+        if value.isEmpty {
+            return "''"
+        }
+        return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private func copyToPasteboard(_ value: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(value, forType: .string)
     }
 
     private func readEventChunk(from offset: UInt64) -> (events: [MewsEvent], offset: UInt64) {

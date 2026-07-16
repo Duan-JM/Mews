@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="./assets/mews-logo.svg" width="96" height="96" alt="Mews 极简猫咪 logo">
   <h1>Mews</h1>
   <p><em>🐈 不再错过你的 AI agent。</em></p>
 </div>
@@ -52,6 +53,8 @@ mw setup --yes --include-task-title
 ```
 
 这个选项最多保存 80 个来自 hook payload 的本地字符。Mews 仍然不会上传 prompt、transcript 或终端输出。
+
+App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标，所以原生通知会显示 Mews 的品牌识别。事件带有 session id 时，点击通知或在菜单栏里选择对应事件，会复制类似 `mw history --session 'abc123'` 的本地返回命令。
 
 Setup 会安装：
 
@@ -117,6 +120,7 @@ mw setup --yes --include-task-title # 显式开启本地短任务标题
 mw start       # setup 后启动本地 agent
 mw status      # 查看当前本地状态
 mw history     # 查看最近本地事件
+mw history --session <id> # 查看某个 session 的事件
 mw listen      # 在终端里监听并打印事件
 mw doctor      # 检查 setup 和接入状态
 mw undo        # 移除 Mews 安装的接入和 setup state

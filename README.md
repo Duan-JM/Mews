@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="./assets/mews-logo.svg" width="96" height="96" alt="Mews minimal cat logo">
   <h1>Mews</h1>
   <p><em>🐈 Never miss your AI agents again.</em></p>
 </div>
@@ -52,6 +53,8 @@ mw setup --yes --include-task-title
 ```
 
 That stores at most 80 local-only characters from a hook-provided prompt or title. Mews still does not upload prompts, transcripts, or terminal output.
+
+The app bundle includes the Mews cat logo as its macOS icon, so native notifications are branded as Mews. When an event includes a session identifier, clicking the notification or selecting the event in the menu bar copies a local return command such as `mw history --session 'abc123'`.
 
 Setup installs:
 
@@ -117,6 +120,7 @@ mw setup --yes --include-task-title # Opt in to short local task labels
 mw start       # Start the local agent after setup
 mw status      # Show the current local state
 mw history     # Show recent local events
+mw history --session <id> # Show events for one session reference
 mw listen      # Listen in the terminal and print events as they arrive
 mw doctor      # Check setup and fix anything that needs attention
 mw undo        # Remove Mews-installed integrations and setup state

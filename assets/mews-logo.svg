@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Mews logo</title>
+  <desc id="desc">A minimal rounded cat face logo with ears, whiskers, and a curled tail.</desc>
+  <rect width="256" height="256" rx="56" fill="#F7F1E8"/>
+  <path
+    d="M72 118C72 80 96 55 128 55C160 55 184 80 184 118V149C184 181 160 203 128 203C96 203 72 181 72 149V118Z"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <path
+    d="M83 84L67 46L105 64M173 84L189 46L151 64"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <path
+    d="M113 128H113.01M143 128H143.01"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="16"
+    stroke-linecap="round"/>
+  <path
+    d="M128 144V153M112 164C122 173 134 173 144 164"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+  <path
+    d="M88 149H55M90 169H60M168 149H201M166 169H196"
+    fill="none"
+    stroke="#1F2937"
+    stroke-width="8"
+    stroke-linecap="round"/>
+  <path
+    d="M184 151C209 153 220 169 215 186C210 205 187 211 173 197"
+    fill="none"
+    stroke="#D97706"
+    stroke-width="12"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+</svg>

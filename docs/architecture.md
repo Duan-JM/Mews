@@ -81,6 +81,7 @@ mw setup      # Show and apply supported local integrations
 mw start      # Start the local agent after setup
 mw status     # Print current watched tools and agent state
 mw history    # Show recent local events
+mw history --session <id> # Show recent events for one session reference
 mw listen     # Listen in the terminal and print events as they arrive
 mw doctor     # Diagnose permissions, hooks, LaunchAgent, and IPC
 mw stop       # Stop the local agent
@@ -303,6 +304,8 @@ Supported statuses:
 
 The message should be short and safe. Integrations should avoid sending prompts, code snippets, or transcript content by default. Task titles are opt-in with `mw setup --yes --include-task-title`, must stay local-only, and must be truncated before storage.
 
+When `session_id` is present, all user-facing surfaces use the same local return affordance: `mw history --session '<id>'`. The CLI prints that command in history output, the menu bar event item copies it, and notification clicks copy it from notification metadata. Mews does not try to restore a terminal window or read terminal scrollback.
+
 ## IPC
 
 Use a Unix domain socket under the user Application Support directory when the path fits:
@@ -360,6 +363,8 @@ Implemented default behavior:
 - `done`: notify immediately.
 - `running`: update menu bar only.
 - `idle`: update menu bar only.
+
+Notifications are delivered by the app bundle, which declares the Mews icon so Notification Center can show Mews identity. A small logo attachment is included for supported notification presentations.
 
 Deduping, runtime thresholds, and quiet mode remain post-MVP notification policy work.
 

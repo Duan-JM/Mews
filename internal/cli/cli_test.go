@@ -297,6 +297,74 @@ func TestNotifyWritesEventLog(t *testing.T) {
 	}
 }
 
+func TestHistoryPrintsSessionReturnCommand(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	var notifyOut, notifyErr bytes.Buffer
+	code := Run(
+		[]string{
+			"notify",
+			"--source", "copilot",
+			"--status", "done",
+			"--session", "session-123",
+			"--project", "Mews",
+			"--message", "Agent stopped",
+		},
+		strings.NewReader(""),
+		&notifyOut,
+		&notifyErr,
+	)
+	if code != 0 {
+		t.Fatalf("notify returned %d, stderr: %s", code, notifyErr.String())
+	}
+
+	var historyOut, historyErr bytes.Buffer
+	code = Run([]string{"history"}, strings.NewReader(""), &historyOut, &historyErr)
+	if code != 0 {
+		t.Fatalf("history returned %d, stderr: %s", code, historyErr.String())
+	}
+	if !strings.Contains(historyOut.String(), "return: mw history --session 'session-123'") {
+		t.Fatalf("history did not include return command: %q", historyOut.String())
+	}
+}
+
+func TestHistoryFiltersBySession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	for _, session := range []string{"target-session", "other-session"} {
+		var stdout, stderr bytes.Buffer
+		code := Run(
+			[]string{
+				"notify",
+				"--source", "copilot",
+				"--status", "done",
+				"--session", session,
+				"--message", session,
+			},
+			strings.NewReader(""),
+			&stdout,
+			&stderr,
+		)
+		if code != 0 {
+			t.Fatalf("notify %s returned %d, stderr: %s", session, code, stderr.String())
+		}
+	}
+
+	var historyOut, historyErr bytes.Buffer
+	code := Run([]string{"history", "--session", "target-session"}, strings.NewReader(""), &historyOut, &historyErr)
+	if code != 0 {
+		t.Fatalf("history returned %d, stderr: %s", code, historyErr.String())
+	}
+	if !strings.Contains(historyOut.String(), "target-session") {
+		t.Fatalf("history did not include target session: %q", historyOut.String())
+	}
+	if strings.Contains(historyOut.String(), "other-session") {
+		t.Fatalf("history included a different session: %q", historyOut.String())
+	}
+}
+
 func TestNotifyFromHookAddsSafeContextWithoutTaskTitleByDefault(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

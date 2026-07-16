@@ -42,7 +42,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "status":
 		return runStatus(stdout, stderr)
 	case "history":
-		return runHistory(stdout, stderr)
+		return runHistory(args[1:], stdout, stderr)
 	case "listen":
 		return runListen(stdout, stderr)
 	case "doctor":
@@ -324,20 +324,51 @@ func runStatus(stdout, stderr io.Writer) int {
 	return 0
 }
 
-func runHistory(stdout, stderr io.Writer) int {
+func runHistory(args []string, stdout, stderr io.Writer) int {
+	sessionFilter := ""
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--session":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "Usage: mw history [--session <id>]")
+				return 2
+			}
+			sessionFilter = args[i+1]
+			i++
+		default:
+			fmt.Fprintf(stderr, "Unknown history option: %s\n", args[i])
+			fmt.Fprintln(stderr, "Usage: mw history [--session <id>]")
+			return 2
+		}
+	}
+
 	paths, err := store.Paths()
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not resolve Mews paths: %v\n", err)
 		return 1
 	}
 
-	recent, err := store.ReadEvents(paths.Events, 10)
+	limit := 10
+	if sessionFilter != "" {
+		limit = 200
+	}
+	recent, err := store.ReadEvents(paths.Events, limit)
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not read event history: %v\n", err)
 		return 1
 	}
 
 	fmt.Fprintln(stdout, "Mews History")
+	if sessionFilter != "" {
+		fmt.Fprintf(stdout, "Session: %s\n", sessionFilter)
+		filtered := recent[:0]
+		for _, event := range recent {
+			if event.SessionID == sessionFilter {
+				filtered = append(filtered, event)
+			}
+		}
+		recent = filtered
+	}
 	if len(recent) == 0 {
 		fmt.Fprintln(stdout, "No events yet.")
 		return 0
@@ -781,7 +812,7 @@ Usage:
   mw setup [--yes] [--include-task-title]
   mw start
   mw status
-  mw history
+  mw history [--session <id>]
   mw listen
   mw doctor
   mw stop
@@ -803,7 +834,22 @@ func printEventSummary(w io.Writer, prefix string, event events.Event) {
 	if project == "" {
 		project = "unknown project"
 	}
-	fmt.Fprintf(w, "%s: %s %s (%s) %s\n", prefix, event.Source, event.Status, project, message)
+	session := ""
+	if event.SessionID != "" {
+		session = fmt.Sprintf(" [session %s | return: %s]", event.SessionID, sessionReturnCommand(event.SessionID))
+	}
+	fmt.Fprintf(w, "%s: %s %s (%s) %s%s\n", prefix, event.Source, event.Status, project, message, session)
+}
+
+func sessionReturnCommand(sessionID string) string {
+	return "mw history --session " + shellQuoteForDisplay(sessionID)
+}
+
+func shellQuoteForDisplay(value string) string {
+	if value == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 func commandEvent(status events.Status, commandText, cwd string, pid int) events.Event {
