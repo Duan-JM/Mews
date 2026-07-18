@@ -28,7 +28,7 @@ func stroke(_ context: CGContext, color: CGColor, width: CGFloat, draw: (CGMutab
     context.strokePath()
 }
 
-func writePNG(size: Int, to url: URL) throws {
+func makeContext(size: Int) throws -> CGContext {
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     guard let context = CGContext(
         data: nil,
@@ -41,21 +41,47 @@ func writePNG(size: Int, to url: URL) throws {
     ) else {
         throw NSError(domain: "MewsIcon", code: 1)
     }
-
     let scale = CGFloat(size) / 256.0
     context.scaleBy(x: scale, y: scale)
+    return context
+}
 
+func drawBackground(_ context: CGContext) {
     context.setFillColor(paper)
-    context.addPath(CGPath(roundedRect: CGRect(x: 0, y: 0, width: 256, height: 256), cornerWidth: 56, cornerHeight: 56, transform: nil))
+    let background = CGPath(
+        roundedRect: CGRect(x: 0, y: 0, width: 256, height: 256),
+        cornerWidth: 56,
+        cornerHeight: 56,
+        transform: nil
+    )
+    context.addPath(background)
     context.fillPath()
+}
 
+func drawHead(_ context: CGContext) {
     stroke(context, color: ink, width: 14) { path in
         path.move(to: CGPoint(x: 72, y: 118))
-        path.addCurve(to: CGPoint(x: 128, y: 55), control1: CGPoint(x: 72, y: 80), control2: CGPoint(x: 96, y: 55))
-        path.addCurve(to: CGPoint(x: 184, y: 118), control1: CGPoint(x: 160, y: 55), control2: CGPoint(x: 184, y: 80))
+        path.addCurve(
+            to: CGPoint(x: 128, y: 55),
+            control1: CGPoint(x: 72, y: 80),
+            control2: CGPoint(x: 96, y: 55)
+        )
+        path.addCurve(
+            to: CGPoint(x: 184, y: 118),
+            control1: CGPoint(x: 160, y: 55),
+            control2: CGPoint(x: 184, y: 80)
+        )
         path.addLine(to: CGPoint(x: 184, y: 149))
-        path.addCurve(to: CGPoint(x: 128, y: 203), control1: CGPoint(x: 184, y: 181), control2: CGPoint(x: 160, y: 203))
-        path.addCurve(to: CGPoint(x: 72, y: 149), control1: CGPoint(x: 96, y: 203), control2: CGPoint(x: 72, y: 181))
+        path.addCurve(
+            to: CGPoint(x: 128, y: 203),
+            control1: CGPoint(x: 184, y: 181),
+            control2: CGPoint(x: 160, y: 203)
+        )
+        path.addCurve(
+            to: CGPoint(x: 72, y: 149),
+            control1: CGPoint(x: 96, y: 203),
+            control2: CGPoint(x: 72, y: 181)
+        )
         path.closeSubpath()
     }
     stroke(context, color: ink, width: 14) { path in
@@ -66,6 +92,9 @@ func writePNG(size: Int, to url: URL) throws {
         path.addLine(to: CGPoint(x: 189, y: 46))
         path.addLine(to: CGPoint(x: 151, y: 64))
     }
+}
+
+func drawFace(_ context: CGContext) {
     context.setFillColor(ink)
     context.fillEllipse(in: CGRect(x: 105, y: 120, width: 16, height: 16))
     context.fillEllipse(in: CGRect(x: 135, y: 120, width: 16, height: 16))
@@ -73,8 +102,15 @@ func writePNG(size: Int, to url: URL) throws {
         path.move(to: CGPoint(x: 128, y: 144))
         path.addLine(to: CGPoint(x: 128, y: 153))
         path.move(to: CGPoint(x: 112, y: 164))
-        path.addCurve(to: CGPoint(x: 144, y: 164), control1: CGPoint(x: 122, y: 173), control2: CGPoint(x: 134, y: 173))
+        path.addCurve(
+            to: CGPoint(x: 144, y: 164),
+            control1: CGPoint(x: 122, y: 173),
+            control2: CGPoint(x: 134, y: 173)
+        )
     }
+}
+
+func drawWhiskers(_ context: CGContext) {
     stroke(context, color: ink, width: 8) { path in
         path.move(to: CGPoint(x: 88, y: 149))
         path.addLine(to: CGPoint(x: 55, y: 149))
@@ -85,14 +121,39 @@ func writePNG(size: Int, to url: URL) throws {
         path.move(to: CGPoint(x: 166, y: 169))
         path.addLine(to: CGPoint(x: 196, y: 169))
     }
+}
+
+func drawTail(_ context: CGContext) {
     stroke(context, color: accent, width: 12) { path in
         path.move(to: CGPoint(x: 184, y: 151))
-        path.addCurve(to: CGPoint(x: 215, y: 186), control1: CGPoint(x: 209, y: 153), control2: CGPoint(x: 220, y: 169))
-        path.addCurve(to: CGPoint(x: 173, y: 197), control1: CGPoint(x: 210, y: 205), control2: CGPoint(x: 187, y: 211))
+        path.addCurve(
+            to: CGPoint(x: 215, y: 186),
+            control1: CGPoint(x: 209, y: 153),
+            control2: CGPoint(x: 220, y: 169)
+        )
+        path.addCurve(
+            to: CGPoint(x: 173, y: 197),
+            control1: CGPoint(x: 210, y: 205),
+            control2: CGPoint(x: 187, y: 211)
+        )
     }
+}
+
+func writePNG(size: Int, to url: URL) throws {
+    let context = try makeContext(size: size)
+    drawBackground(context)
+    drawHead(context)
+    drawFace(context)
+    drawWhiskers(context)
+    drawTail(context)
 
     guard let image = context.makeImage(),
-          let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
+          let destination = CGImageDestinationCreateWithURL(
+              url as CFURL,
+              UTType.png.identifier as CFString,
+              1,
+              nil
+          ) else {
         throw NSError(domain: "MewsIcon", code: 2)
     }
     CGImageDestinationAddImage(destination, image, nil)
@@ -111,7 +172,7 @@ let files: [(String, Int)] = [
     ("icon_256x256.png", 256),
     ("icon_256x256@2x.png", 512),
     ("icon_512x512.png", 512),
-    ("icon_512x512@2x.png", 1024),
+    ("icon_512x512@2x.png", 1024)
 ]
 
 for (name, size) in files {

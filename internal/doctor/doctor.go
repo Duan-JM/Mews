@@ -165,11 +165,11 @@ func checkLaunchAgent() CheckResult {
 	} else if err != nil {
 		return CheckResult{Name: "LaunchAgent", Status: "unreadable", OK: false}
 	}
-	if loaded, status := launchd.Loaded(); loaded {
+	loaded, status := launchd.Loaded()
+	if loaded {
 		return CheckResult{Name: "LaunchAgent", Status: status, OK: true}
-	} else {
-		return CheckResult{Name: "LaunchAgent", Status: status, OK: false}
 	}
+	return CheckResult{Name: "LaunchAgent", Status: status, OK: false}
 }
 
 func checkSocket(path string) CheckResult {

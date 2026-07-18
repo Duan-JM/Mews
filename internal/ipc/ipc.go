@@ -65,15 +65,15 @@ func ServeWithObserver(socketPath, eventPath string, observer Observer) error {
 }
 
 func Ping(socketPath string) error {
-	return send(socketPath, request{Type: "ping"})
+	return send(socketPath, &request{Type: "ping"})
 }
 
 func Stop(socketPath string) error {
-	return send(socketPath, request{Type: "stop"})
+	return send(socketPath, &request{Type: "stop"})
 }
 
 func SendEvent(socketPath string, event events.Event) error {
-	return send(socketPath, request{Type: "event", Event: event})
+	return send(socketPath, &request{Type: "event", Event: event})
 }
 
 func handleConnection(conn net.Conn, eventPath string, observer Observer, stop func()) {
@@ -105,7 +105,7 @@ func handleConnection(conn net.Conn, eventPath string, observer Observer, stop f
 	}
 }
 
-func send(socketPath string, req request) error {
+func send(socketPath string, req *request) error {
 	conn, err := net.DialTimeout("unix", socketPath, 500*time.Millisecond)
 	if err != nil {
 		return ErrUnavailable

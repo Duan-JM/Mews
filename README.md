@@ -37,6 +37,7 @@ Verify the downloaded archive with the adjacent `.sha256` file before installing
 For development from this repository:
 
 ```bash
+make lint-tools
 make build
 ./bin/mw setup
 ./bin/mw setup --yes
@@ -54,7 +55,7 @@ mw setup --yes --include-task-title
 
 That stores at most 80 local-only characters from a hook-provided prompt or title. Mews still does not upload prompts, transcripts, or terminal output.
 
-The app bundle includes the Mews cat logo as its macOS icon. Native notifications use that app identity instead of adding the logo as notification content. When an event includes a session identifier, clicking the notification or selecting the event in the menu bar copies a local return command such as `mw history --session 'abc123'`.
+The app bundle includes the Mews cat logo as its macOS icon. Native notifications use that app identity instead of adding the logo as notification content. Notifications expose **Open CLI Context** and **Copy Return Command** actions when the event has usable local context. Opening the context copies a Mews-generated command such as `mw history --session 'abc123'`, then opens Terminal at the validated event working directory; if that directory is unavailable, Terminal still opens with the command on the clipboard. Mews never executes a command supplied by an event or reads terminal scrollback.
 
 Setup installs:
 

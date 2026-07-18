@@ -1,6 +1,7 @@
 bin/
 dist/
 lib/Mews.app/
+.tools/
 coverage.out
 *.log
 .DS_Store

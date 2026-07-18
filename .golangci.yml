@@ -1,0 +1,76 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - cyclop
+    - funlen
+    - gocritic
+    - govet
+    - ineffassign
+    - lll
+    - maintidx
+    - revive
+    - staticcheck
+    - unparam
+    - unused
+  settings:
+    cyclop:
+      max-complexity: 15
+      package-average: 0
+    funlen:
+      lines: 80
+      statements: 40
+      ignore-comments: true
+    gocritic:
+      enabled-checks:
+        - hugeParam
+        - rangeValCopy
+      settings:
+        hugeParam:
+          sizeThreshold: 192
+    lll:
+      line-length: 120
+      tab-width: 1
+    maintidx:
+      under: 20
+    revive:
+      rules:
+        - name: argument-limit
+          arguments: [5]
+        - name: atomic
+        - name: blank-imports
+        - name: bool-literal-in-expr
+        - name: context-as-argument
+        - name: early-return
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: var-declaration
+        - name: var-naming
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - cyclop
+          - funlen
+          - gocritic
+          - lll
+          - maintidx
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

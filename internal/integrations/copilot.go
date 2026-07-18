@@ -27,6 +27,12 @@ type copilotCommandHook struct {
 	Env        map[string]string `json:"env,omitempty"`
 }
 
+type copilotHookSpec struct {
+	event   string
+	status  string
+	message string
+}
+
 func CopilotHookPath() (string, error) {
 	home := os.Getenv("COPILOT_HOME")
 	if home == "" {
@@ -48,87 +54,34 @@ func installCopilot(
 		return store.IntegrationState{}, false, fmt.Errorf("mw executable path is required")
 	}
 
-	hookPath, err := CopilotHookPath()
+	hookPath, writePath, err := prepareCopilotPaths(previous)
 	if err != nil {
 		return store.IntegrationState{}, false, err
 	}
-	if previous != nil && previous.Path != hookPath {
-		return store.IntegrationState{}, false, fmt.Errorf(
-			"Copilot integration is recorded at %s; run `mw undo` before changing COPILOT_HOME",
-			previous.Path,
-		)
-	}
-	writePath, err := resolveWritePath(hookPath)
-	if err != nil {
-		return store.IntegrationState{}, false, err
-	}
-	existed := fileExists(writePath)
 
-	config := copilotHookConfig{
-		Version: 1,
-		Hooks: map[string][]copilotCommandHook{
-			"agentStop": {
-				notifyHook(mwPath, "agentStop", "done", "Copilot agent stopped"),
-			},
-			"sessionEnd": {
-				notifyHook(mwPath, "sessionEnd", "idle", "Copilot session ended"),
-			},
-			"errorOccurred": {
-				notifyHook(mwPath, "errorOccurred", "failed", "Copilot error occurred"),
-			},
-		},
-	}
+	config, managed := copilotManagedConfig(mwPath)
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return store.IntegrationState{}, false, err
 	}
 	data = append(data, '\n')
 
-	var currentBackup string
+	existed, currentBackup, err := prepareCopilotBackup(writePath, hookPath, previous, allowLegacy)
+	if err != nil {
+		return store.IntegrationState{}, false, err
+	}
+
 	installed := false
 	defer func() {
 		if !installed && currentBackup != "" {
 			_ = os.Remove(currentBackup)
 		}
 	}()
-	if existed {
-		current, err := os.ReadFile(writePath)
-		if err != nil {
-			return store.IntegrationState{}, false, err
-		}
-		if previous != nil {
-			if !isMewsHook(current) || !matchesManagedCopilot(current, previous.Managed) {
-				return store.IntegrationState{}, false, fmt.Errorf(
-					"%s changed after Mews setup; refusing to overwrite it",
-					hookPath,
-				)
-			}
-		} else if allowLegacy {
-			if !isLegacyMewsHook(current) {
-				return store.IntegrationState{}, false, fmt.Errorf(
-					"%s does not match the recorded legacy Mews hook",
-					hookPath,
-				)
-			}
-		} else if !isMewsHook(current) {
-			return store.IntegrationState{}, false, fmt.Errorf("%s exists but is not Mews-owned", hookPath)
-		}
-		currentBackup, err = backupFile("copilot", writePath)
-		if err != nil {
-			return store.IntegrationState{}, false, err
-		}
-	}
 	if err := writeFileAtomic(writePath, data, 0o600); err != nil {
 		return store.IntegrationState{}, false, err
 	}
 	installed = true
 
-	managed := make([]string, 0, len(config.Hooks))
-	for _, hooks := range config.Hooks {
-		for _, hook := range hooks {
-			managed = append(managed, hook.Bash)
-		}
-	}
 	backupPath := currentBackup
 	created := !existed
 	var rollbackPath string
@@ -150,6 +103,65 @@ func installCopilot(
 		InstalledAt:  time.Now(),
 		RollbackPath: rollbackPath,
 	}, existed, nil
+}
+
+func prepareCopilotPaths(previous *store.IntegrationState) (string, string, error) {
+	hookPath, err := CopilotHookPath()
+	if err != nil {
+		return "", "", err
+	}
+	if err := ensureRecordedIntegrationPath(previous, hookPath, "Copilot", "COPILOT_HOME"); err != nil {
+		return "", "", err
+	}
+	writePath, err := resolveWritePath(hookPath)
+	if err != nil {
+		return "", "", err
+	}
+	return hookPath, writePath, nil
+}
+
+func prepareCopilotBackup(
+	writePath, hookPath string,
+	previous *store.IntegrationState,
+	allowLegacy bool,
+) (bool, string, error) {
+	if !fileExists(writePath) {
+		return false, "", nil
+	}
+
+	current, err := os.ReadFile(writePath)
+	if err != nil {
+		return false, "", err
+	}
+	if err := validateCopilotOwnership(current, hookPath, previous, allowLegacy); err != nil {
+		return false, "", err
+	}
+	currentBackup, err := backupFile("copilot", writePath)
+	if err != nil {
+		return false, "", err
+	}
+	return true, currentBackup, nil
+}
+
+func validateCopilotOwnership(
+	current []byte,
+	hookPath string,
+	previous *store.IntegrationState,
+	allowLegacy bool,
+) error {
+	switch {
+	case previous != nil:
+		if !isMewsHook(current) || !matchesManagedCopilot(current, previous.Managed) {
+			return fmt.Errorf("%s changed after Mews setup; refusing to overwrite it", hookPath)
+		}
+	case allowLegacy:
+		if !isLegacyMewsHook(current) {
+			return fmt.Errorf("%s does not match the recorded legacy Mews hook", hookPath)
+		}
+	case !isMewsHook(current):
+		return fmt.Errorf("%s exists but is not Mews-owned", hookPath)
+	}
+	return nil
 }
 
 func RemoveCopilotHooks() error {
@@ -176,7 +188,9 @@ func removeCopilotHookAt(hookPath string, allowLegacy bool) error {
 	if err != nil {
 		return err
 	}
-	if !isMewsHook(data) && !(allowLegacy && isLegacyMewsHook(data)) {
+
+	owned := isMewsHook(data) || allowLegacy && isLegacyMewsHook(data)
+	if !owned {
 		return fmt.Errorf("%s exists but is not Mews-owned", hookPath)
 	}
 	if err := os.Remove(hookPath); err != nil {
@@ -256,6 +270,27 @@ func notifyHook(mwPath, hookEvent, status, message string) copilotCommandHook {
 			"MEWS_MANAGED_INTEGRATION": copilotOwnershipMarker,
 		},
 	}
+}
+
+func copilotManagedConfig(mwPath string) (copilotHookConfig, []string) {
+	specs := []copilotHookSpec{
+		{event: "agentStop", status: "done", message: "Copilot agent stopped"},
+		{event: "sessionEnd", status: "idle", message: "Copilot session ended"},
+		{event: "errorOccurred", status: "failed", message: "Copilot error occurred"},
+	}
+
+	hooks := make(map[string][]copilotCommandHook, len(specs))
+	managed := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		hook := notifyHook(mwPath, spec.event, spec.status, spec.message)
+		hooks[spec.event] = []copilotCommandHook{hook}
+		managed = append(managed, hook.Bash)
+	}
+
+	return copilotHookConfig{
+		Version: 1,
+		Hooks:   hooks,
+	}, managed
 }
 
 func isMewsHook(data []byte) bool {

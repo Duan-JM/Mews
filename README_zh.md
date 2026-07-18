@@ -37,6 +37,7 @@ mw start
 从仓库开发和体验：
 
 ```bash
+make lint-tools
 make build
 ./bin/mw setup
 ./bin/mw setup --yes
@@ -54,7 +55,7 @@ mw setup --yes --include-task-title
 
 这个选项最多保存 80 个来自 hook payload 的本地字符。Mews 仍然不会上传 prompt、transcript 或终端输出。
 
-App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有 session id 时，点击通知或在菜单栏里选择对应事件，会复制类似 `mw history --session 'abc123'` 的本地返回命令。
+App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Open CLI Context** 和 **Copy Return Command**。打开上下文会先复制 Mews 生成的 `mw history --session 'abc123'`，再用 Terminal 打开经过校验的工作目录；目录不可用时仍会唤起 Terminal，并把命令留在剪贴板。Mews 不会执行事件传入的命令，也不会读取 terminal scrollback。
 
 Setup 会安装：
 
