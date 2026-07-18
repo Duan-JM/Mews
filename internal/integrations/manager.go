@@ -145,6 +145,19 @@ func rollbackInstall(installed []store.IntegrationState) {
 	}
 }
 
+func ensureRecordedIntegrationPath(previous *store.IntegrationState, path, name, envVar string) error {
+	if previous == nil || previous.Path == path {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"configured %s integration is recorded at %s; run `mw undo` before changing %s",
+		name,
+		previous.Path,
+		envVar,
+	)
+}
+
 func backupFile(name, path string) (string, error) {
 	paths, err := store.Ensure()
 	if err != nil {

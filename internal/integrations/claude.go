@@ -17,6 +17,15 @@ type claudeHook struct {
 	message string
 }
 
+type claudeInstallContext struct {
+	path          string
+	writePath     string
+	settings      map[string]any
+	mode          os.FileMode
+	created       bool
+	currentBackup string
+}
+
 func ClaudeSettingsPath() (string, error) {
 	if dir := os.Getenv("CLAUDE_CONFIG_DIR"); dir != "" {
 		return filepath.Join(dir, "settings.json"), nil
@@ -29,99 +38,131 @@ func ClaudeSettingsPath() (string, error) {
 }
 
 func installClaude(mwPath string, previous *store.IntegrationState) (store.IntegrationState, error) {
-	path, err := ClaudeSettingsPath()
+	ctx, err := prepareClaudeInstall(previous)
 	if err != nil {
 		return store.IntegrationState{}, err
 	}
-	if previous != nil && previous.Path != path {
-		return store.IntegrationState{}, fmt.Errorf(
-			"Claude Code integration is recorded at %s; run `mw undo` before changing CLAUDE_CONFIG_DIR",
-			previous.Path,
-		)
+	installed := false
+	defer func() {
+		if !installed && ctx.currentBackup != "" {
+			_ = os.Remove(ctx.currentBackup)
+		}
+	}()
+
+	managed := installClaudeHooks(ctx.settings, mwPath, previous)
+
+	data, err := json.MarshalIndent(ctx.settings, "", "  ")
+	if err != nil {
+		return store.IntegrationState{}, err
+	}
+	data = append(data, '\n')
+	if err := writeFileAtomic(ctx.writePath, data, ctx.mode); err != nil {
+		return store.IntegrationState{}, err
+	}
+	installed = true
+
+	backupPath := ctx.currentBackup
+	var rollbackPath string
+	if previous != nil {
+		backupPath = previous.BackupPath
+		ctx.created = previous.Created
+		rollbackPath = ctx.currentBackup
+	}
+	return store.IntegrationState{
+		Name:         "claude-code",
+		Path:         ctx.path,
+		BackupPath:   backupPath,
+		Created:      ctx.created,
+		Managed:      managed,
+		InstalledAt:  time.Now(),
+		RollbackPath: rollbackPath,
+	}, nil
+}
+
+func prepareClaudeInstall(previous *store.IntegrationState) (claudeInstallContext, error) {
+	path, err := ClaudeSettingsPath()
+	if err != nil {
+		return claudeInstallContext{}, err
+	}
+	if err := ensureRecordedIntegrationPath(previous, path, "Claude Code", "CLAUDE_CONFIG_DIR"); err != nil {
+		return claudeInstallContext{}, err
 	}
 	writePath, err := resolveWritePath(path)
 	if err != nil {
-		return store.IntegrationState{}, err
+		return claudeInstallContext{}, err
 	}
 
-	settings := map[string]any{}
-	mode := os.FileMode(0o600)
-	created := true
-	var currentBackup string
-	installed := false
-	defer func() {
-		if !installed && currentBackup != "" {
-			_ = os.Remove(currentBackup)
-		}
-	}()
-	if data, err := os.ReadFile(writePath); err == nil {
-		created = false
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return store.IntegrationState{}, fmt.Errorf("%s is malformed JSON: %w", path, err)
-		}
-		if err := validateClaudeSettings(settings); err != nil {
-			return store.IntegrationState{}, fmt.Errorf("%s has invalid hook structure: %w", path, err)
-		}
-		info, err := os.Stat(writePath)
-		if err != nil {
-			return store.IntegrationState{}, err
-		}
-		mode = info.Mode().Perm()
-		currentBackup, err = backupFile("claude-code", writePath)
-		if err != nil {
-			return store.IntegrationState{}, err
-		}
-	} else if !os.IsNotExist(err) {
-		return store.IntegrationState{}, err
+	ctx := claudeInstallContext{
+		path:      path,
+		writePath: writePath,
+		settings:  map[string]any{},
+		mode:      0o600,
+		created:   true,
 	}
 
-	managed := make([]string, 0, 4)
+	data, err := os.ReadFile(writePath)
+	if os.IsNotExist(err) {
+		return ctx, nil
+	}
+	if err != nil {
+		return claudeInstallContext{}, err
+	}
+
+	ctx.created = false
+	if err := json.Unmarshal(data, &ctx.settings); err != nil {
+		return claudeInstallContext{}, fmt.Errorf("%s is malformed JSON: %w", path, err)
+	}
+	if err := validateClaudeSettings(ctx.settings); err != nil {
+		return claudeInstallContext{}, fmt.Errorf("%s has invalid hook structure: %w", path, err)
+	}
+
+	info, err := os.Stat(writePath)
+	if err != nil {
+		return claudeInstallContext{}, err
+	}
+	ctx.mode = info.Mode().Perm()
+	ctx.currentBackup, err = backupFile("claude-code", writePath)
+	if err != nil {
+		return claudeInstallContext{}, err
+	}
+	return ctx, nil
+}
+
+func installClaudeHooks(
+	settings map[string]any,
+	mwPath string,
+	previous *store.IntegrationState,
+) []string {
+	removeRecordedClaudeCommands(settings, previous)
+
 	hooks := []claudeHook{
 		{event: "PermissionRequest", status: "needs_input", message: "Claude Code needs input"},
 		{event: "Stop", status: "done", message: "Claude Code finished"},
 		{event: "StopFailure", status: "failed", message: "Claude Code failed"},
 		{event: "SessionEnd", status: "idle", message: "Claude Code session ended"},
 	}
-	if previous != nil {
-		managed := make(map[string]bool, len(previous.Managed))
-		for _, command := range previous.Managed {
-			managed[command] = true
-		}
-		removeClaudeCommands(settings, func(existing string) bool {
-			return managed[existing]
-		})
-	}
+
+	managed := make([]string, 0, len(hooks))
 	for _, hook := range hooks {
 		command := claudeCommand(mwPath, hook)
 		managed = append(managed, command)
 		appendClaudeCommand(settings, hook.event, command)
 	}
+	return managed
+}
 
-	data, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return store.IntegrationState{}, err
+func removeRecordedClaudeCommands(settings map[string]any, previous *store.IntegrationState) {
+	if previous == nil {
+		return
 	}
-	data = append(data, '\n')
-	if err := writeFileAtomic(writePath, data, mode); err != nil {
-		return store.IntegrationState{}, err
+
+	managed := make(map[string]bool, len(previous.Managed))
+	for _, command := range previous.Managed {
+		managed[command] = true
 	}
-	installed = true
-	backupPath := currentBackup
-	var rollbackPath string
-	if previous != nil {
-		backupPath = previous.BackupPath
-		created = previous.Created
-		rollbackPath = currentBackup
-	}
-	return store.IntegrationState{
-		Name:         "claude-code",
-		Path:         path,
-		BackupPath:   backupPath,
-		Created:      created,
-		Managed:      managed,
-		InstalledAt:  time.Now(),
-		RollbackPath: rollbackPath,
-	}, nil
+	removeClaudeCommands(settings, func(existing string) bool {
+		return managed[existing]
+	})
 }
 
 func removeClaude(state store.IntegrationState) error {

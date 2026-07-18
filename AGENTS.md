@@ -24,9 +24,10 @@ Use existing commands only. If a command is not present yet, do not invent a suc
 Contributor commands:
 
 ```bash
+make lint-tools     # Install pinned Go, Swift, and Shell linters under .tools/bin
 make build          # Build the mw CLI and package Mews.app
-make test           # Run Go tests
-make lint           # Run Go lint and shellcheck
+make test           # Run Go tests and Swift model tests
+make lint           # Run Go, Swift, source-size, and shell lint checks
 make package        # Produce local release artifacts
 make release        # Sign, notarize, verify, and package a formal release
 make install-local  # Install into a local test prefix
@@ -103,6 +104,8 @@ Follow Go's `cmd/` + `internal/` convention. Keep most implementation private. K
 
 - Primary language: Go. The thin menu bar app uses Swift/AppKit.
 - Use `gofmt` for all Go code.
+- Keep `.golangci.yml` and `.swiftlint.yml` strict for complexity, function size, parameter shape, line length, and file size.
+- Split code by responsibility instead of adding broad lint suppressions.
 - Keep package names short, lowercase, and specific.
 - Prefer small interfaces at package boundaries.
 - Keep CLI output human-readable and stable enough for docs.

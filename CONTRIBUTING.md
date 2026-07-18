@@ -5,12 +5,15 @@ Mews is an MVP release candidate. Keep changes small, local-first, reversible, a
 ## Local setup
 
 ```bash
+make lint-tools
 make build
 make test
 make lint
 make package
 VERSION=dev ./scripts/smoke-package.sh
 ```
+
+`make lint-tools` installs the pinned Go, Swift, and Shell linters under `.tools/bin`.
 
 For an end-to-end local smoke:
 

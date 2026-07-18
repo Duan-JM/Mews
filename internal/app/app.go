@@ -10,9 +10,10 @@ import (
 )
 
 const BundleName = "Mews.app"
-const lsregisterPath = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+const lsregisterPath = "/System/Library/Frameworks/CoreServices.framework/Frameworks/" +
+	"LaunchServices.framework/Support/lsregister"
 
-var ErrNotFound = errors.New("Mews.app bundle not found")
+var ErrNotFound = errors.New("menu bar app bundle not found")
 var runLSRegister = func(path string) ([]byte, error) {
 	return exec.Command(lsregisterPath, "-f", path).CombinedOutput()
 }
@@ -72,7 +73,7 @@ func StableInstalledPath(path string) string {
 
 func RegisterBundle(path string) error {
 	if path == "" {
-		return errors.New("Mews.app bundle path is required")
+		return errors.New("menu bar app bundle path is required")
 	}
 	output, err := runLSRegister(path)
 	if err != nil {

@@ -1,4 +1,4 @@
-.PHONY: all build test lint package release-check release install-local clean
+.PHONY: all build test lint lint-tools package release-check release install-local clean
 
 all: build
 
@@ -7,9 +7,13 @@ build:
 
 test:
 	MEWS_SOCKET_NAMESPACE=test go test ./...
+	./scripts/test-swift.sh
 
 lint:
 	./scripts/check.sh
+
+lint-tools:
+	./scripts/install-lint-tools.sh
 
 package:
 	./scripts/package.sh

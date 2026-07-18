@@ -114,6 +114,7 @@ Events stay deliberately small:
 3. Integrations must be explicit. Mews should not secretly read terminal output.
 4. Missed notifications should be recoverable from recent local history.
 5. Stale states should return to `idle` instead of getting stuck forever.
+6. Returning to work should take one action: open a validated terminal directory and copy a local Mews history command without executing event-provided command text.
 
 ## Install and Distribution
 

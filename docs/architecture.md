@@ -101,6 +101,7 @@ Responsibilities:
 - Deliver macOS notifications.
 - Receive local events from integrations and the CLI.
 - Deliver native notifications for the implemented attention states.
+- Open a validated Terminal working directory and copy a Mews-owned session history command from notification actions.
 - Persist recent events and settings.
 
 The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, reads local event history for the menu, and delivers native notifications for attention states.
@@ -304,7 +305,7 @@ Supported statuses:
 
 The message should be short and safe. Integrations should avoid sending prompts, code snippets, or transcript content by default. Task titles are opt-in with `mw setup --yes --include-task-title`, must stay local-only, and must be truncated before storage.
 
-When `session_id` is present, all user-facing surfaces use the same local return affordance: `mw history --session '<id>'`. The CLI prints that command in history output, the menu bar event item copies it, and notification clicks copy it from notification metadata. Mews does not try to restore a terminal window or read terminal scrollback.
+When `session_id` is present, all user-facing surfaces use the same local return command: `mw history --session '<id>'`. Notification and menu actions copy that Mews-owned command and open Terminal at the event's validated absolute `cwd`. If the directory is missing, Mews only activates Terminal with the command on the clipboard. A directory-only event may open Terminal but does not invent a session command. Mews never executes command text from an event, restores a previous terminal window, or reads terminal scrollback.
 
 ## IPC
 
@@ -365,6 +366,13 @@ Implemented default behavior:
 - `idle`: update menu bar only.
 
 Notifications are delivered by the app bundle, which declares the Mews icon so Notification Center can show Mews identity. The logo is app identity only, not a notification attachment.
+
+Action behavior:
+
+- **Open CLI Context**: copy the local session history command when available, then open Terminal at a validated event directory.
+- **Copy Return Command**: copy only the Mews-generated `mw history --session` command.
+- Default notification clicks use the same open action.
+- Relative, missing, and non-directory paths are never opened.
 
 Deduping, runtime thresholds, and quiet mode remain post-MVP notification policy work.
 
@@ -530,16 +538,17 @@ Repository rules:
 1. **Root stays product-facing**: README, install script, security docs, contributing guide, and Makefile should be enough for a new contributor to understand the project.
 2. **Go code follows `cmd/` + `internal/`**: no sprawling packages at root.
 3. **Scripts are explicit**: build, package, release, and local install scripts live under `scripts/`; `install.sh` stays as the user-facing fallback installer.
-4. **Makefile is the contributor API**: common tasks should be discoverable through `make test`, `make build`, `make lint`, `make package`, and `make install-local`.
+4. **Makefile is the contributor API**: common tasks should be discoverable through `make lint-tools`, `make test`, `make build`, `make lint`, `make package`, and `make install-local`.
 5. **Security docs are first-class**: because Mews edits local tool configs, it needs `SECURITY.md` and a practical `SECURITY_AUDIT.md` from the start.
 6. **Workflows stay boring**: CI runs tests, lint, shellcheck, CodeQL, package checksum verification, and an isolated artifact smoke. Signing remains an explicit credential-gated maintainer action.
 
 Makefile targets:
 
 ```text
+make lint-tools     # Install pinned Go, Swift, and Shell lint binaries under .tools/bin
 make build          # Build mw CLI and package Mews.app
-make test           # Run Go tests
-make lint           # Run Go lint and shellcheck
+make test           # Run Go tests and Swift model tests
+make lint           # Run Go, Swift, source-size, and shell lint checks
 make package        # Produce local release artifact
 make release        # Sign, notarize, verify, and package a release
 make install-local  # Install into a local test prefix
@@ -567,14 +576,16 @@ Manual acceptance checks:
 4. `mw notify --status done --message "Task finished"` updates menu bar and history.
 5. `mw run -- false` produces a failed event.
 6. Claude Code notification hook reaches Mews without exposing transcript content.
-7. `mw undo` restores backed-up config and removes Mews-owned files.
-8. With notifications denied, menu bar status still works and doctor explains the permission.
-9. With the agent stopped, `mw notify` either starts it or gives a clear error.
-10. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
+7. A notification action copies the Mews session command and opens Terminal at the recorded directory.
+8. `mw undo` restores backed-up config and removes Mews-owned files.
+9. With notifications denied, menu bar status still works and doctor explains the permission.
+10. With the agent stopped, `mw notify` either starts it or gives a clear error.
+11. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
 
 Automated tests:
 
 - Event validation.
+- Notification action routing and CLI-context path validation.
 - JSONL store append and rotation.
 - IPC request parsing.
 - Integration marker insertion and removal.

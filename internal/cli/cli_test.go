@@ -329,6 +329,13 @@ func TestHistoryPrintsSessionReturnCommand(t *testing.T) {
 	}
 }
 
+func TestSessionReturnCommandQuotesSingleQuotes(t *testing.T) {
+	want := "mw history --session 'session'\\''1'"
+	if got := sessionReturnCommand("session'1"); got != want {
+		t.Fatalf("sessionReturnCommand() = %q, want %q", got, want)
+	}
+}
+
 func TestHistoryFiltersBySession(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

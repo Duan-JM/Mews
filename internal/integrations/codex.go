@@ -18,6 +18,15 @@ const (
 	codexMarkerEnd   = "# <<< mews managed notify <<<"
 )
 
+type codexInstallContext struct {
+	path          string
+	writePath     string
+	current       []byte
+	mode          os.FileMode
+	created       bool
+	currentBackup string
+}
+
 func CodexConfigPath() (string, error) {
 	home := os.Getenv("CODEX_HOME")
 	if home == "" {
@@ -31,73 +40,86 @@ func CodexConfigPath() (string, error) {
 }
 
 func installCodex(mwPath string, previous *store.IntegrationState) (store.IntegrationState, error) {
-	path, err := CodexConfigPath()
+	ctx, err := prepareCodexInstall(previous)
 	if err != nil {
 		return store.IntegrationState{}, err
 	}
-	if previous != nil && previous.Path != path {
-		return store.IntegrationState{}, fmt.Errorf(
-			"Codex integration is recorded at %s; run `mw undo` before changing CODEX_HOME",
-			previous.Path,
-		)
-	}
-	writePath, err := resolveWritePath(path)
-	if err != nil {
-		return store.IntegrationState{}, err
-	}
-	created := true
-	mode := os.FileMode(0o600)
-	var current []byte
-	var currentBackup string
 	installed := false
 	defer func() {
-		if !installed && currentBackup != "" {
-			_ = os.Remove(currentBackup)
+		if !installed && ctx.currentBackup != "" {
+			_ = os.Remove(ctx.currentBackup)
 		}
 	}()
-	if data, err := os.ReadFile(writePath); err == nil {
-		created = false
-		current = data
-		info, err := os.Stat(writePath)
-		if err != nil {
-			return store.IntegrationState{}, err
-		}
-		mode = info.Mode().Perm()
-	} else if !os.IsNotExist(err) {
-		return store.IntegrationState{}, err
-	}
 
 	command := codexNotifyLine(mwPath)
-	updated, err := installCodexBlock(current, command)
+	updated, err := installCodexBlock(ctx.current, command)
 	if err != nil {
-		return store.IntegrationState{}, fmt.Errorf("%s: %w", path, err)
+		return store.IntegrationState{}, fmt.Errorf("%s: %w", ctx.path, err)
 	}
-	if !created {
-		currentBackup, err = backupFile("codex", writePath)
+	if !ctx.created {
+		ctx.currentBackup, err = backupFile("codex", ctx.writePath)
 		if err != nil {
 			return store.IntegrationState{}, err
 		}
 	}
-	if err := writeFileAtomic(writePath, updated, mode); err != nil {
+	if err := writeFileAtomic(ctx.writePath, updated, ctx.mode); err != nil {
 		return store.IntegrationState{}, err
 	}
 	installed = true
-	backupPath := currentBackup
+	backupPath := ctx.currentBackup
 	var rollbackPath string
 	if previous != nil {
 		backupPath = previous.BackupPath
-		created = previous.Created
-		rollbackPath = currentBackup
+		ctx.created = previous.Created
+		rollbackPath = ctx.currentBackup
 	}
 	return store.IntegrationState{
 		Name:         "codex",
-		Path:         path,
+		Path:         ctx.path,
 		BackupPath:   backupPath,
-		Created:      created,
+		Created:      ctx.created,
 		Managed:      []string{command},
 		InstalledAt:  time.Now(),
 		RollbackPath: rollbackPath,
 	}, nil
+}
+
+func prepareCodexInstall(previous *store.IntegrationState) (codexInstallContext, error) {
+	path, err := CodexConfigPath()
+	if err != nil {
+		return codexInstallContext{}, err
+	}
+	if err := ensureRecordedIntegrationPath(previous, path, "Codex", "CODEX_HOME"); err != nil {
+		return codexInstallContext{}, err
+	}
+	writePath, err := resolveWritePath(path)
+	if err != nil {
+		return codexInstallContext{}, err
+	}
+
+	ctx := codexInstallContext{
+		path:      path,
+		writePath: writePath,
+		mode:      0o600,
+		created:   true,
+	}
+
+	data, err := os.ReadFile(writePath)
+	if os.IsNotExist(err) {
+		return ctx, nil
+	}
+	if err != nil {
+		return codexInstallContext{}, err
+	}
+
+	ctx.current = data
+	ctx.created = false
+	info, err := os.Stat(writePath)
+	if err != nil {
+		return codexInstallContext{}, err
+	}
+	ctx.mode = info.Mode().Perm()
+	return ctx, nil
 }
 
 func removeCodex(state store.IntegrationState) error {
@@ -184,16 +206,16 @@ func installCodexBlock(data []byte, notifyLine string) ([]byte, error) {
 			insertAt = index
 			break
 		}
-		if key, _, ok := strings.Cut(trimmed, "="); ok {
-			key = strings.TrimSpace(key)
-			if strings.HasPrefix(key, `"`) || strings.HasPrefix(key, `'`) {
-				return nil, fmt.Errorf("quoted top-level TOML keys are not edited automatically")
-			}
-			if key == "notify" {
-				return nil, fmt.Errorf("top-level notify is already configured and was left unchanged")
-			}
-		} else {
+		key, _, ok := strings.Cut(trimmed, "=")
+		if !ok {
 			return nil, fmt.Errorf("config has an invalid top-level line %q", trimmed)
+		}
+		key = strings.TrimSpace(key)
+		if strings.HasPrefix(key, `"`) || strings.HasPrefix(key, `'`) {
+			return nil, fmt.Errorf("quoted top-level TOML keys are not edited automatically")
+		}
+		if key == "notify" {
+			return nil, fmt.Errorf("top-level notify is already configured and was left unchanged")
 		}
 	}
 

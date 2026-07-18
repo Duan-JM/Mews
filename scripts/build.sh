@@ -70,6 +70,7 @@ fi
 APP="$ROOT/lib/Mews.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+APP_SOURCES=("$ROOT/internal/app/macos/"*.swift)
 
 swiftc \
   -O \
@@ -77,14 +78,14 @@ swiftc \
   -target arm64-apple-macos13.0 \
   -framework AppKit \
   -o "$BUILD_DIR/Mews-arm64" \
-  "$ROOT/internal/app/macos/MewsApp.swift"
+  "${APP_SOURCES[@]}"
 swiftc \
   -O \
   -parse-as-library \
   -target x86_64-apple-macos13.0 \
   -framework AppKit \
   -o "$BUILD_DIR/Mews-amd64" \
-  "$ROOT/internal/app/macos/MewsApp.swift"
+  "${APP_SOURCES[@]}"
 lipo -create "$BUILD_DIR/Mews-arm64" "$BUILD_DIR/Mews-amd64" \
   -output "$APP/Contents/MacOS/Mews"
 
