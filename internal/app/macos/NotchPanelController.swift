@@ -31,7 +31,7 @@ final class NotchPanelController: NSObject {
         reposition()
         notificationCenter.addObserver(
             self,
-            selector: #selector(screenParametersDidChange),
+            selector: #selector(screenParametersDidChange(_:)),
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
@@ -67,7 +67,7 @@ final class NotchPanelController: NSObject {
         }
     }
 
-    @objc private func screenParametersDidChange() {
+    @objc private func screenParametersDidChange(_ notification: Notification) {
         reposition()
     }
 
