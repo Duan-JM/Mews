@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/Duan-JM/mews/internal/terminal"
 )
 
 type Status string
@@ -19,18 +21,23 @@ const (
 )
 
 type Event struct {
-	ID        string    `json:"id,omitempty"`
-	Version   int       `json:"version"`
-	Source    string    `json:"source"`
-	HookEvent string    `json:"hook_event,omitempty"`
-	SessionID string    `json:"session_id,omitempty"`
-	Project   string    `json:"project,omitempty"`
-	TaskTitle string    `json:"task_title,omitempty"`
-	Status    Status    `json:"status"`
-	Message   string    `json:"message,omitempty"`
-	CWD       string    `json:"cwd,omitempty"`
-	PID       int       `json:"pid,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
+	ID         string    `json:"id,omitempty"`
+	Version    int       `json:"version"`
+	Source     string    `json:"source"`
+	HookEvent  string    `json:"hook_event,omitempty"`
+	SessionID  string    `json:"session_id,omitempty"`
+	Project    string    `json:"project,omitempty"`
+	TaskTitle  string    `json:"task_title,omitempty"`
+	Status     Status    `json:"status"`
+	Message    string    `json:"message,omitempty"`
+	CWD        string    `json:"cwd,omitempty"`
+	PID        int       `json:"pid,omitempty"`
+	Terminal   string    `json:"terminal,omitempty"`
+	WindowID   string    `json:"terminal_window_id,omitempty"`
+	KittyAddr  string    `json:"kitty_listen_on,omitempty"`
+	TmuxSocket string    `json:"tmux_socket,omitempty"`
+	TmuxPane   string    `json:"tmux_pane,omitempty"`
+	Timestamp  time.Time `json:"timestamp"`
 }
 
 func FromArgs(args []string) (Event, error) {
@@ -63,7 +70,7 @@ func FromArgs(args []string) (Event, error) {
 	}, nil
 }
 
-func (e Event) Validate() error {
+func (e *Event) Validate() error {
 	if e.Version != 1 {
 		return fmt.Errorf("unsupported version %d", e.Version)
 	}
@@ -86,11 +93,19 @@ func (e Event) Validate() error {
 		{name: "task_title", value: e.TaskTitle, max: 80},
 		{name: "message", value: e.Message, max: 1024},
 		{name: "cwd", value: e.CWD, max: 4096},
+		{name: "terminal", value: e.Terminal, max: 64},
+		{name: "terminal_window_id", value: e.WindowID, max: 64},
+		{name: "kitty_listen_on", value: e.KittyAddr, max: 4096},
+		{name: "tmux_socket", value: e.TmuxSocket, max: 4096},
+		{name: "tmux_pane", value: e.TmuxPane, max: 64},
 	}
 	for _, field := range limits {
 		if len([]rune(field.value)) > field.max {
 			return fmt.Errorf("%s exceeds %d characters", field.name, field.max)
 		}
+	}
+	if err := e.validateTerminalContext(); err != nil {
+		return err
 	}
 	switch e.Status {
 	case StatusRunning, StatusNeedsInput, StatusDone, StatusFailed, StatusIdle:
@@ -98,4 +113,24 @@ func (e Event) Validate() error {
 	default:
 		return fmt.Errorf("unsupported status %q", e.Status)
 	}
+}
+
+func (e *Event) validateTerminalContext() error {
+	if e.Terminal != "" && !terminal.IsSourceProfile(e.Terminal) {
+		return fmt.Errorf("unsupported terminal %q", e.Terminal)
+	}
+	if e.WindowID != "" && (e.Terminal != string(terminal.Kitty) || !terminal.ValidWindowID(e.WindowID)) {
+		return errors.New("invalid terminal_window_id")
+	}
+	if e.KittyAddr != "" && (e.Terminal != string(terminal.Kitty) || !terminal.ValidKittyListen(e.KittyAddr)) {
+		return errors.New("invalid kitty_listen_on")
+	}
+	if (e.TmuxSocket == "") != (e.TmuxPane == "") {
+		return errors.New("tmux_socket and tmux_pane must be provided together")
+	}
+	if e.TmuxSocket != "" &&
+		(!terminal.ValidTmuxSocket(e.TmuxSocket) || !terminal.ValidTmuxPane(e.TmuxPane)) {
+		return errors.New("invalid tmux context")
+	}
+	return nil
 }

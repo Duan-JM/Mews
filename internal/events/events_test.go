@@ -45,3 +45,18 @@ func TestEventValidateRejectsUnknownStatus(t *testing.T) {
 		t.Fatal("Validate accepted an unknown status")
 	}
 }
+
+func TestEventValidateRejectsUnsafeTerminalContext(t *testing.T) {
+	event := Event{
+		Version:   1,
+		Source:    "test",
+		Status:    StatusDone,
+		Terminal:  "kitty",
+		WindowID:  "window-1",
+		KittyAddr: "tcp:127.0.0.1:5000",
+		Timestamp: time.Now(),
+	}
+	if err := event.Validate(); err == nil {
+		t.Fatal("Validate accepted unsafe terminal context")
+	}
+}

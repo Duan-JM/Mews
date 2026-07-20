@@ -47,6 +47,15 @@ make build
 
 `mw setup` shows the local changes Mews wants to make before it writes anything. `mw setup --yes` applies the Mews-owned setup. `mw start` installs a per-user LaunchAgent and starts the thin menu bar companion packaged by `make build`.
 
+Terminal return uses `auto` by default: Mews returns to the terminal that emitted the event when it can identify it, with Terminal.app as the fallback. Choose a terminal during setup or change it later:
+
+```bash
+mw setup --yes --terminal kitty
+mw config terminal kitty
+```
+
+Supported profiles are `auto`, `terminal`, `kitty`, `iterm2`, `wezterm`, `ghostty`, and `alacritty`. `mw status` and `mw config terminal` show the current preference.
+
 Mews.app delivers all notifications through the native macOS notification center. Notifications identify the agent and status in the title, then show the project and a shortened session identifier when the tool provides them. The body describes the lifecycle action without exposing the full working directory, full session identifier, prompt, or terminal output. To show a short task label in the body, opt in explicitly:
 
 ```bash
@@ -55,7 +64,7 @@ mw setup --yes --include-task-title
 
 That stores at most 80 local-only characters from a hook-provided prompt or title. Mews still does not upload prompts, transcripts, or terminal output.
 
-The app bundle includes the Mews cat logo as its macOS icon. Native notifications use that app identity instead of adding the logo as notification content. Notifications expose **Open CLI Context** and **Copy Return Command** actions when the event has usable local context. Opening the context copies a Mews-generated command such as `mw history --session 'abc123'`, then opens Terminal at the validated event working directory; if that directory is unavailable, Terminal still opens with the command on the clipboard. Mews never executes a command supplied by an event or reads terminal scrollback.
+The app bundle includes the Mews cat logo as its macOS icon. Native notifications use that app identity instead of adding the logo as notification content. Notifications expose **Return to CLI** and **Copy Return Command** actions when the event has usable local context. Returning copies a Mews-generated command such as `mw history --session 'abc123'`, then prefers the existing source terminal. Mews selects the recorded tmux pane when available and can focus a kitty window when kitty already exposes a local Unix remote-control socket. If the original context is unavailable, Mews opens the configured terminal at the validated event working directory. It never changes kitty configuration, executes command text supplied by an event, or reads terminal scrollback.
 
 Setup installs:
 
@@ -117,9 +126,11 @@ Most users should only need these commands:
 ```bash
 mw setup       # Show the setup plan
 mw setup --yes # Apply Mews-owned setup
+mw setup --yes --terminal kitty # Set the return terminal during setup
 mw setup --yes --include-task-title # Opt in to short local task labels
 mw start       # Start the local agent after setup
 mw status      # Show the current local state
+mw config terminal kitty # Change the return terminal
 mw history     # Show recent local events
 mw history --session <id> # Show events for one session reference
 mw listen      # Listen in the terminal and print events as they arrive

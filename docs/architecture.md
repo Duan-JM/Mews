@@ -80,6 +80,7 @@ Recommended commands:
 mw setup      # Show and apply supported local integrations
 mw start      # Start the local agent after setup
 mw status     # Print current watched tools and agent state
+mw config terminal <name> # Select the terminal used for return actions
 mw history    # Show recent local events
 mw history --session <id> # Show recent events for one session reference
 mw listen     # Listen in the terminal and print events as they arrive
@@ -101,7 +102,8 @@ Responsibilities:
 - Deliver macOS notifications.
 - Receive local events from integrations and the CLI.
 - Deliver native notifications for the implemented attention states.
-- Open a validated Terminal working directory and copy a Mews-owned session history command from notification actions.
+- Return to a validated source terminal context when possible, or open the configured terminal working directory.
+- Copy a Mews-owned session history command from notification actions.
 - Persist recent events and settings.
 
 The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, reads local event history for the menu, and delivers native notifications for attention states.
@@ -149,7 +151,7 @@ Recommended paths:
 
 Storage format:
 
-- `config.json`: user preferences and notification rules.
+- `config.json`: setup state, terminal preference, and notification rules.
 - `events.jsonl`: append-only recent event log, capped by size or age.
 - `integrations.json`: installed integration records and backup paths.
 - `backups/`: original config files before Mews modifies them.
@@ -292,6 +294,11 @@ Optional fields:
 - `message`
 - `cwd`
 - `pid`
+- `terminal`
+- `terminal_window_id`
+- `kitty_listen_on`
+- `tmux_socket`
+- `tmux_pane`
 
 Supported statuses:
 
@@ -305,7 +312,11 @@ Supported statuses:
 
 The message should be short and safe. Integrations should avoid sending prompts, code snippets, or transcript content by default. Task titles are opt-in with `mw setup --yes --include-task-title`, must stay local-only, and must be truncated before storage.
 
-When `session_id` is present, all user-facing surfaces use the same local return command: `mw history --session '<id>'`. Notification and menu actions copy that Mews-owned command and open Terminal at the event's validated absolute `cwd`. If the directory is missing, Mews only activates Terminal with the command on the clipboard. A directory-only event may open Terminal but does not invent a session command. Mews never executes command text from an event, restores a previous terminal window, or reads terminal scrollback.
+When `session_id` is present, the CLI displays the local return command as `mw history --session '<id>'`. Notification and menu actions build the equivalent command with a shell-quoted absolute path to `Mews.app/Contents/Resources/mw`, so custom install prefixes still work when `$PREFIX/bin` is not on `PATH`.
+
+The terminal preference defaults to `auto`. Auto uses the recorded source terminal when available and falls back to Terminal.app. An explicit profile uses that terminal unless the event came from the same profile, in which case Mews prefers the existing application. Supported profiles are Terminal, kitty, iTerm2, WezTerm, Ghostty, and Alacritty.
+
+Return actions copy the Mews-owned history command, select a validated same-user tmux socket and pane when present, and activate the source terminal. Kitty window focus is attempted only when the event carries a numeric kitty window ID and an existing local Unix remote-control address; Mews does not enable kitty remote control. If the source context is unavailable, the configured terminal opens the event's validated absolute `cwd`. A directory-only event does not invent a session command. Mews never executes event-provided command text or reads terminal scrollback.
 
 ## IPC
 
@@ -369,8 +380,8 @@ Notifications are delivered by the app bundle, which declares the Mews icon so N
 
 Action behavior:
 
-- **Open CLI Context**: copy the local session history command when available, then open Terminal at a validated event directory.
-- **Copy Return Command**: copy only the Mews-generated `mw history --session` command.
+- **Return to CLI**: copy the local session history command, then restore a validated source terminal or open the configured terminal at the event directory.
+- **Copy Return Command**: copy only the Mews-generated session history command.
 - Default notification clicks use the same open action.
 - Relative, missing, and non-directory paths are never opened.
 
@@ -388,6 +399,7 @@ Hard boundaries:
 - Prompt-derived task titles require explicit opt-in, are truncated, and stay local.
 - No terminal scrollback scraping by default.
 - No shell command execution from received events.
+- Terminal restoration only invokes fixed kitty and tmux operations with validated identifiers and same-user local sockets.
 - No broad write access beyond known integration files and Mews-owned paths.
 
 Config writes:
@@ -576,7 +588,7 @@ Manual acceptance checks:
 4. `mw notify --status done --message "Task finished"` updates menu bar and history.
 5. `mw run -- false` produces a failed event.
 6. Claude Code notification hook reaches Mews without exposing transcript content.
-7. A notification action copies the Mews session command and opens Terminal at the recorded directory.
+7. A notification action copies the Mews session command, returns to the source terminal when possible, and otherwise opens the configured terminal at the recorded directory.
 8. `mw undo` restores backed-up config and removes Mews-owned files.
 9. With notifications denied, menu bar status still works and doctor explains the permission.
 10. With the agent stopped, `mw notify` either starts it or gives a clear error.
@@ -585,7 +597,7 @@ Manual acceptance checks:
 Automated tests:
 
 - Event validation.
-- Notification action routing and CLI-context path validation.
+- Notification action routing, terminal metadata validation, and CLI-context path validation.
 - JSONL store append and rotation.
 - IPC request parsing.
 - Integration marker insertion and removal.

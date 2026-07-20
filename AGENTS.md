@@ -40,6 +40,7 @@ User commands:
 mw setup      # Show and apply supported local integrations
 mw start      # Start the local agent after setup
 mw status     # Print current watched tools and agent state
+mw config terminal <name> # Select the terminal used for return actions
 mw history    # Show recent local events
 mw listen     # Listen in the terminal and print events as they arrive
 mw doctor     # Diagnose permissions, integrations, LaunchAgent, and IPC

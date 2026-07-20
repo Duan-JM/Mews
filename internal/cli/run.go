@@ -72,7 +72,7 @@ func prepareCommand(
 func startCommand(execution *commandExecution) int {
 	if err := execution.process.Start(); err != nil {
 		event := commandEvent(events.StatusFailed, execution.commandText, execution.cwd, 0)
-		if saveErr := deliverEvent(execution.paths, event, execution.stderr); saveErr != nil {
+		if saveErr := deliverEvent(execution.paths, &event, execution.stderr); saveErr != nil {
 			fmt.Fprintf(execution.stderr, "Could not save event: %v\n", saveErr)
 			return 1
 		}
@@ -86,7 +86,7 @@ func startCommand(execution *commandExecution) int {
 		execution.cwd,
 		execution.process.Process.Pid,
 	)
-	if err := deliverEventFn(execution.paths, event, execution.stderr); err != nil {
+	if err := deliverEventFn(execution.paths, &event, execution.stderr); err != nil {
 		_ = syscall.Kill(-execution.process.Process.Pid, syscall.SIGKILL)
 		_ = execution.process.Wait()
 		fmt.Fprintf(execution.stderr, "Could not save event: %v\n", err)
@@ -103,7 +103,7 @@ func finishCommand(execution *commandExecution, stdout io.Writer) int {
 			execution.cwd,
 			execution.process.Process.Pid,
 		)
-		if saveErr := deliverEventFn(execution.paths, event, execution.stderr); saveErr != nil {
+		if saveErr := deliverEventFn(execution.paths, &event, execution.stderr); saveErr != nil {
 			fmt.Fprintf(execution.stderr, "Could not save event: %v\n", saveErr)
 			return 1
 		}
@@ -120,7 +120,7 @@ func finishCommand(execution *commandExecution, stdout io.Writer) int {
 		execution.cwd,
 		execution.process.Process.Pid,
 	)
-	if err := deliverEventFn(execution.paths, event, execution.stderr); err != nil {
+	if err := deliverEventFn(execution.paths, &event, execution.stderr); err != nil {
 		fmt.Fprintf(execution.stderr, "Could not save event: %v\n", err)
 		return 1
 	}
@@ -130,7 +130,7 @@ func finishCommand(execution *commandExecution, stdout io.Writer) int {
 
 func commandEvent(status events.Status, commandText, cwd string, pid int) events.Event {
 	project := filepath.Base(cwd)
-	return events.Event{
+	event := events.Event{
 		Version:   1,
 		Source:    "runner",
 		SessionID: project,
@@ -141,4 +141,6 @@ func commandEvent(status events.Status, commandText, cwd string, pid int) events
 		PID:       pid,
 		Timestamp: time.Now(),
 	}
+	enrichRuntimeContext(&event)
+	return event
 }

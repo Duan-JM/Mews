@@ -28,12 +28,29 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func dispatchCommand(command string, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch command {
+	case "notify":
+		return runNotify(args, stdin, stdout, stderr)
+	case "hook":
+		return runHook(args, stdin, stdout, stderr)
+	case "run":
+		return runCommand(args, stdin, stdout, stderr)
+	case "agent":
+		return runAgent(stdout, stderr)
+	default:
+		return dispatchUserCommand(command, args, stdout, stderr)
+	}
+}
+
+func dispatchUserCommand(command string, args []string, stdout, stderr io.Writer) int {
+	switch command {
 	case "setup":
 		return runSetup(args, stdout, stderr)
 	case "start":
 		return runStart(stdout, stderr)
 	case "status":
 		return runStatus(stdout, stderr)
+	case "config":
+		return runConfig(args, stdout, stderr)
 	case "history":
 		return runHistory(args, stdout, stderr)
 	case "listen":
@@ -46,28 +63,20 @@ func dispatchCommand(command string, args []string, stdin io.Reader, stdout, std
 		return runUndo(stdout, stderr)
 	case "reset":
 		return runReset(args, stdout, stderr)
-	case "notify":
-		return runNotify(args, stdin, stdout, stderr)
-	case "hook":
-		return runHook(args, stdin, stdout, stderr)
-	case "run":
-		return runCommand(args, stdin, stdout, stderr)
-	case "agent":
-		return runAgent(stdout, stderr)
-	default:
-		fmt.Fprintf(stderr, "Unknown command: %s\n\n", command)
-		printHelp(stderr)
-		return 2
 	}
+	fmt.Fprintf(stderr, "Unknown command: %s\n\n", command)
+	printHelp(stderr)
+	return 2
 }
 
 func printHelp(w io.Writer) {
 	fmt.Fprint(w, `Mews watches terminal AI agents and tells you when they need you.
 
 Usage:
-  mw setup [--yes] [--include-task-title]
+  mw setup [--yes] [--include-task-title] [--terminal <name>]
   mw start
   mw status
+  mw config terminal [auto|terminal|kitty|iterm2|wezterm|ghostty|alacritty]
   mw history [--session <id>]
   mw listen
   mw doctor

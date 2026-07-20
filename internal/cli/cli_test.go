@@ -130,7 +130,7 @@ func TestRunCommandTerminatesProcessGroupWhenEventDeliveryFails(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	originalDeliver := deliverEventFn
 	t.Cleanup(func() { deliverEventFn = originalDeliver })
-	deliverEventFn = func(store.StorePaths, events.Event, io.Writer) error {
+	deliverEventFn = func(store.StorePaths, *events.Event, io.Writer) error {
 		return errors.New("delivery failed")
 	}
 

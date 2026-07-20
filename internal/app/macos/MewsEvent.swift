@@ -10,6 +10,11 @@ struct MewsEvent: Decodable {
     let taskTitle: String?
     let message: String?
     let cwd: String?
+    let terminal: String?
+    let terminalWindowID: String?
+    let kittyListenOn: String?
+    let tmuxSocket: String?
+    let tmuxPane: String?
     let timestamp: Date
 
     enum CodingKeys: String, CodingKey {
@@ -22,6 +27,11 @@ struct MewsEvent: Decodable {
         case taskTitle = "task_title"
         case message
         case cwd
+        case terminal
+        case terminalWindowID = "terminal_window_id"
+        case kittyListenOn = "kitty_listen_on"
+        case tmuxSocket = "tmux_socket"
+        case tmuxPane = "tmux_pane"
         case timestamp
     }
 
@@ -30,8 +40,22 @@ struct MewsEvent: Decodable {
     }
 
     var cliContext: CLIContextPayload? {
-        let command = normalizedText(sessionID).map(sessionReturnCommand)
-        return CLIContextPayload(returnCommand: command, workingDirectory: cwd)
+        return cliContext(cliExecutablePath: bundledCLIExecutablePath())
+    }
+
+    func cliContext(cliExecutablePath: String?) -> CLIContextPayload? {
+        let command = normalizedText(sessionID).map {
+            sessionReturnCommand($0, cliExecutablePath: cliExecutablePath)
+        }
+        return CLIContextPayload(
+            returnCommand: command,
+            workingDirectory: cwd,
+            terminal: terminal,
+            terminalWindowID: terminalWindowID,
+            kittyListenOn: kittyListenOn,
+            tmuxSocket: tmuxSocket,
+            tmuxPane: tmuxPane
+        )
     }
 
     func notificationUserInfo(including context: CLIContextPayload?) -> [String: String] {
@@ -153,8 +177,13 @@ struct MewsEvent: Decodable {
     }
 }
 
-func sessionReturnCommand(_ sessionID: String) -> String {
-    return "mw history --session \(shellQuoteForDisplay(sessionID))"
+func sessionReturnCommand(_ sessionID: String, cliExecutablePath: String? = nil) -> String {
+    let executable = normalizedText(cliExecutablePath).map(shellQuoteForDisplay) ?? "mw"
+    return "\(executable) history --session \(shellQuoteForDisplay(sessionID))"
+}
+
+private func bundledCLIExecutablePath(bundle: Bundle = .main) -> String? {
+    return bundle.path(forResource: "mw", ofType: nil)
 }
 
 private func shellQuoteForDisplay(_ value: String) -> String {

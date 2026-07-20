@@ -8,6 +8,7 @@ import (
 	"github.com/Duan-JM/mews/internal/events"
 	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/store"
+	"github.com/Duan-JM/mews/internal/terminal"
 )
 
 func runStatus(stdout, stderr io.Writer) int {
@@ -19,14 +20,22 @@ func runStatus(stdout, stderr io.Writer) int {
 
 	fmt.Fprintln(stdout, "Mews Status")
 	fmt.Fprintf(stdout, "Store: %s\n", paths.AppSupport)
-	if _, configured, err := store.LoadSetupState(); err != nil {
+	state, configured, err := store.LoadSetupState()
+	if err != nil {
 		fmt.Fprintf(stderr, "Could not read setup state: %v\n", err)
 		return 1
-	} else if configured {
+	}
+	if configured {
 		fmt.Fprintln(stdout, "Setup: configured")
 	} else {
 		fmt.Fprintln(stdout, "Setup: not set up")
 	}
+	terminalProfile, err := terminal.ParseProfile(state.Terminal)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not read terminal preference: %v\n", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "Terminal: %s\n", terminal.Description(terminalProfile))
 	if err := ipc.Ping(paths.Socket); err == nil {
 		fmt.Fprintln(stdout, "Agent: running")
 	} else {

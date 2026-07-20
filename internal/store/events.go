@@ -18,7 +18,7 @@ const (
 	retainedEvents   = 2000
 )
 
-func AppendEvent(path string, event events.Event) error {
+func AppendEvent(path string, event *events.Event) error {
 	if event.ID == "" {
 		id, err := newEventID()
 		if err != nil {

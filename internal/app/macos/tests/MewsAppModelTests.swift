@@ -4,7 +4,10 @@ import Foundation
 enum MewsAppModelTests {
     static func main() throws {
         try testSessionContext()
+        try testSessionCommandQuoting()
         try testDirectoryValidation()
+        try testTerminalPreference()
+        try testTerminalMetadataValidation()
         testActionRouting()
     }
 
@@ -19,20 +22,97 @@ enum MewsAppModelTests {
             taskTitle: nil,
             message: "done",
             cwd: "/tmp",
+            terminal: "kitty",
+            terminalWindowID: "17",
+            kittyListenOn: "unix:/tmp/kitty-control",
+            tmuxSocket: "/private/tmp/tmux-501/default",
+            tmuxPane: "%6",
             timestamp: Date()
         )
-        let context = try require(event.cliContext, "session event should have CLI context")
+        let cliExecutablePath = "/tmp/Mews App/Contents/Resources/mw"
+        let context = try require(
+            event.cliContext(cliExecutablePath: cliExecutablePath),
+            "session event should have CLI context"
+        )
         try expect(
-            context.returnCommand == "mw history --session 'session'\\''1'",
-            "session command should be shell quoted"
+            context.returnCommand ==
+                "'/tmp/Mews App/Contents/Resources/mw' history --session 'session'\\''1'",
+            "session command should use the shell-quoted bundled CLI path"
         )
         try expect(context.workingDirectory == "/tmp", "working directory should be preserved")
+        try expect(context.sourceTerminalProfile == .kitty, "source terminal should be preserved")
+        try expect(
+            context.kittyTarget?.focusArguments == [
+                "@",
+                "--to", "unix:/tmp/kitty-control",
+                "--use-password=never",
+                "focus-window",
+                "--match", "id:17"
+            ],
+            "kitty target should use fixed remote-control arguments"
+        )
 
         let decoded = try require(
             CLIContextPayload(userInfo: event.notificationUserInfo(including: context)),
             "notification metadata should decode"
         )
         try expect(decoded == context, "notification metadata should preserve CLI context")
+    }
+
+    private static func testSessionCommandQuoting() throws {
+        try expect(
+            sessionReturnCommand(
+                "session'1",
+                cliExecutablePath: "/tmp/Mews' App/Contents/Resources/mw"
+            ) ==
+                "'/tmp/Mews'\\'' App/Contents/Resources/mw' history --session 'session'\\''1'",
+            "return command should quote executable and session paths independently"
+        )
+    }
+
+    private static func testTerminalPreference() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mews-terminal-preference-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let configURL = directory.appendingPathComponent("config.json")
+        try Data(#"{"terminal":"kitty"}"#.utf8).write(to: configURL)
+        let preference = try TerminalPreferenceReader(url: configURL).load()
+        try expect(preference == .kitty, "terminal preference should decode")
+        try expect(
+            TerminalProfile.auto.resolved(source: .kitty) == .kitty,
+            "auto should use the source terminal"
+        )
+        try expect(
+            TerminalProfile.wezterm.bundleIdentifier == "com.github.wez.wezterm",
+            "WezTerm should use its current bundle identifier"
+        )
+    }
+
+    private static func testTerminalMetadataValidation() throws {
+        let unsafe = try require(
+            CLIContextPayload(
+                returnCommand: "mw history",
+                workingDirectory: nil,
+                terminal: "kitty",
+                terminalWindowID: "window-17",
+                kittyListenOn: "tcp:127.0.0.1:5000",
+                tmuxSocket: "relative/socket",
+                tmuxPane: "6"
+            ),
+            "command should keep the context actionable"
+        )
+        try expect(unsafe.kittyTarget == nil, "unsafe kitty metadata should be dropped")
+        try expect(unsafe.tmuxSocket == nil && unsafe.tmuxPane == nil, "unsafe tmux metadata should be dropped")
+
+        let target = TmuxTarget(socketPath: "/private/tmp/tmux-501/default", paneID: "%6")
+        try expect(
+            target.selectWindowArguments == [
+                "-S", "/private/tmp/tmux-501/default", "select-window", "-t", "%6"
+            ],
+            "tmux window targeting should not use a shell command"
+        )
     }
 
     private static func testDirectoryValidation() throws {

@@ -72,8 +72,8 @@ func Stop(socketPath string) error {
 	return send(socketPath, &request{Type: "stop"})
 }
 
-func SendEvent(socketPath string, event events.Event) error {
-	return send(socketPath, &request{Type: "event", Event: event})
+func SendEvent(socketPath string, event *events.Event) error {
+	return send(socketPath, &request{Type: "event", Event: *event})
 }
 
 func handleConnection(conn net.Conn, eventPath string, observer Observer, stop func()) {
@@ -92,7 +92,7 @@ func handleConnection(conn net.Conn, eventPath string, observer Observer, stop f
 		writeResponse(conn, response{OK: true})
 		stop()
 	case "event":
-		if err := store.AppendEvent(eventPath, req.Event); err != nil {
+		if err := store.AppendEvent(eventPath, &req.Event); err != nil {
 			writeResponse(conn, response{OK: false, Error: err.Error()})
 			return
 		}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -29,12 +28,7 @@ func runNotify(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return 2
 		}
 	}
-	if cwd, err := os.Getwd(); err == nil && event.CWD == "" {
-		event.CWD = cwd
-	}
-	if event.PID == 0 {
-		event.PID = os.Getpid()
-	}
+	enrichRuntimeContext(&event)
 	if err := event.Validate(); err != nil {
 		fmt.Fprintf(stderr, "Invalid event: %v\n", err)
 		return 2
@@ -44,7 +38,7 @@ func runNotify(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
 		return 1
 	}
-	if err := deliverEvent(paths, event, stderr); err != nil {
+	if err := deliverEvent(paths, &event, stderr); err != nil {
 		fmt.Fprintf(stderr, "Could not deliver event: %v\n", err)
 		return 1
 	}
@@ -86,12 +80,13 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if event.HookEvent == "" {
 		event.HookEvent = "agent-turn-complete"
 	}
+	enrichRuntimeContext(&event)
 	paths, err := store.Ensure()
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
 		return 1
 	}
-	if err := deliverEvent(paths, event, stderr); err != nil {
+	if err := deliverEvent(paths, &event, stderr); err != nil {
 		fmt.Fprintf(stderr, "Could not deliver Codex event: %v\n", err)
 		return 1
 	}
@@ -138,7 +133,7 @@ func enrichFromHookPayload(event *events.Event, stdin io.Reader) error {
 		title := firstString(payload, "task_title", "taskTitle", "title", "prompt", "userPrompt", "message")
 		event.TaskTitle = truncate(cleanOneLine(title), 80)
 	}
-	event.Message = notificationMessage(*event)
+	event.Message = notificationMessage(event)
 	return nil
 }
 
@@ -167,7 +162,7 @@ func firstString(value any, keys ...string) string {
 	return ""
 }
 
-func notificationMessage(event events.Event) string {
+func notificationMessage(event *events.Event) string {
 	action := string(event.Status)
 	switch event.Status {
 	case events.StatusDone:
@@ -205,7 +200,7 @@ func truncate(value string, maxLength int) string {
 	return string(runes[:maxLength-3]) + "..."
 }
 
-func deliverEvent(paths store.StorePaths, event events.Event, _ io.Writer) error {
+func deliverEvent(paths store.StorePaths, event *events.Event, _ io.Writer) error {
 	if err := ipc.SendEvent(paths.Socket, event); err == nil {
 		return nil
 	} else if !errors.Is(err, ipc.ErrUnavailable) {
