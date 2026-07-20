@@ -89,6 +89,18 @@ enum MewsAppModelTests {
             TerminalProfile.wezterm.bundleIdentifier == "com.github.wez.wezterm",
             "WezTerm should use its current bundle identifier"
         )
+        try expect(
+            !TerminalProfile.kitty.canActivateRunningApplication(afterTmuxRestore: false),
+            "kitty should open a new context when exact window focus is unavailable"
+        )
+        try expect(
+            TerminalProfile.kitty.canActivateRunningApplication(afterTmuxRestore: true),
+            "kitty should activate its running application after restoring the tmux client"
+        )
+        try expect(
+            TerminalProfile.terminal.canActivateRunningApplication(afterTmuxRestore: false),
+            "Terminal can fall back to activating its running application"
+        )
     }
 
     private static func testTerminalMetadataValidation() throws {

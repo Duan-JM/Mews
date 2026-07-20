@@ -96,12 +96,20 @@ final class CLIContextOpener {
             return false
         }
 
-        if context.tmuxTarget != nil, !restoreTmux(context) {
-            return false
+        var restoredTmux = false
+        if context.tmuxTarget != nil {
+            guard restoreTmux(context) else {
+                return false
+            }
+            restoredTmux = true
         }
         if target == .kitty, restoreKitty(context) {
             log("Returned to kitty CLI context")
             return true
+        }
+        guard target.canActivateRunningApplication(afterTmuxRestore: restoredTmux) else {
+            log("Could not restore kitty window; opening a new kitty CLI context")
+            return false
         }
 
         let applications = NSRunningApplication.runningApplications(
