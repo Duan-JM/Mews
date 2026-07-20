@@ -49,21 +49,29 @@ func runNotify(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(stderr, "Usage: mw hook codex [payload]")
+		printHookUsage(stderr)
 		return 2
 	}
-	if args[0] != "codex" {
+	switch args[0] {
+	case "codex":
+		return runCodexHook(args[1:], stdin, stdout, stderr)
+	case "copilot":
+		return runCopilotHook(args[1:], stdin, stdout, stderr)
+	default:
 		fmt.Fprintf(stderr, "Unknown hook source: %s\n", args[0])
 		return 2
 	}
-	if len(args) > 2 {
-		fmt.Fprintln(stderr, "Usage: mw hook codex [payload]")
+}
+
+func runCodexHook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) > 1 {
+		printHookUsage(stderr)
 		return 2
 	}
 
 	payload := stdin
-	if len(args) == 2 {
-		payload = strings.NewReader(args[1])
+	if len(args) == 1 {
+		payload = strings.NewReader(args[0])
 	}
 	event := events.Event{
 		Version:   1,
@@ -92,6 +100,11 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "Mews event sent: %s %s\n", event.Source, event.Status)
 	return 0
+}
+
+func printHookUsage(w io.Writer) {
+	fmt.Fprintln(w, "Usage: mw hook codex [payload]")
+	fmt.Fprintln(w, "       mw hook copilot <event>")
 }
 
 func enrichFromHookPayload(event *events.Event, stdin io.Reader) error {
@@ -175,7 +188,11 @@ func notificationMessage(event *events.Event) string {
 		action = "needs input"
 	}
 
-	message := fmt.Sprintf("%s %s", event.Source, action)
+	source := event.Source
+	if event.AgentScope == events.AgentScopeSubagent {
+		source += " subagent"
+	}
+	message := fmt.Sprintf("%s %s", source, action)
 	if event.Project != "" {
 		message = fmt.Sprintf("%s: %s", message, event.Project)
 	}

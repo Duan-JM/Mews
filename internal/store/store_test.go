@@ -49,3 +49,70 @@ func TestSocketNamespacesUseDistinctFallbacks(t *testing.T) {
 		t.Fatalf("distinct namespaces shared socket directory %s", first.SocketDir)
 	}
 }
+
+func TestCopilotHookStateUsesOpaqueMarkersAndClearsPerSession(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	sessionID := "session/with/private-details"
+	transcriptPath := "/private/path/to/subagent-transcript.jsonl"
+	if err := MarkCopilotSubagent(sessionID, transcriptPath); err != nil {
+		t.Fatalf("MarkCopilotSubagent returned error: %v", err)
+	}
+	if marked, err := IsCopilotSubagent(sessionID, transcriptPath); err != nil || !marked {
+		t.Fatalf("IsCopilotSubagent = %v, %v; want true, nil", marked, err)
+	}
+
+	paths, err := Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = filepath.Walk(paths.CopilotHooks, func(path string, _ os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.Contains(path, sessionID) || strings.Contains(path, transcriptPath) {
+			t.Fatalf("Copilot hook state exposed raw identifiers: %s", path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ClearCopilotHookSession(sessionID); err != nil {
+		t.Fatalf("ClearCopilotHookSession returned error: %v", err)
+	}
+	if marked, err := IsCopilotSubagent(sessionID, transcriptPath); err != nil || marked {
+		t.Fatalf("IsCopilotSubagent after clear = %v, %v; want false, nil", marked, err)
+	}
+}
+
+func TestCopilotHookStateRefusesSymlinkDirectory(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	paths, err := Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(paths.AppSupport, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := t.TempDir()
+	if err := os.Symlink(target, paths.CopilotHooks); err != nil {
+		t.Fatal(err)
+	}
+
+	err = MarkCopilotSubagent("session-123", "/tmp/subagent.jsonl")
+	if err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("MarkCopilotSubagent error = %v, want symbolic-link refusal", err)
+	}
+	entries, err := os.ReadDir(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("Copilot hook state wrote through symlink: %#v", entries)
+	}
+}

@@ -89,9 +89,9 @@ Mews first handles five states:
 | State | Meaning | UI expression |
 |---|---|---|
 | `running` | Agent is working | Running state in the menu bar |
-| `needs_input` | Waiting for user input, permission, or confirmation | Stronger attention signal |
-| `done` | Task finished | Gentle notification |
-| `failed` | Task failed or command exited unexpectedly | Clear failure state |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Stronger attention signal |
+| `done` | Main task finished | Gentle notification |
+| `failed` | Main task failed or a command exited unexpectedly | Clear failure state |
 | `idle` | No active task | Quiet idle state |
 
 Events stay deliberately small:
@@ -109,10 +109,10 @@ Events stay deliberately small:
 
 ## Interaction Principles
 
-1. Quiet by default. Only completion, failure, and user-needed states should interrupt.
+1. Quiet by default. Only primary-agent completion, non-recoverable failure, and user-needed states should interrupt.
 2. The menu bar should be reliable. Extra visuals are optional enhancements.
 3. Integrations must be explicit. Mews should not secretly read terminal output.
-4. Missed notifications should be recoverable from recent local history.
+4. Missed notifications and silent subagent events should be recoverable from recent local history.
 5. Stale states should return to `idle` instead of getting stuck forever.
 6. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
 

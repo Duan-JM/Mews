@@ -250,7 +250,8 @@ func TestSetupYesRecordsStateAndUndoRemovesIt(t *testing.T) {
 		t.Fatalf("setup did not write Copilot hook: %v", err)
 	}
 	if !strings.Contains(string(hookData), "agentStop") ||
-		!strings.Contains(string(hookData), "notify") ||
+		!strings.Contains(string(hookData), "subagentStop") ||
+		!strings.Contains(string(hookData), "hook") ||
 		!strings.Contains(string(hookData), "copilot") {
 		t.Fatalf("hook file does not include expected Copilot hook command: %s", string(hookData))
 	}

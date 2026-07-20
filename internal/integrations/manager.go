@@ -42,7 +42,7 @@ func InstallAll(mwPath string) ([]store.IntegrationState, error) {
 				return store.IntegrationState{}, pathErr
 			}
 			allowLegacy := previous == nil && setupConfigured && setupState.CopilotHook == hookPath
-			state, _, err := installCopilot(path, previous, allowLegacy)
+			state, err := installCopilot(path, previous, allowLegacy)
 			return state, err
 		}},
 		{name: "claude-code", install: installClaude},
@@ -78,7 +78,7 @@ func UndoAll() error {
 		return err
 	}
 	if !configured {
-		return RemoveCopilotHooks()
+		return undoUnrecordedCopilot()
 	}
 
 	for i := len(state.Integrations) - 1; i >= 0; i-- {
@@ -110,7 +110,14 @@ func UndoAll() error {
 			}
 		}
 	}
-	return nil
+	return store.RemoveCopilotHookState()
+}
+
+func undoUnrecordedCopilot() error {
+	if err := RemoveCopilotHooks(); err != nil {
+		return err
+	}
+	return store.RemoveCopilotHookState()
 }
 
 func Statuses() []Result {
