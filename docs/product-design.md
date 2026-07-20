@@ -114,7 +114,7 @@ Events stay deliberately small:
 3. Integrations must be explicit. Mews should not secretly read terminal output.
 4. Missed notifications should be recoverable from recent local history.
 5. Stale states should return to `idle` instead of getting stuck forever.
-6. Returning to work should take one action: prefer the original terminal and pane, then fall back to the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
+6. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
 
 ## Install and Distribution
 
@@ -125,6 +125,7 @@ tar -xzf mews-vX.Y.Z-darwin.tar.gz
 cd mews-vX.Y.Z-darwin
 sudo ./install.sh
 mw setup --yes
+mw start
 mw doctor
 mw notify --status done --message "Hello"
 ```
@@ -134,6 +135,7 @@ Local development uses:
 ```bash
 make build
 ./bin/mw setup --yes
+./bin/mw start
 ./bin/mw doctor
 ```
 

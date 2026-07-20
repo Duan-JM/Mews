@@ -39,7 +39,7 @@ make clean          # Remove build outputs
 User commands:
 
 ```bash
-mw setup      # Show and apply supported local integrations
+mw setup      # Show the supported integration plan
 mw start      # Start the local agent after setup
 mw status     # Print current watched tools and agent state
 mw config terminal <name> # Select the terminal used for return actions
@@ -48,7 +48,7 @@ mw listen     # Listen in the terminal and print events as they arrive
 mw doctor     # Diagnose permissions, integrations, LaunchAgent, and IPC
 mw stop       # Stop the local agent
 mw undo       # Remove Mews-installed integrations and restore backups
-mw reset      # Delete local Mews data and logs
+mw reset --yes # Delete local Mews data and logs after undo
 
 mw notify     # Advanced: send a custom event
 mw run -- cmd # Advanced: run a command and report completion
@@ -64,7 +64,7 @@ Read `docs/architecture.md` before making architectural changes.
 2. **Mews Menu Bar Agent**: a thin macOS app bundle launched by `mw start`.
 3. **Local IPC**: Unix domain socket under Application Support, with a private short-path fallback when macOS path limits require it.
 4. **Local Store**: JSON and JSONL files under `~/Library/Application Support/Mews/`.
-5. **Integration Manager**: detects tools, installs safe local integrations, backs up changes, and supports `mw undo`.
+5. **Integration Manager**: resolves supported integration paths, installs safe local integrations, backs up changes, and supports `mw undo`.
 
 ### Source layout
 
@@ -80,8 +80,8 @@ internal/
   integrations/
   ipc/
   launchd/
-  notify/
   store/
+  terminal/
   undo/
 lib/
   Mews.app/
@@ -124,6 +124,7 @@ Mews edits local tool configuration and runs as a menu bar companion, so safety 
 - Do not add network calls for core functionality.
 - Do not add telemetry in MVP.
 - Do not execute shell commands from received events.
+- Terminal return actions may use only validated identifiers, validated absolute directories, same-user local sockets, and fixed kitty or tmux argument lists.
 - Do not write outside Mews-owned paths or known integration files.
 - Before editing third-party config, create a backup and record it in the integration state.
 - `mw undo` must remove Mews-owned integration blocks without deleting unrelated user config.
@@ -173,45 +174,31 @@ Keep agent notes concise and reusable. Do not copy private transcripts, local ma
 ## Branch and PR Workflow
 
 Use `dev` as the integration branch. `main` is the public stable branch.
+`.github/instructions/github-workflow.instructions.md` is the canonical
+automation workflow, and `CONTRIBUTING.md` defines the contributor-facing
+branch, pull request, changelog, and release policy.
 
-### Branch flow
+For day-to-day agent work:
 
-1. Branch from latest `dev`.
-
-   ```bash
-   git checkout dev
-   git pull --ff-only origin dev
-   git checkout -b <type>/<slug>
-   ```
-
-   `<type>` should match Conventional Commits: `feat`, `fix`, `docs`, `refactor`, `test`, or `chore`. Use 2-5 word kebab-case slugs.
-
-2. Implement and verify locally with the smallest available command set. If no test or lint command exists yet, say that clearly in the PR verification section.
-
-3. Commit with Conventional Commits format. Every commit message must include:
-
-   ```text
-   Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
-   ```
-
-4. Push the branch and open a PR against `dev`.
-
-   ```bash
-   git push -u origin HEAD
-   gh pr create --fill --base dev
-   ```
-
-5. Watch CI and fix until green. If CI is still red after three fix attempts, stop and summarize what failed.
-
-6. Do not auto-merge. Report the PR URL and final CI state. Human review decides when to merge.
+1. Create or claim one open issue and keep it assigned exclusively to the authenticated account.
+2. Use the issue's single linked branch and a dedicated worktree under `.worktree/`.
+3. Branch from the latest `dev` with a Conventional Commits type and an issue-scoped kebab-case name.
+4. Implement only the claimed issue, audit related documentation, and run the required verification.
+5. Commit with Conventional Commits format. Do not add AI tools as co-authors.
+6. Push the issue branch and open a pull request against `dev` with `Refs #<issue>`.
+7. Wait for required CI before merging. Merge and issue closure require an explicit request in the current turn.
 
 ### Direct push rules
 
 - Do not push directly to `main`.
-- Do not push directly to `dev` unless the human explicitly asks for branch setup or repository bootstrap.
-- Do not rewrite remote history unless the human explicitly asks.
+- Do not push directly to `dev`.
+- Do not target `main`, merge, close issues, or delete branches and worktrees without explicit current-turn authorization.
+- After an authorized safe rebase, use only `--force-with-lease` when a rewritten issue branch must be updated.
 
 ## Release Workflow
+
+Release promotions and urgent hotfix pull requests targeting `main` require an
+explicit current-turn request and must follow `CONTRIBUTING.md`.
 
 Formal releases run only on macOS and require:
 

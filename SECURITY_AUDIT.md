@@ -15,12 +15,13 @@ This document tracks the safety checks that must stay true for the release MVP.
 - Malformed third-party config files are not edited.
 - Existing Codex `notify` commands are not replaced.
 - Event metadata has field-size limits and the JSONL history is bounded.
+- Terminal return actions validate directories and terminal identifiers, restrict tmux sockets to the current user, and use fixed kitty and tmux argument lists.
 - Formal release packaging fails when signing or notarization credentials are missing.
 - Core functionality does not require network access.
 
 ## Current State
 
-The release MVP includes the Go CLI, bounded JSONL history, Unix socket agent, LaunchAgent-managed Swift/AppKit menu bar app, native notification permission reporting, and safe integrations for Claude Code, Codex, and Copilot CLI.
+The release MVP includes the Go CLI, bounded JSONL history, Unix socket agent, LaunchAgent-managed Swift/AppKit menu bar app, native notification permission reporting, safe integrations for Claude Code, Codex, and Copilot CLI, and validated return actions for attached and detached tmux contexts.
 
 Setup writes backups and an `integrations.json` audit record before editing existing configuration. Undo removes exact Claude commands, the marked Codex block, and the Mews-owned Copilot hook while preserving unrelated edits made after setup.
 

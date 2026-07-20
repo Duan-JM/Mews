@@ -24,5 +24,6 @@ Do not include private prompts, code, or transcripts in public issues.
 - No telemetry in MVP.
 - No terminal scrollback scraping by default.
 - No execution of shell commands from received events.
+- Terminal return actions accept only validated identifiers, validated absolute directories, and same-user local sockets. Kitty and tmux receive fixed argument lists rather than event-provided commands.
 - Integration edits must be backed up and reversible through `mw undo`.
 - Formal release artifacts must be signed, notarized, Gatekeeper-verified, and published with a SHA-256 checksum.

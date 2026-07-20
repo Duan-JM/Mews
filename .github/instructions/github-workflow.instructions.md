@@ -46,8 +46,10 @@ Day-to-day branches and pull requests target `dev`. A pull request targeting
 `main` requires an explicit current-turn user request and must follow the
 repository's release or hotfix policy.
 
-The CI workflow runs only for pull requests targeting `dev` or `main`. Branch
-pushes do not run CI.
+The check, test, package, and CodeQL workflows run for pull requests targeting
+`dev` or `main` and for pushes to those two branches. They also support manual
+dispatch, and CodeQL has a weekly schedule. Pushing an issue branch by itself
+does not run these workflows.
 
 ## Review orchestration
 
@@ -280,8 +282,8 @@ it is fast-forward. If the safe rebase rewrote published commits, use only
 ### 9. Create the `dev` pull request
 
 Copilot CLI may create or update a pull request whose base is `dev` without
-another confirmation. Use `.github/PULL_REQUEST_TEMPLATE.md` and a prepared
-body.
+another confirmation. Prepare a body that summarizes the change, lists the
+verification commands, and references the issue.
 
 ```bash
 gh pr create \
@@ -295,8 +297,9 @@ Use `Refs #<issue>` for a `dev` pull request. Keep the issue open until the pull
 request is merged, then leave issue closure to the user. A child pull request
 must never close its epic.
 
-CI starts only after a pull request targets `dev` or `main`. Day-to-day work
-stops after local verification and creation of the `dev` pull request.
+For an issue branch, CI starts after a pull request targets `dev` or `main`.
+Day-to-day work stops after local verification and creation of the `dev` pull
+request unless the user explicitly authorized merge or other follow-through.
 
 ### 10. Stop without merging or cleaning up
 
