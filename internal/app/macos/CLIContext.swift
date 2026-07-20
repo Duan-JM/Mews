@@ -133,7 +133,7 @@ struct CLIContextPayload: Equatable {
     }
 
     var tmuxTarget: TmuxTarget? {
-        guard let tmuxSocket, let tmuxPane, let tmuxClient else {
+        guard let tmuxSocket, let tmuxPane else {
             return nil
         }
         return TmuxTarget(socketPath: tmuxSocket, paneID: tmuxPane, clientName: tmuxClient)
@@ -168,10 +168,29 @@ struct KittyTarget: Equatable {
 struct TmuxTarget: Equatable {
     let socketPath: String
     let paneID: String
-    let clientName: String
+    let clientName: String?
 
-    var switchClientArguments: [String] {
+    var switchClientArguments: [String]? {
+        guard let clientName else {
+            return nil
+        }
         return ["-S", socketPath, "switch-client", "-c", clientName, "-t", paneID]
+    }
+
+    var verifyPaneArguments: [String] {
+        return ["-S", socketPath, "display-message", "-p", "-t", paneID, "#{pane_id}"]
+    }
+
+    func attachCommandArguments(tmuxExecutablePath: String) -> [String] {
+        return [
+            "/usr/bin/env",
+            "-u", "TMUX",
+            "-u", "TMUX_PANE",
+            tmuxExecutablePath,
+            "-S", socketPath,
+            "attach-session",
+            "-t", paneID
+        ]
     }
 }
 
@@ -241,15 +260,19 @@ private func validatedTmuxMetadata(
           pane.count <= 64,
           pane.first == "%",
           asciiDigitsOnly(String(pane.dropFirst())),
-          pane.count > 1,
-          let client = normalizedText(client),
-          client.hasPrefix("/dev/"),
-          client.count <= 4096,
-          !client.contains("\0"),
-          !client.contains("\r"),
-          !client.contains("\n"),
-          URL(fileURLWithPath: client).standardizedFileURL.path == client else {
+          pane.count > 1 else {
         return nil
+    }
+    let client = normalizedText(client)
+    if let client {
+        guard client.hasPrefix("/dev/"),
+              client.count <= 4096,
+              !client.contains("\0"),
+              !client.contains("\r"),
+              !client.contains("\n"),
+              URL(fileURLWithPath: client).standardizedFileURL.path == client else {
+            return nil
+        }
     }
     return TmuxTarget(socketPath: socket, paneID: pane, clientName: client)
 }

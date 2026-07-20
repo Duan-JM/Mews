@@ -8,6 +8,7 @@ enum MewsAppModelTests {
         try testDirectoryValidation()
         try testTerminalPreference()
         try testTerminalMetadataValidation()
+        try testDetachedTmuxMetadataValidation()
         testActionRouting()
     }
 
@@ -131,6 +132,53 @@ enum MewsAppModelTests {
                 "switch-client", "-c", "/dev/ttys006", "-t", "%6"
             ],
             "tmux should switch the recorded client to the source session, window, and pane"
+        )
+    }
+
+    private static func testDetachedTmuxMetadataValidation() throws {
+        let detachedContext = try require(
+            CLIContextPayload(
+                returnCommand: "mw history",
+                workingDirectory: "/tmp",
+                terminal: "kitty",
+                tmuxSocket: "/private/tmp/tmux-501/default",
+                tmuxPane: "%6",
+                tmuxClient: nil
+            ),
+            "detached tmux context should remain actionable"
+        )
+        let detachedTarget = try require(
+            detachedContext.tmuxTarget,
+            "detached tmux socket and pane should be preserved"
+        )
+        let decoded = try require(
+            CLIContextPayload(userInfo: detachedContext.userInfo),
+            "detached tmux notification metadata should decode"
+        )
+        try expect(decoded == detachedContext, "detached tmux notification metadata should round trip")
+        try expect(detachedTarget.clientName == nil, "detached tmux target should not invent a client")
+        try expect(
+            detachedTarget.switchClientArguments == nil,
+            "detached tmux target should not attempt switch-client"
+        )
+        try expect(
+            detachedTarget.verifyPaneArguments == [
+                "-S", "/private/tmp/tmux-501/default",
+                "display-message", "-p", "-t", "%6", "#{pane_id}"
+            ],
+            "detached tmux target should be checked before launch"
+        )
+        try expect(
+            detachedTarget.attachCommandArguments(tmuxExecutablePath: "/opt/homebrew/bin/tmux") == [
+                "/usr/bin/env",
+                "-u", "TMUX",
+                "-u", "TMUX_PANE",
+                "/opt/homebrew/bin/tmux",
+                "-S", "/private/tmp/tmux-501/default",
+                "attach-session",
+                "-t", "%6"
+            ],
+            "detached tmux target should use a fixed attach command"
         )
     }
 
