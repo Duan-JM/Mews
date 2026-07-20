@@ -46,6 +46,19 @@ func TestEventValidateRejectsUnknownStatus(t *testing.T) {
 	}
 }
 
+func TestEventValidateRejectsUnknownAgentScope(t *testing.T) {
+	event := Event{
+		Version:    1,
+		Source:     "copilot",
+		AgentScope: "worker",
+		Status:     StatusDone,
+		Timestamp:  time.Now(),
+	}
+	if err := event.Validate(); err == nil || !strings.Contains(err.Error(), "unsupported agent_scope") {
+		t.Fatalf("Validate error = %v, want unsupported agent_scope", err)
+	}
+}
+
 func TestEventValidateRejectsUnsafeTerminalContext(t *testing.T) {
 	event := Event{
 		Version:   1,

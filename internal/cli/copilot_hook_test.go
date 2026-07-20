@@ -1,0 +1,133 @@
+package cli
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestCopilotHookSuppressesSubagentAgentStop(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	subagentPayload := `{
+		"sessionId":"session-123",
+		"cwd":"/tmp/Mews",
+		"transcriptPath":"/tmp/subagent.jsonl"
+	}`
+	runCopilotHookForTest(t, "subagentStart", subagentPayload)
+	runCopilotHookForTest(t, "agentStop", subagentPayload)
+	runCopilotHookForTest(t, "subagentStop", subagentPayload)
+	runCopilotHookForTest(t, "agentStop", subagentPayload)
+
+	mainPayload := `{
+		"sessionId":"session-123",
+		"cwd":"/tmp/Mews",
+		"transcriptPath":"/tmp/main.jsonl"
+	}`
+	runCopilotHookForTest(t, "agentStop", mainPayload)
+
+	events := readHookEvents(t, home)
+	if len(events) != 2 {
+		t.Fatalf("event count = %d, want subagent and main completion events: %#v", len(events), events)
+	}
+	if events[0]["hook_event"] != "subagentStop" || events[0]["agent_scope"] != "subagent" {
+		t.Fatalf("first event = %#v, want silent subagent completion", events[0])
+	}
+	if events[1]["hook_event"] != "agentStop" || events[1]["agent_scope"] != "main" {
+		t.Fatalf("second event = %#v, want main completion", events[1])
+	}
+}
+
+func TestCopilotHookSuppressesNamedSubagentWithoutLifecycleMarker(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	runCopilotHookForTest(t, "agentStop", `{
+		"sessionId":"session-123",
+		"cwd":"/tmp/Mews",
+		"transcriptPath":"/tmp/general-purpose.jsonl",
+		"agentName":"general-purpose"
+	}`)
+
+	path := filepath.Join(home, "Library", "Application Support", "Mews", "events.jsonl")
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("named subagent wrote an event log: %v", err)
+	}
+}
+
+func TestCopilotHookAcceptsMainStopWithoutTranscriptPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	runCopilotHookForTest(t, "agentStop", `{
+		"sessionId":"session-123",
+		"cwd":"/tmp/Mews"
+	}`)
+
+	events := readHookEvents(t, home)
+	if len(events) != 1 || events[0]["agent_scope"] != "main" {
+		t.Fatalf("events = %#v, want one main-agent completion", events)
+	}
+}
+
+func TestCopilotHookRecordsRecoverableErrors(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	runCopilotHookForTest(t, "errorOccurred", `{
+		"sessionId":"session-123",
+		"cwd":"/tmp/Mews",
+		"recoverable":true,
+		"error":{"message":"temporary failure"}
+	}`)
+
+	events := readHookEvents(t, home)
+	if len(events) != 1 {
+		t.Fatalf("event count = %d, want 1", len(events))
+	}
+	recoverable, ok := events[0]["recoverable"].(bool)
+	if !ok || !recoverable {
+		t.Fatalf("recoverable = %#v, want true", events[0]["recoverable"])
+	}
+}
+
+func runCopilotHookForTest(t *testing.T, event, payload string) {
+	t.Helper()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(
+		[]string{"hook", "copilot", event},
+		strings.NewReader(payload),
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("Copilot %s hook returned %d, stderr: %s", event, code, stderr.String())
+	}
+}
+
+func readHookEvents(t *testing.T, home string) []map[string]any {
+	t.Helper()
+
+	path := filepath.Join(home, "Library", "Application Support", "Mews", "events.jsonl")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read event log: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	events := make([]map[string]any, 0, len(lines))
+	for _, line := range lines {
+		var event map[string]any
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			t.Fatalf("decode event %q: %v", line, err)
+		}
+		events = append(events, event)
+	}
+	return events
+}

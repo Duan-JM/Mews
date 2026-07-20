@@ -13,7 +13,8 @@ import (
 )
 
 const copilotHookFile = "mews.json"
-const copilotOwnershipMarker = "copilot-v1"
+const copilotOwnershipMarker = "copilot-v2"
+const previousCopilotOwnershipMarker = "copilot-v1"
 
 type copilotHookConfig struct {
 	Version int                             `json:"version"`
@@ -28,9 +29,12 @@ type copilotCommandHook struct {
 }
 
 type copilotHookSpec struct {
-	event   string
-	status  string
-	message string
+	event string
+}
+
+type previousCopilotHookFormat struct {
+	marker string
+	quote  func(string) string
 }
 
 func CopilotHookPath() (string, error) {
@@ -49,26 +53,26 @@ func installCopilot(
 	mwPath string,
 	previous *store.IntegrationState,
 	allowLegacy bool,
-) (store.IntegrationState, bool, error) {
+) (store.IntegrationState, error) {
 	if mwPath == "" {
-		return store.IntegrationState{}, false, fmt.Errorf("mw executable path is required")
+		return store.IntegrationState{}, fmt.Errorf("mw executable path is required")
 	}
 
 	hookPath, writePath, err := prepareCopilotPaths(previous)
 	if err != nil {
-		return store.IntegrationState{}, false, err
+		return store.IntegrationState{}, err
 	}
 
 	config, managed := copilotManagedConfig(mwPath)
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return store.IntegrationState{}, false, err
+		return store.IntegrationState{}, err
 	}
 	data = append(data, '\n')
 
 	existed, currentBackup, err := prepareCopilotBackup(writePath, hookPath, previous, allowLegacy)
 	if err != nil {
-		return store.IntegrationState{}, false, err
+		return store.IntegrationState{}, err
 	}
 
 	installed := false
@@ -78,7 +82,7 @@ func installCopilot(
 		}
 	}()
 	if err := writeFileAtomic(writePath, data, 0o600); err != nil {
-		return store.IntegrationState{}, false, err
+		return store.IntegrationState{}, err
 	}
 	installed = true
 
@@ -102,7 +106,7 @@ func installCopilot(
 		Managed:      managed,
 		InstalledAt:  time.Now(),
 		RollbackPath: rollbackPath,
-	}, existed, nil
+	}, nil
 }
 
 func prepareCopilotPaths(previous *store.IntegrationState) (string, string, error) {
@@ -151,11 +155,11 @@ func validateCopilotOwnership(
 ) error {
 	switch {
 	case previous != nil:
-		if !isMewsHook(current) || !matchesManagedCopilot(current, previous.Managed) {
+		if !isRecordedMewsHook(current) || !matchesManagedCopilot(current, previous.Managed) {
 			return fmt.Errorf("%s changed after Mews setup; refusing to overwrite it", hookPath)
 		}
 	case allowLegacy:
-		if !isLegacyMewsHook(current) {
+		if !isRecordedMewsHook(current) {
 			return fmt.Errorf("%s does not match the recorded legacy Mews hook", hookPath)
 		}
 	case !isMewsHook(current):
@@ -189,7 +193,8 @@ func removeCopilotHookAt(hookPath string, allowLegacy bool) error {
 		return err
 	}
 
-	owned := isMewsHook(data) || allowLegacy && isLegacyMewsHook(data)
+	owned := isMewsHook(data) ||
+		allowLegacy && (isPreviousMewsHook(data) || isLegacyMewsHook(data))
 	if !owned {
 		return fmt.Errorf("%s exists but is not Mews-owned", hookPath)
 	}
@@ -211,7 +216,7 @@ func removeCopilot(state store.IntegrationState) error {
 	if err != nil {
 		return err
 	}
-	if !isMewsHook(data) || !matchesManagedCopilot(data, state.Managed) {
+	if !isRecordedMewsHook(data) || !matchesManagedCopilot(data, state.Managed) {
 		return fmt.Errorf("%s exists but is not Mews-owned", state.Path)
 	}
 	if !state.Created && state.BackupPath != "" {
@@ -234,30 +239,20 @@ func CopilotHookStatus() (string, bool) {
 		return fmt.Sprintf("unreadable: %v", err), false
 	}
 	if !isMewsHook(data) {
-		if isLegacyMewsHook(data) {
+		if isPreviousMewsHook(data) || isLegacyMewsHook(data) {
 			return "legacy hooks installed; rerun `mw setup --yes`", false
 		}
 		return "non-Mews hook file exists", false
 	}
-
-	var config copilotHookConfig
-	if err := json.Unmarshal(data, &config); err != nil {
-		return "hook file is invalid JSON", false
-	}
-	if len(config.Hooks["agentStop"]) == 0 {
-		return "missing agentStop hook", false
-	}
 	return "hooks installed", true
 }
 
-func notifyHook(mwPath, hookEvent, status, message string) copilotCommandHook {
+func copilotHook(mwPath, hookEvent string) copilotCommandHook {
 	parts := []string{
 		mwPath,
-		"notify",
-		"--source", "copilot",
-		"--hook-event", hookEvent,
-		"--status", status,
-		"--message", message,
+		"hook",
+		"copilot",
+		hookEvent,
 	}
 	for i, part := range parts {
 		parts[i] = shellQuote(part)
@@ -274,15 +269,18 @@ func notifyHook(mwPath, hookEvent, status, message string) copilotCommandHook {
 
 func copilotManagedConfig(mwPath string) (copilotHookConfig, []string) {
 	specs := []copilotHookSpec{
-		{event: "agentStop", status: "done", message: "Copilot agent stopped"},
-		{event: "sessionEnd", status: "idle", message: "Copilot session ended"},
-		{event: "errorOccurred", status: "failed", message: "Copilot error occurred"},
+		{event: "sessionStart"},
+		{event: "subagentStart"},
+		{event: "subagentStop"},
+		{event: "agentStop"},
+		{event: "sessionEnd"},
+		{event: "errorOccurred"},
 	}
 
 	hooks := make(map[string][]copilotCommandHook, len(specs))
 	managed := make([]string, 0, len(specs))
 	for _, spec := range specs {
-		hook := notifyHook(mwPath, spec.event, spec.status, spec.message)
+		hook := copilotHook(mwPath, spec.event)
 		hooks[spec.event] = []copilotCommandHook{hook}
 		managed = append(managed, hook.Bash)
 	}
@@ -298,18 +296,18 @@ func isMewsHook(data []byte) bool {
 	if err := json.Unmarshal(data, &config); err != nil || config.Version != 1 {
 		return false
 	}
-	expectedEvents := map[string]struct {
-		status  string
-		message string
-	}{
-		"agentStop":     {status: "done", message: "Copilot agent stopped"},
-		"sessionEnd":    {status: "idle", message: "Copilot session ended"},
-		"errorOccurred": {status: "failed", message: "Copilot error occurred"},
+	expectedEvents := []string{
+		"sessionStart",
+		"subagentStart",
+		"subagentStop",
+		"agentStop",
+		"sessionEnd",
+		"errorOccurred",
 	}
 	if len(config.Hooks) != len(expectedEvents) {
 		return false
 	}
-	for event, expected := range expectedEvents {
+	for _, event := range expectedEvents {
 		hooks := config.Hooks[event]
 		if len(hooks) != 1 {
 			return false
@@ -322,11 +320,9 @@ func isMewsHook(data []byte) bool {
 			return false
 		}
 		suffix := strings.Join([]string{
-			shellQuote("notify"),
-			shellQuote("--source"), shellQuote("copilot"),
-			shellQuote("--hook-event"), shellQuote(event),
-			shellQuote("--status"), shellQuote(expected.status),
-			shellQuote("--message"), shellQuote(expected.message),
+			shellQuote("hook"),
+			shellQuote("copilot"),
+			shellQuote(event),
 		}, " ") + " >/dev/null"
 		if !strings.HasSuffix(hook.Bash, suffix) {
 			return false
@@ -335,7 +331,27 @@ func isMewsHook(data []byte) bool {
 	return true
 }
 
+func isPreviousMewsHook(data []byte) bool {
+	return matchesPreviousMewsHook(data, previousCopilotHookFormat{
+		marker: previousCopilotOwnershipMarker,
+		quote:  shellQuote,
+	})
+}
+
 func isLegacyMewsHook(data []byte) bool {
+	return matchesPreviousMewsHook(data, previousCopilotHookFormat{
+		quote: strconv.Quote,
+	})
+}
+
+func isRecordedMewsHook(data []byte) bool {
+	return isMewsHook(data) || isPreviousMewsHook(data) || isLegacyMewsHook(data)
+}
+
+func matchesPreviousMewsHook(
+	data []byte,
+	format previousCopilotHookFormat,
+) bool {
 	var config copilotHookConfig
 	if err := json.Unmarshal(data, &config); err != nil || config.Version != 1 {
 		return false
@@ -353,8 +369,14 @@ func isLegacyMewsHook(data []byte) bool {
 	}
 	for event, expected := range expectedEvents {
 		hooks := config.Hooks[event]
-		if len(hooks) != 1 || hooks[0].Type != "command" ||
-			hooks[0].TimeoutSec != 5 || len(hooks[0].Env) != 0 {
+		if len(hooks) != 1 || hooks[0].Type != "command" || hooks[0].TimeoutSec != 5 {
+			return false
+		}
+		if format.marker != "" {
+			if hooks[0].Env["MEWS_MANAGED_INTEGRATION"] != format.marker {
+				return false
+			}
+		} else if len(hooks[0].Env) != 0 {
 			return false
 		}
 		parts := []string{
@@ -365,7 +387,7 @@ func isLegacyMewsHook(data []byte) bool {
 			"--message", expected.message,
 		}
 		for index, part := range parts {
-			parts[index] = strconv.Quote(part)
+			parts[index] = format.quote(part)
 		}
 		if !strings.HasSuffix(hooks[0].Bash, strings.Join(parts, " ")+" >/dev/null") {
 			return false

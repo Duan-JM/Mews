@@ -139,6 +139,7 @@ Recommended paths:
   events.jsonl
   integrations.json
   backups/
+  copilot-hooks/
   mews.sock
 
 ~/Library/Logs/Mews/
@@ -155,6 +156,7 @@ Storage format:
 - `events.jsonl`: append-only recent event log, capped by size or age.
 - `integrations.json`: installed integration records and backup paths.
 - `backups/`: original config files before Mews modifies them.
+- `copilot-hooks/`: opaque hashes used to correlate Copilot subagent lifecycle events.
 
 The socket normally lives in Application Support. If the full path would exceed the macOS Unix socket limit, Mews uses a private `0700` directory under the system temporary directory for the current user.
 
@@ -278,10 +280,12 @@ Mews should keep the event model small.
   "version": 1,
   "source": "copilot",
   "hook_event": "agentStop",
+  "agent_scope": "main",
   "session_id": "abc123",
   "project": "Mews",
   "task_title": "Fix doctor output",
   "status": "done",
+  "recoverable": false,
   "message": "Agent stopped",
   "cwd": "/Users/name/project",
   "pid": 12345,
@@ -300,6 +304,8 @@ Optional fields:
 
 - `session_id`
 - `hook_event`
+- `agent_scope`
+- `recoverable`
 - `project`
 - `task_title`
 - `message`
@@ -317,10 +323,12 @@ Supported statuses:
 | Status | Meaning | Notification behavior |
 |---|---|---|
 | `running` | Work started or resumed | Usually silent |
-| `needs_input` | User action is needed | Notify immediately |
-| `done` | Work completed | Notify immediately |
-| `failed` | Work failed | Notify immediately |
+| `needs_input` | User action is needed | Notify for the primary agent |
+| `done` | Work completed | Notify for the primary agent |
+| `failed` | Work failed | Notify when the failure is not recoverable |
 | `idle` | No active work | Silent |
+
+`agent_scope` is `main` or `subagent` when an integration can identify it. Subagent events and recoverable errors remain in local history, but do not replace the primary menu bar state or trigger a native notification.
 
 The message should be short and safe. Integrations should avoid sending prompts, code snippets, or transcript content by default. Task titles are opt-in with `mw setup --yes --include-task-title`, must stay local-only, and must be truncated before storage.
 
@@ -373,18 +381,24 @@ Mews can offer:
 ```text
 Copilot CLI found.
 User-level hooks installed.
-Agent stop and session end events will call `mw notify`.
+Main-agent completion and failure events will notify Mews.
+Subagent completion events will remain silent.
 ```
 
-`agentStop` should map to `done`, `sessionEnd` to `idle`, and `errorOccurred` to `failed`. Mews may derive `project` from `cwd` and preserve a hook `session_id` when provided. Do not read prompts, transcripts, or terminal scrollback by default; task titles require explicit opt-in and are truncated to 80 characters.
+The managed hook file routes `sessionStart`, `subagentStart`, `subagentStop`, `agentStop`, `sessionEnd`, and `errorOccurred` through `mw hook copilot <event>`. `agentStop` maps to a main-agent `done` event, `subagentStop` maps to a silent subagent `done` event, `sessionEnd` maps to `idle`, and `errorOccurred` maps to `failed` while preserving Copilot's `recoverable` flag.
+
+Some Copilot CLI versions can invoke `agentStop` while a subagent is finishing. Mews correlates the official subagent lifecycle using hashes of the session identifier and transcript path, suppresses that duplicate event, and clears the Mews-owned correlation state on session start, session end, and `mw undo`. Raw transcript paths and transcript contents are never stored. A hook-provided agent name is also enough to classify the event as a subagent.
+
+Mews may derive `project` from `cwd` and preserve a hook `session_id` when provided. Do not read prompts, transcripts, or terminal scrollback by default; task titles require explicit opt-in and are truncated to 80 characters.
 
 ## Notification Rules
 
 Implemented default behavior:
 
-- `needs_input`: notify immediately.
-- `failed`: notify immediately.
-- `done`: notify immediately.
+- Primary-agent `needs_input`: notify immediately.
+- Primary-agent non-recoverable `failed`: notify immediately.
+- Primary-agent `done`: notify immediately.
+- Subagent events and recoverable errors: keep in history without notifying or replacing primary status.
 - `running`: update menu bar only.
 - `idle`: update menu bar only.
 
@@ -397,7 +411,7 @@ Action behavior:
 - Default notification clicks use the same open action.
 - Relative, missing, and non-directory paths are never opened.
 
-Deduping, runtime thresholds, and quiet mode remain post-MVP notification policy work.
+General duplicate suppression, runtime thresholds, and configurable quiet mode remain post-MVP notification policy work.
 
 ## Security and Privacy
 
@@ -615,10 +629,12 @@ Manual acceptance checks:
 9. With notifications denied, menu bar status still works and doctor explains the permission.
 10. With the agent stopped, `mw notify` stores the validated event locally for later history.
 11. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
+12. A Copilot subagent completion stays in history without triggering a native notification or replacing primary status.
 
 Automated tests:
 
 - Event validation.
+- Primary-agent and subagent notification policy.
 - Notification action routing, terminal metadata validation, and CLI-context path validation.
 - JSONL store append and rotation.
 - IPC request parsing.
@@ -636,13 +652,14 @@ Every external write must have a rollback path:
 | Claude Code settings | restore backup or remove Mews marker block |
 | Codex config | restore backup or remove Mews marker block |
 | Copilot CLI hook | remove the Mews-owned hook file |
+| Copilot hook correlation state | delete the Mews-owned opaque marker directory |
 | Mews store | keep by default, delete with explicit reset command |
 
 `mw undo` should not delete event history unless the user runs a separate reset command.
 
 ## Open Questions
 
-1. Copilot CLI lifecycle hook coverage needs real-session verification beyond `agentStop`, `sessionEnd`, and `errorOccurred`.
+1. Copilot CLI lifecycle compatibility needs real-session verification across supported versions, especially agents that omit explicit subagent lifecycle events.
 2. Claude Code and Codex integrations need real-session compatibility checks as upstream payloads evolve.
 3. The Homebrew tap layout must preserve the signed app bundle and checksum verification.
 

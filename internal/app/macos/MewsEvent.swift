@@ -5,6 +5,8 @@ struct MewsEvent: Decodable {
     let source: String
     let status: String
     let hookEvent: String?
+    let agentScope: String?
+    let recoverable: Bool?
     let sessionID: String?
     let project: String?
     let taskTitle: String?
@@ -23,6 +25,8 @@ struct MewsEvent: Decodable {
         case source
         case status
         case hookEvent = "hook_event"
+        case agentScope = "agent_scope"
+        case recoverable
         case sessionID = "session_id"
         case project
         case taskTitle = "task_title"
@@ -37,8 +41,13 @@ struct MewsEvent: Decodable {
         case timestamp
     }
 
+    var affectsPrimaryStatus: Bool {
+        // Older events have no recoverable field and retain their original notification behavior.
+        return agentScope != "subagent" && recoverable != true
+    }
+
     var shouldNotify: Bool {
-        return ["needs_input", "done", "failed"].contains(status)
+        return affectsPrimaryStatus && ["needs_input", "done", "failed"].contains(status)
     }
 
     var cliContext: CLIContextPayload? {
@@ -178,6 +187,10 @@ struct MewsEvent: Decodable {
             return status
         }
     }
+}
+
+func latestPrimaryEvent(in events: [MewsEvent]) -> MewsEvent? {
+    return events.last { $0.affectsPrimaryStatus }
 }
 
 func sessionReturnCommand(_ sessionID: String, cliExecutablePath: String? = nil) -> String {

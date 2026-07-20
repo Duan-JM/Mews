@@ -20,25 +20,35 @@ const (
 	StatusIdle       Status = "idle"
 )
 
+type AgentScope string
+
+const (
+	AgentScopeMain     AgentScope = "main"
+	AgentScopeSubagent AgentScope = "subagent"
+)
+
 type Event struct {
-	ID         string    `json:"id,omitempty"`
-	Version    int       `json:"version"`
-	Source     string    `json:"source"`
-	HookEvent  string    `json:"hook_event,omitempty"`
-	SessionID  string    `json:"session_id,omitempty"`
-	Project    string    `json:"project,omitempty"`
-	TaskTitle  string    `json:"task_title,omitempty"`
-	Status     Status    `json:"status"`
-	Message    string    `json:"message,omitempty"`
-	CWD        string    `json:"cwd,omitempty"`
-	PID        int       `json:"pid,omitempty"`
-	Terminal   string    `json:"terminal,omitempty"`
-	WindowID   string    `json:"terminal_window_id,omitempty"`
-	KittyAddr  string    `json:"kitty_listen_on,omitempty"`
-	TmuxSocket string    `json:"tmux_socket,omitempty"`
-	TmuxPane   string    `json:"tmux_pane,omitempty"`
-	TmuxClient string    `json:"tmux_client,omitempty"`
-	Timestamp  time.Time `json:"timestamp"`
+	ID         string     `json:"id,omitempty"`
+	Version    int        `json:"version"`
+	Source     string     `json:"source"`
+	HookEvent  string     `json:"hook_event,omitempty"`
+	AgentScope AgentScope `json:"agent_scope,omitempty"`
+	SessionID  string     `json:"session_id,omitempty"`
+	Project    string     `json:"project,omitempty"`
+	TaskTitle  string     `json:"task_title,omitempty"`
+	Status     Status     `json:"status"`
+	// Recoverable is nil for legacy events and is then treated as non-recoverable.
+	Recoverable *bool     `json:"recoverable,omitempty"`
+	Message     string    `json:"message,omitempty"`
+	CWD         string    `json:"cwd,omitempty"`
+	PID         int       `json:"pid,omitempty"`
+	Terminal    string    `json:"terminal,omitempty"`
+	WindowID    string    `json:"terminal_window_id,omitempty"`
+	KittyAddr   string    `json:"kitty_listen_on,omitempty"`
+	TmuxSocket  string    `json:"tmux_socket,omitempty"`
+	TmuxPane    string    `json:"tmux_pane,omitempty"`
+	TmuxClient  string    `json:"tmux_client,omitempty"`
+	Timestamp   time.Time `json:"timestamp"`
 }
 
 func FromArgs(args []string) (Event, error) {
@@ -108,6 +118,11 @@ func (e *Event) Validate() error {
 	}
 	if err := e.validateTerminalContext(); err != nil {
 		return err
+	}
+	switch e.AgentScope {
+	case "", AgentScopeMain, AgentScopeSubagent:
+	default:
+		return fmt.Errorf("unsupported agent_scope %q", e.AgentScope)
 	}
 	switch e.Status {
 	case StatusRunning, StatusNeedsInput, StatusDone, StatusFailed, StatusIdle:

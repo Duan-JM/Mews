@@ -85,6 +85,7 @@ Usage:
   mw reset --yes
   mw notify --status done --source custom
   mw hook codex [payload]
+  mw hook copilot <event>
   mw run -- <command>
 
 `)

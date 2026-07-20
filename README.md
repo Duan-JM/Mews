@@ -56,7 +56,7 @@ mw config terminal kitty
 
 Supported profiles are `auto`, `terminal`, `kitty`, `iterm2`, `wezterm`, `ghostty`, and `alacritty`. `mw status` and `mw config terminal` show the current preference.
 
-Mews.app delivers all notifications through the native macOS notification center. Notifications identify the agent and status in the title, then show the project and a shortened session identifier when the tool provides them. The body describes the lifecycle action without exposing the full working directory, full session identifier, prompt, or terminal output. To show a short task label in the body, opt in explicitly:
+Mews.app delivers notifications through the native macOS notification center for primary-agent completion, failure, and input-needed states. Subagent completions and recoverable errors stay in local history without replacing the primary menu bar state or interrupting you. Notifications identify the agent and status in the title, then show the project and a shortened session identifier when the tool provides them. The body describes the lifecycle action without exposing the full working directory, full session identifier, prompt, or terminal output. To show a short task label in the body, opt in explicitly:
 
 ```bash
 mw setup --yes --include-task-title
@@ -86,7 +86,7 @@ Mews turns that hidden state into a small local signal.
 
 ## MVP
 
-- Native macOS notifications for completion, failure, and input-needed events.
+- Native macOS notifications for primary-agent completion, failure, and input-needed events.
 - A local JSONL history so missed notifications are not gone forever.
 - A menu bar companion that shows the latest local state and recent events.
 - Clear doctor output for setup, all integrations, notification permission, LaunchAgent, socket, and the menu bar app.

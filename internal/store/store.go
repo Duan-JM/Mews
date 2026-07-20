@@ -16,6 +16,7 @@ type StorePaths struct {
 	Events             string
 	Integrations       string
 	Backups            string
+	CopilotHooks       string
 	NotificationStatus string
 	SocketDir          string
 	Socket             string
@@ -76,6 +77,7 @@ func Paths() (StorePaths, error) {
 		Events:             filepath.Join(appSupport, "events.jsonl"),
 		Integrations:       filepath.Join(appSupport, "integrations.json"),
 		Backups:            filepath.Join(appSupport, "backups"),
+		CopilotHooks:       filepath.Join(appSupport, "copilot-hooks"),
 		NotificationStatus: filepath.Join(appSupport, "notification-status.json"),
 		SocketDir:          socketDir,
 		Socket:             socket,
@@ -94,6 +96,9 @@ func Ensure() (StorePaths, error) {
 		return StorePaths{}, err
 	}
 	if err := os.MkdirAll(paths.Backups, 0o700); err != nil {
+		return StorePaths{}, err
+	}
+	if err := ensureCopilotHookDirectory(paths.CopilotHooks); err != nil {
 		return StorePaths{}, err
 	}
 	if err := os.MkdirAll(paths.SocketDir, 0o700); err != nil {

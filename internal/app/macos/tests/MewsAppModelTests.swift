@@ -9,6 +9,7 @@ enum MewsAppModelTests {
         try testTerminalPreference()
         try testTerminalMetadataValidation()
         try testDetachedTmuxMetadataValidation()
+        try testNotificationPolicy()
         testActionRouting()
     }
 
@@ -18,6 +19,8 @@ enum MewsAppModelTests {
             source: "copilot",
             status: "done",
             hookEvent: "agentStop",
+            agentScope: "main",
+            recoverable: nil,
             sessionID: "session'1",
             project: "Mews",
             taskTitle: nil,
@@ -249,6 +252,60 @@ enum MewsAppModelTests {
         guard condition else {
             throw TestFailure(message: message)
         }
+    }
+}
+
+private extension MewsAppModelTests {
+    static func testNotificationPolicy() throws {
+        let mainCompletion = try decodeEvent(
+            agentScope: "main",
+            status: "done"
+        )
+        try expect(mainCompletion.shouldNotify, "main-agent completion should notify")
+
+        let subagentCompletion = try decodeEvent(
+            agentScope: "subagent",
+            status: "done"
+        )
+        try expect(!subagentCompletion.shouldNotify, "subagent completion should stay silent")
+        try expect(
+            latestPrimaryEvent(in: [mainCompletion, subagentCompletion])?.agentScope == "main",
+            "subagent events should not replace the primary menu bar state"
+        )
+
+        let recoverableError = try decodeEvent(
+            agentScope: "main",
+            status: "failed",
+            recoverable: true
+        )
+        try expect(!recoverableError.shouldNotify, "recoverable errors should stay silent")
+
+        let fatalError = try decodeEvent(
+            agentScope: "main",
+            status: "failed",
+            recoverable: false
+        )
+        try expect(fatalError.shouldNotify, "non-recoverable errors should notify")
+    }
+
+    static func decodeEvent(
+        agentScope: String,
+        status: String,
+        recoverable: Bool? = nil
+    ) throws -> MewsEvent {
+        var object: [String: Any] = [
+            "source": "copilot",
+            "status": status,
+            "agent_scope": agentScope,
+            "timestamp": "2026-07-20T12:00:00Z"
+        ]
+        if let recoverable {
+            object["recoverable"] = recoverable
+        }
+        let data = try JSONSerialization.data(withJSONObject: object)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(MewsEvent.self, from: data)
     }
 }
 

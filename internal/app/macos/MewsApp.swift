@@ -76,7 +76,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusItem() {
-        let latest = events.last
+        let latest = latestPrimaryEvent(in: events)
         statusItem?.button?.title = latest?.menuBarTitle ?? "Mews"
 
         let menu = NSMenu()

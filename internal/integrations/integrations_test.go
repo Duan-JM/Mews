@@ -91,6 +91,9 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 	if err := os.WriteFile(codexPath, append(codexData, []byte("\nreview_model = \"gpt-5\"\n")...), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.MarkCopilotSubagent("session-123", "/tmp/subagent.jsonl"); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := UndoAll(); err != nil {
 		t.Fatalf("UndoAll returned error: %v", err)
@@ -119,6 +122,13 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 	}
 	if _, configured, err := store.LoadIntegrationState(); err != nil || configured {
 		t.Fatalf("integration state remains after undo: configured=%v err=%v", configured, err)
+	}
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(paths.CopilotHooks); !os.IsNotExist(err) {
+		t.Fatalf("Copilot runtime hook state remains after undo: %v", err)
 	}
 }
 
@@ -329,20 +339,7 @@ func TestCopilotOwnershipRejectsSimilarUserHooks(t *testing.T) {
 }
 
 func TestCopilotOwnershipRequiresMarkerForCurrentFormat(t *testing.T) {
-	config := copilotHookConfig{
-		Version: 1,
-		Hooks: map[string][]copilotCommandHook{
-			"agentStop": {
-				notifyHook("/opt/mews/bin/mw", "agentStop", "done", "Copilot agent stopped"),
-			},
-			"sessionEnd": {
-				notifyHook("/opt/mews/bin/mw", "sessionEnd", "idle", "Copilot session ended"),
-			},
-			"errorOccurred": {
-				notifyHook("/opt/mews/bin/mw", "errorOccurred", "failed", "Copilot error occurred"),
-			},
-		},
-	}
+	config, _ := copilotManagedConfig("/opt/mews/bin/mw")
 	for event, hooks := range config.Hooks {
 		hooks[0].Env = nil
 		config.Hooks[event] = hooks
@@ -354,6 +351,86 @@ func TestCopilotOwnershipRequiresMarkerForCurrentFormat(t *testing.T) {
 	if isMewsHook(data) {
 		t.Fatal("markerless current-format hooks were classified as Mews-owned")
 	}
+}
+
+func TestInstallCopilotMigratesPreviousManagedFormat(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+
+	config, managed := previousCopilotConfigForTest("/old/mw")
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hookPath, _ := CopilotHookPath()
+	if err := os.MkdirAll(filepath.Dir(hookPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(hookPath, append(data, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	previous := &store.IntegrationState{
+		Name:    "copilot",
+		Path:    hookPath,
+		Created: true,
+		Managed: managed,
+	}
+	state, err := installCopilot("/new/mw", previous, false)
+	if err != nil {
+		t.Fatalf("installCopilot returned error: %v", err)
+	}
+	t.Cleanup(func() {
+		if state.RollbackPath != "" {
+			_ = os.Remove(state.RollbackPath)
+		}
+	})
+
+	updated, err := os.ReadFile(hookPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !isMewsHook(updated) || !strings.Contains(string(updated), copilotOwnershipMarker) {
+		t.Fatalf("previous Copilot hooks were not migrated: %s", updated)
+	}
+}
+
+func previousCopilotConfigForTest(mwPath string) (copilotHookConfig, []string) {
+	specs := map[string][2]string{
+		"agentStop":     {"done", "Copilot agent stopped"},
+		"sessionEnd":    {"idle", "Copilot session ended"},
+		"errorOccurred": {"failed", "Copilot error occurred"},
+	}
+	config := copilotHookConfig{
+		Version: 1,
+		Hooks:   make(map[string][]copilotCommandHook, len(specs)),
+	}
+	managed := make([]string, 0, len(specs))
+	for event, values := range specs {
+		parts := []string{
+			mwPath,
+			"notify",
+			"--source", "copilot",
+			"--hook-event", event,
+			"--status", values[0],
+			"--message", values[1],
+		}
+		for index, part := range parts {
+			parts[index] = shellQuote(part)
+		}
+		command := strings.Join(parts, " ") + " >/dev/null"
+		config.Hooks[event] = []copilotCommandHook{{
+			Type:       "command",
+			Bash:       command,
+			TimeoutSec: 5,
+			Env: map[string]string{
+				"MEWS_MANAGED_INTEGRATION": previousCopilotOwnershipMarker,
+			},
+		}}
+		managed = append(managed, command)
+	}
+	return config, managed
 }
 
 func TestRemoveClaudeRefusesMalformedConfig(t *testing.T) {
