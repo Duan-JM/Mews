@@ -37,6 +37,7 @@ type Event struct {
 	KittyAddr  string    `json:"kitty_listen_on,omitempty"`
 	TmuxSocket string    `json:"tmux_socket,omitempty"`
 	TmuxPane   string    `json:"tmux_pane,omitempty"`
+	TmuxClient string    `json:"tmux_client,omitempty"`
 	Timestamp  time.Time `json:"timestamp"`
 }
 
@@ -98,6 +99,7 @@ func (e *Event) Validate() error {
 		{name: "kitty_listen_on", value: e.KittyAddr, max: 4096},
 		{name: "tmux_socket", value: e.TmuxSocket, max: 4096},
 		{name: "tmux_pane", value: e.TmuxPane, max: 64},
+		{name: "tmux_client", value: e.TmuxClient, max: 4096},
 	}
 	for _, field := range limits {
 		if len([]rune(field.value)) > field.max {
@@ -125,12 +127,20 @@ func (e *Event) validateTerminalContext() error {
 	if e.KittyAddr != "" && (e.Terminal != string(terminal.Kitty) || !terminal.ValidKittyListen(e.KittyAddr)) {
 		return errors.New("invalid kitty_listen_on")
 	}
+	return e.validateTmuxContext()
+}
+
+func (e *Event) validateTmuxContext() error {
 	if (e.TmuxSocket == "") != (e.TmuxPane == "") {
 		return errors.New("tmux_socket and tmux_pane must be provided together")
 	}
 	if e.TmuxSocket != "" &&
 		(!terminal.ValidTmuxSocket(e.TmuxSocket) || !terminal.ValidTmuxPane(e.TmuxPane)) {
 		return errors.New("invalid tmux context")
+	}
+	if e.TmuxClient != "" &&
+		(e.TmuxSocket == "" || !terminal.ValidTmuxClient(e.TmuxClient)) {
+		return errors.New("invalid tmux client")
 	}
 	return nil
 }

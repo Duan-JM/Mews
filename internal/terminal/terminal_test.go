@@ -43,6 +43,19 @@ func TestDetectDropsUnsafeSessionMetadata(t *testing.T) {
 	}
 }
 
+func TestValidTmuxClientRequiresLocalTTY(t *testing.T) {
+	for _, value := range []string{"/dev/ttys006", "/dev/pts/2"} {
+		if !ValidTmuxClient(value) {
+			t.Fatalf("ValidTmuxClient(%q) = false", value)
+		}
+	}
+	for _, value := range []string{"ttys006", "/tmp/client", "/dev/../tmp/client", "/dev/ttys006\nother"} {
+		if ValidTmuxClient(value) {
+			t.Fatalf("ValidTmuxClient(%q) = true", value)
+		}
+	}
+}
+
 func TestParseProfileNormalizesAliases(t *testing.T) {
 	profile, err := ParseProfile("iTerm")
 	if err != nil {

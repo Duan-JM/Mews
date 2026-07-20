@@ -24,6 +24,7 @@ type RuntimeContext struct {
 	KittyListen string
 	TmuxSocket  string
 	TmuxPane    string
+	TmuxClient  string
 }
 
 var profileAliases = map[string]Profile{
@@ -94,6 +95,14 @@ func ValidTmuxPane(value string) bool {
 		return false
 	}
 	return digitsOnly(value[1:])
+}
+
+func ValidTmuxClient(value string) bool {
+	if value == "" || len(value) > 4096 || strings.ContainsAny(value, "\x00\r\n") {
+		return false
+	}
+	cleaned := filepath.Clean(value)
+	return value == cleaned && filepath.IsAbs(cleaned) && strings.HasPrefix(cleaned, "/dev/")
 }
 
 func detectProfile(getenv func(string) string) Profile {

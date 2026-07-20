@@ -96,7 +96,9 @@ final class CLIContextOpener {
             return false
         }
 
-        restoreTmux(context)
+        if context.tmuxTarget != nil, !restoreTmux(context) {
+            return false
+        }
         if target == .kitty, restoreKitty(context) {
             log("Returned to kitty CLI context")
             return true
@@ -119,15 +121,16 @@ final class CLIContextOpener {
         return true
     }
 
-    private func restoreTmux(_ context: CLIContextPayload) {
-        guard let target = context.validatedTmuxTarget(fileManager: fileManager),
-              let executable = tmuxExecutableURL() else {
-            return
+    private func restoreTmux(_ context: CLIContextPayload) -> Bool {
+        guard let target = context.validatedTmuxTarget(fileManager: fileManager) else {
+            log("Could not restore tmux context")
+            return false
         }
-        guard run(executable, arguments: target.selectWindowArguments, action: "select tmux window") else {
-            return
+        guard let executable = tmuxExecutableURL() else {
+            log("Could not find tmux executable")
+            return false
         }
-        _ = run(executable, arguments: target.selectPaneArguments, action: "select tmux pane")
+        return run(executable, arguments: target.switchClientArguments, action: "switch tmux client")
     }
 
     private func restoreKitty(_ context: CLIContextPayload) -> Bool {
