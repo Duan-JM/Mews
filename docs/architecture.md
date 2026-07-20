@@ -451,6 +451,8 @@ bin/mw
 libexec/Mews.app
 ```
 
+The fallback installer writes only beneath `PREFIX` and does not edit shell startup files. Users of a custom prefix must expose `PREFIX/bin` through their shell configuration.
+
 `mw setup` should:
 
 1. Ensure `libexec/Mews.app` exists.

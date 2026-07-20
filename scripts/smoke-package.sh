@@ -39,7 +39,17 @@ rm -rf "$SMOKE_DIR"
 mkdir -p "$SMOKE_DIR/home"
 tar -xzf "$ARCHIVE" -C "$SMOKE_DIR"
 
-PREFIX="$SMOKE_DIR/prefix" "$PACKAGE_DIR/install.sh" >/dev/null
+install_output="$(
+  PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
+  PREFIX="$SMOKE_DIR/prefix" \
+  "$PACKAGE_DIR/install.sh"
+)"
+if ! grep -F "does not resolve mw to $SMOKE_DIR/prefix/bin/mw" \
+  <<<"$install_output" >/dev/null; then
+  echo "Package installer did not explain the custom-prefix PATH requirement" >&2
+  echo "$install_output" >&2
+  exit 1
+fi
 if [[ ! -x "$SMOKE_DIR/prefix/bin/mw" ||
       ! -x "$SMOKE_DIR/prefix/libexec/Mews.app/Contents/MacOS/Mews" ]]; then
   echo "Package installer did not install mw and Mews.app" >&2

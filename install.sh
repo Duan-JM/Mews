@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${PREFIX:-/usr/local}"
+BIN_DIR="${PREFIX%/}/bin"
+MW_PATH="$BIN_DIR/mw"
 
 if [[ -x "$ROOT/bin/mw" && -d "$ROOT/libexec/Mews.app" ]]; then
   install -d "$PREFIX/bin" "$PREFIX/libexec"
@@ -18,4 +20,14 @@ else
 fi
 
 echo
-echo "Run: mw setup --yes"
+if [[ "$PREFIX" == "/usr/local" || "$(command -v mw 2>/dev/null || true)" == "$MW_PATH" ]]; then
+  echo "Run: mw setup --yes"
+else
+  echo "Installed mw, but this shell does not resolve mw to $MW_PATH."
+  echo "For the current shell, run:"
+  printf '  export PATH=%q:"%s"\n' "$BIN_DIR" "\$PATH"
+  echo "Then run: mw setup --yes"
+  echo
+  echo "Or run now:"
+  printf '  %q setup --yes\n' "$MW_PATH"
+fi
