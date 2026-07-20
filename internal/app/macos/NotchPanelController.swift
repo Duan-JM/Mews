@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 
+@MainActor
 final class NotchPanelController {
     typealias ScreenProvider = () -> [ScreenSnapshot]
 
@@ -33,7 +34,9 @@ final class NotchPanelController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.reposition()
+            Task { @MainActor in
+                self?.reposition()
+            }
         }
     }
 
@@ -56,9 +59,12 @@ final class NotchPanelController {
     }
 
     func setClosed(_ isClosed: Bool) {
-        panel.ignoresMouseEvents = isClosed
         if isClosed {
+            panel.ignoresMouseEvents = true
             panel.orderOut(nil)
+        } else {
+            panel.ignoresMouseEvents = false
+            panel.orderFrontRegardless()
         }
     }
 

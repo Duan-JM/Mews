@@ -106,7 +106,7 @@ struct OverlayScreenResolver {
     }
 
     private func topCenterTarget(screen: ScreenSnapshot) -> OverlayTarget {
-        let topCenter = CGPoint(x: screen.frame.midX, y: screen.frame.maxY)
+        let topCenter = CGPoint(x: screen.frame.midX, y: screen.visibleFrame.maxY)
         return OverlayTarget(
             screen: screen,
             mode: .topCenter,
@@ -137,7 +137,7 @@ struct OverlayPlacementCalculator {
         let originX = min(max(centeredX, horizontalBounds.minX), maximumX)
         let frame = CGRect(
             x: originX,
-            y: screen.frame.maxY - Self.maximumSize.height,
+            y: target.anchorFrame.maxY - Self.maximumSize.height,
             width: width,
             height: Self.maximumSize.height
         )

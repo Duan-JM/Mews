@@ -8,6 +8,7 @@ enum OverlayPlacementTests {
         try testFirstScreenFallback()
         try testNotchPlacementFrame()
         try testTopCenterPlacementFrame()
+        try testTopCenterPlacementBelowMenuBar()
         try testWidthCapping()
         try testNoScreens()
     }
@@ -116,6 +117,28 @@ enum OverlayPlacementTests {
         )
     }
 
+    private static func testTopCenterPlacementBelowMenuBar() throws {
+        let fallback = screen(
+            id: "menu-bar",
+            frame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 875)
+        )
+        let target = try require(
+            OverlayScreenResolver().resolve(screens: [fallback]),
+            "menu-bar fallback target should resolve"
+        )
+
+        try expect(
+            target.anchorFrame == CGRect(x: 720, y: 875, width: 0, height: 0),
+            "top-center fallback should anchor below the menu bar"
+        )
+        try expect(
+            OverlayPlacementCalculator().placement(for: target).frame ==
+                CGRect(x: 510, y: 655, width: 420, height: 220),
+            "top-center panel should stay below the menu bar"
+        )
+    }
+
     private static func testNoScreens() throws {
         try expect(
             OverlayScreenResolver().resolve(screens: []) == nil,
@@ -126,6 +149,7 @@ enum OverlayPlacementTests {
     private static func screen(
         id: String,
         frame: CGRect = CGRect(x: 0, y: 0, width: 1920, height: 1080),
+        visibleFrame: CGRect? = nil,
         isMain: Bool = false,
         safeTop: CGFloat = 0,
         leftArea: CGRect? = nil,
@@ -134,7 +158,7 @@ enum OverlayPlacementTests {
         ScreenSnapshot(
             id: id,
             frame: frame,
-            visibleFrame: frame,
+            visibleFrame: visibleFrame ?? frame,
             safeAreaInsets: OverlayInsets(top: safeTop, left: 0, bottom: 0, right: 0),
             auxiliaryTopLeftArea: leftArea,
             auxiliaryTopRightArea: rightArea,
