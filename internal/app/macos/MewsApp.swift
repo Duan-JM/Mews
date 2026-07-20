@@ -1,9 +1,10 @@
 import AppKit
 import Foundation
 
+@MainActor
 final class MewsApp: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem?
-    private var timer: Timer?
+    private var statusItemController: StatusItemController?
+    private var reloadTimer: Timer?
     private var agent: Process?
     private var events: [MewsEvent] = []
     private var started = false
@@ -39,30 +40,27 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         }
         started = true
         NSApp.setActivationPolicy(.accessory)
-        configureStatusItem()
+        statusItemController = StatusItemController()
         notifications.configure()
         startAgent()
         reloadEvents()
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.reloadEvents()
-        }
+        let timer = Timer(
+            timeInterval: 2.0,
+            target: self,
+            selector: #selector(reloadTimerDidFire(_:)),
+            userInfo: nil,
+            repeats: true
+        )
+        reloadTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         started = false
-        timer?.invalidate()
-        timer = nil
+        reloadTimer?.invalidate()
+        reloadTimer = nil
+        statusItemController = nil
         stopAgent()
-    }
-
-    private func configureStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem?.button?.title = "Mews"
-        if let image = NSImage(systemSymbolName: "cat.fill", accessibilityDescription: "Mews") {
-            image.isTemplate = true
-            statusItem?.button?.image = image
-            statusItem?.button?.imagePosition = .imageLeading
-        }
     }
 
     private func reloadEvents() {
@@ -75,10 +73,12 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         updateStatusItem()
     }
 
+    @objc private func reloadTimerDidFire(_ timer: Timer) {
+        reloadEvents()
+    }
+
     private func updateStatusItem() {
         let latest = latestPrimaryEvent(in: events)
-        statusItem?.button?.title = latest?.menuBarTitle ?? "Mews"
-
         let menu = NSMenu()
         if let latest {
             menu.addItem(eventMenuItem(for: latest))
@@ -111,7 +111,10 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         )
         quit.target = self
         menu.addItem(quit)
-        statusItem?.menu = menu
+        statusItemController?.update(
+            state: MewsPresentationState(event: latest),
+            menu: menu
+        )
     }
 
     private func eventMenuItem(for event: MewsEvent) -> NSMenuItem {
@@ -273,6 +276,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 }
 
 @main
+@MainActor
 enum Main {
     private static var delegate: MewsApp?
 

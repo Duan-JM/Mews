@@ -97,7 +97,7 @@ mw run -- cmd # Advanced: run a command and report completion
 
 Responsibilities:
 
-- Render current state in the menu bar.
+- Render current state as a compact, monochrome pixel logo in the menu bar.
 - Show recent event history.
 - Deliver macOS notifications.
 - Receive local events from integrations and the CLI.
@@ -106,7 +106,7 @@ Responsibilities:
 - Copy a Mews-owned session history command from notification actions.
 - Persist recent events and settings.
 
-The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, reads local event history for the menu, and delivers native notifications for attention states.
+The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, renders a state-responsive template pixel logo, reads local event history for the menu, and delivers native notifications for attention states.
 
 ### 3. Integration Manager
 
