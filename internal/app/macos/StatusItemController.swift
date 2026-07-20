@@ -28,7 +28,7 @@ final class StatusItemController: NSObject {
             self,
             selector: #selector(accessibilityDisplayOptionsDidChange(_:)),
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
-            object: workspace
+            object: nil
         )
     }
 
@@ -37,7 +37,7 @@ final class StatusItemController: NSObject {
         workspace.notificationCenter.removeObserver(
             self,
             name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
-            object: workspace
+            object: nil
         )
         statusBar.removeStatusItem(statusItem)
     }
