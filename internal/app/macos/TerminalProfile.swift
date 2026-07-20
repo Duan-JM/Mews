@@ -47,6 +47,10 @@ enum TerminalProfile: String, CaseIterable {
         }
     }
 
+    func canActivateRunningApplication(afterTmuxRestore restoredTmux: Bool) -> Bool {
+        return restoredTmux || (self != .auto && self != .kitty)
+    }
+
     static func source(_ value: String?) -> TerminalProfile? {
         guard let value = normalizedText(value),
               let profile = TerminalProfile(rawValue: value),
