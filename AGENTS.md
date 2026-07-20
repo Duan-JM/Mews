@@ -25,6 +25,8 @@ Contributor commands:
 
 ```bash
 make lint-tools     # Install pinned Go, Swift, and Shell linters under .tools/bin
+make hooks          # Install pre-commit lint and pre-push test hooks
+make check          # Run lint, tests, and the build
 make build          # Build the mw CLI and package Mews.app
 make test           # Run Go tests and Swift model tests
 make lint           # Run Go, Swift, source-size, and shell lint checks

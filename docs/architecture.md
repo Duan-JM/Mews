@@ -552,7 +552,7 @@ Repository rules:
 1. **Root stays product-facing**: README, install script, security docs, contributing guide, and Makefile should be enough for a new contributor to understand the project.
 2. **Go code follows `cmd/` + `internal/`**: no sprawling packages at root.
 3. **Scripts are explicit**: build, package, release, and local install scripts live under `scripts/`; `install.sh` stays as the user-facing fallback installer.
-4. **Makefile is the contributor API**: common tasks should be discoverable through `make lint-tools`, `make test`, `make build`, `make lint`, `make package`, and `make install-local`.
+4. **Makefile is the contributor API**: common tasks should be discoverable through `make lint-tools`, `make hooks`, `make check`, `make test`, `make build`, `make lint`, `make package`, and `make install-local`.
 5. **Security docs are first-class**: because Mews edits local tool configs, it needs `SECURITY.md` and a practical `SECURITY_AUDIT.md` from the start.
 6. **Workflows stay boring**: CI runs tests, lint, shellcheck, CodeQL, package checksum verification, and an isolated artifact smoke. Signing remains an explicit credential-gated maintainer action.
 
@@ -560,6 +560,8 @@ Makefile targets:
 
 ```text
 make lint-tools     # Install pinned Go, Swift, and Shell lint binaries under .tools/bin
+make hooks          # Install pre-commit lint and pre-push test hooks
+make check          # Run lint, tests, and the build
 make build          # Build mw CLI and package Mews.app
 make test           # Run Go tests and Swift model tests
 make lint           # Run Go, Swift, source-size, and shell lint checks

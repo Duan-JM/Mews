@@ -6,14 +6,23 @@ Mews is an MVP release candidate. Keep changes small, local-first, reversible, a
 
 ```bash
 make lint-tools
-make build
-make test
-make lint
+make hooks
+make check
 make package
 VERSION=dev ./scripts/smoke-package.sh
 ```
 
 `make lint-tools` installs the pinned Go, Swift, and Shell linters under `.tools/bin`.
+`make check` runs lint, tests, and the build in sequence.
+
+`make hooks` requires `pre-commit`; install it with `brew install pre-commit` if needed. The installed
+pre-commit hook runs `make lint`, while the pre-push hook runs `make test`. Remove them without changing
+tracked files:
+
+```bash
+pre-commit uninstall --hook-type pre-commit
+pre-commit uninstall --hook-type pre-push
+```
 
 For an end-to-end local smoke:
 
