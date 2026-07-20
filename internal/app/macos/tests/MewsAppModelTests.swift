@@ -27,6 +27,7 @@ enum MewsAppModelTests {
             kittyListenOn: "unix:/tmp/kitty-control",
             tmuxSocket: "/private/tmp/tmux-501/default",
             tmuxPane: "%6",
+            tmuxClient: "/dev/ttys006",
             timestamp: Date()
         )
         let cliExecutablePath = "/tmp/Mews App/Contents/Resources/mw"
@@ -99,19 +100,25 @@ enum MewsAppModelTests {
                 terminalWindowID: "window-17",
                 kittyListenOn: "tcp:127.0.0.1:5000",
                 tmuxSocket: "relative/socket",
-                tmuxPane: "6"
+                tmuxPane: "6",
+                tmuxClient: "/tmp/client"
             ),
             "command should keep the context actionable"
         )
         try expect(unsafe.kittyTarget == nil, "unsafe kitty metadata should be dropped")
         try expect(unsafe.tmuxSocket == nil && unsafe.tmuxPane == nil, "unsafe tmux metadata should be dropped")
 
-        let target = TmuxTarget(socketPath: "/private/tmp/tmux-501/default", paneID: "%6")
+        let target = TmuxTarget(
+            socketPath: "/private/tmp/tmux-501/default",
+            paneID: "%6",
+            clientName: "/dev/ttys006"
+        )
         try expect(
-            target.selectWindowArguments == [
-                "-S", "/private/tmp/tmux-501/default", "select-window", "-t", "%6"
+            target.switchClientArguments == [
+                "-S", "/private/tmp/tmux-501/default",
+                "switch-client", "-c", "/dev/ttys006", "-t", "%6"
             ],
-            "tmux window targeting should not use a shell command"
+            "tmux should switch the recorded client to the source session, window, and pane"
         )
     }
 

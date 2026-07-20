@@ -299,6 +299,7 @@ Optional fields:
 - `kitty_listen_on`
 - `tmux_socket`
 - `tmux_pane`
+- `tmux_client`
 
 Supported statuses:
 
@@ -316,7 +317,7 @@ When `session_id` is present, the CLI displays the local return command as `mw h
 
 The terminal preference defaults to `auto`. Auto uses the recorded source terminal when available and falls back to Terminal.app. An explicit profile uses that terminal unless the event came from the same profile, in which case Mews prefers the existing application. Supported profiles are Terminal, kitty, iTerm2, WezTerm, Ghostty, and Alacritty.
 
-Return actions copy the Mews-owned history command, select a validated same-user tmux socket and pane when present, and activate the source terminal. Kitty window focus is attempted only when the event carries a numeric kitty window ID and an existing local Unix remote-control address; Mews does not enable kitty remote control. If the source context is unavailable, the configured terminal opens the event's validated absolute `cwd`. A directory-only event does not invent a session command. Mews never executes event-provided command text or reads terminal scrollback.
+Return actions copy the Mews-owned history command and activate the source terminal. When an event originates in tmux, the CLI asks the validated local socket for the client associated with the source pane, including after that client moves to another session. The app uses one fixed `switch-client -c <client> -t <pane>` operation so tmux restores the source session, window, and pane together. Kitty window focus is attempted only when the event carries a numeric kitty window ID and an existing local Unix remote-control address; Mews does not enable kitty remote control. If the source context is missing, stale, ambiguous, or unsafe, the configured terminal opens the event's validated absolute `cwd`. A directory-only event does not invent a session command. Mews never executes event-provided command text or reads terminal scrollback.
 
 ## IPC
 

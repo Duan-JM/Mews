@@ -64,7 +64,7 @@ mw setup --yes --include-task-title
 
 这个选项最多保存 80 个来自 hook payload 的本地字符。Mews 仍然不会上传 prompt、transcript 或终端输出。
 
-App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Return to CLI** 和 **Copy Return Command**。返回时会先复制 Mews 生成的 `mw history --session 'abc123'`，再优先激活原终端；有 tmux pane 时会切回对应 pane，kitty 已配置本地 Unix remote-control socket 时还会尝试聚焦原窗口。原上下文不可用时，Mews 才会用选定终端打开经过校验的工作目录。Mews 不修改 kitty 配置，不执行事件传入的命令，也不读取 terminal scrollback。
+App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Return to CLI** 和 **Copy Return Command**。返回时会先复制 Mews 生成的 `mw history --session 'abc123'`，再优先激活原终端；有 tmux 上下文时会把记录的 client 切回原 session、window 和 pane，kitty 已配置本地 Unix remote-control socket 时还会尝试聚焦原窗口。原上下文不可用时，Mews 才会用选定终端打开经过校验的工作目录。Mews 不修改 kitty 配置，不执行事件传入的命令，也不读取 terminal scrollback。
 
 Setup 会安装：
 

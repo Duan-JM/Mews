@@ -2,11 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Duan-JM/mews/internal/store"
+	"github.com/Duan-JM/mews/internal/terminal"
 )
 
 func TestTerminalPreferenceCanBeConfiguredAndSurvivesSetup(t *testing.T) {
@@ -65,10 +68,20 @@ func TestTerminalConfigRejectsUnknownProfile(t *testing.T) {
 
 func TestNotifyCapturesKittyAndTmuxContext(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	binDir := t.TempDir()
+	argsPath := filepath.Join(t.TempDir(), "tmux-args")
+	tmuxPath := filepath.Join(binDir, "tmux")
+	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$MEWS_TMUX_ARGS\"\nprintf '/dev/ttys006\\n'\n"
+	if err := os.WriteFile(tmuxPath, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+	t.Setenv("MEWS_TMUX_ARGS", argsPath)
 	t.Setenv("TERM_PROGRAM", "tmux")
 	t.Setenv("KITTY_WINDOW_ID", "17")
 	t.Setenv("KITTY_LISTEN_ON", "unix:/tmp/kitty-control")
-	t.Setenv("TMUX", "/private/tmp/tmux-501/default,9336,2")
+	socketPath := newOwnedUnixSocket(t)
+	t.Setenv("TMUX", socketPath+",9336,2")
 	t.Setenv("TMUX_PANE", "%6")
 
 	runCLIForTest(t, []string{"notify", "--source", "copilot", "--status", "done"})
@@ -85,9 +98,65 @@ func TestNotifyCapturesKittyAndTmuxContext(t *testing.T) {
 		event.KittyAddr != "unix:/tmp/kitty-control" {
 		t.Fatalf("kitty context = %#v", event)
 	}
-	if event.TmuxSocket != "/private/tmp/tmux-501/default" || event.TmuxPane != "%6" {
+	if event.TmuxSocket != socketPath ||
+		event.TmuxPane != "%6" ||
+		event.TmuxClient != "/dev/ttys006" {
 		t.Fatalf("tmux context = %#v", event)
 	}
+	args, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantArgs := strings.Join([]string{
+		"-S",
+		socketPath,
+		"display-message",
+		"-p",
+		"-t",
+		"%6",
+		"#{client_name}",
+		"",
+	}, "\n")
+	if string(args) != wantArgs {
+		t.Fatalf("tmux lookup args = %q, want %q", args, wantArgs)
+	}
+}
+
+func TestResolveTmuxClientRejectsUnsafeClient(t *testing.T) {
+	binDir := t.TempDir()
+	tmuxPath := filepath.Join(binDir, "tmux")
+	script := "#!/bin/sh\nprintf '/tmp/client\\n'\n"
+	if err := os.WriteFile(tmuxPath, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+
+	context := terminal.RuntimeContext{
+		TmuxSocket: newOwnedUnixSocket(t),
+		TmuxPane:   "%6",
+	}
+	if client := resolveTmuxClient(context); client != "" {
+		t.Fatalf("resolveTmuxClient returned unsafe client %q", client)
+	}
+}
+
+func newOwnedUnixSocket(t *testing.T) string {
+	t.Helper()
+	directory, err := os.MkdirTemp("/tmp", "mews-tmux-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	socketPath := filepath.Join(directory, "socket")
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		_ = os.RemoveAll(directory)
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = listener.Close()
+		_ = os.RemoveAll(directory)
+	})
+	return socketPath
 }
 
 func runCLIForTest(t *testing.T, args []string) {

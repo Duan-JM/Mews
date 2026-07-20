@@ -15,6 +15,7 @@ struct MewsEvent: Decodable {
     let kittyListenOn: String?
     let tmuxSocket: String?
     let tmuxPane: String?
+    let tmuxClient: String?
     let timestamp: Date
 
     enum CodingKeys: String, CodingKey {
@@ -32,6 +33,7 @@ struct MewsEvent: Decodable {
         case kittyListenOn = "kitty_listen_on"
         case tmuxSocket = "tmux_socket"
         case tmuxPane = "tmux_pane"
+        case tmuxClient = "tmux_client"
         case timestamp
     }
 
@@ -54,7 +56,8 @@ struct MewsEvent: Decodable {
             terminalWindowID: terminalWindowID,
             kittyListenOn: kittyListenOn,
             tmuxSocket: tmuxSocket,
-            tmuxPane: tmuxPane
+            tmuxPane: tmuxPane,
+            tmuxClient: tmuxClient
         )
     }
 

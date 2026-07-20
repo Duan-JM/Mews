@@ -9,6 +9,7 @@ struct CLIContextPayload: Equatable {
     static let kittyListenOnKey = "kitty_listen_on"
     static let tmuxSocketKey = "tmux_socket"
     static let tmuxPaneKey = "tmux_pane"
+    static let tmuxClientKey = "tmux_client"
 
     let returnCommand: String?
     let workingDirectory: String?
@@ -17,6 +18,7 @@ struct CLIContextPayload: Equatable {
     let kittyListenOn: String?
     let tmuxSocket: String?
     let tmuxPane: String?
+    let tmuxClient: String?
 
     init?(
         returnCommand: String?,
@@ -25,16 +27,18 @@ struct CLIContextPayload: Equatable {
         terminalWindowID: String? = nil,
         kittyListenOn: String? = nil,
         tmuxSocket: String? = nil,
-        tmuxPane: String? = nil
+        tmuxPane: String? = nil,
+        tmuxClient: String? = nil
     ) {
         self.returnCommand = normalizedText(returnCommand)
         self.workingDirectory = normalizedText(workingDirectory)
         self.terminal = TerminalProfile.source(terminal)?.rawValue
         self.terminalWindowID = validatedWindowID(terminalWindowID, terminal: self.terminal)
         self.kittyListenOn = validatedKittyListen(kittyListenOn, terminal: self.terminal)
-        let tmux = validatedTmuxMetadata(socket: tmuxSocket, pane: tmuxPane)
-        self.tmuxSocket = tmux?.socket
-        self.tmuxPane = tmux?.pane
+        let tmux = validatedTmuxMetadata(socket: tmuxSocket, pane: tmuxPane, client: tmuxClient)
+        self.tmuxSocket = tmux?.socketPath
+        self.tmuxPane = tmux?.paneID
+        self.tmuxClient = tmux?.clientName
         if self.returnCommand == nil && self.workingDirectory == nil && self.terminal == nil {
             return nil
         }
@@ -48,7 +52,8 @@ struct CLIContextPayload: Equatable {
             terminalWindowID: userInfo[Self.terminalWindowIDKey] as? String,
             kittyListenOn: userInfo[Self.kittyListenOnKey] as? String,
             tmuxSocket: userInfo[Self.tmuxSocketKey] as? String,
-            tmuxPane: userInfo[Self.tmuxPaneKey] as? String
+            tmuxPane: userInfo[Self.tmuxPaneKey] as? String,
+            tmuxClient: userInfo[Self.tmuxClientKey] as? String
         )
     }
 
@@ -74,6 +79,9 @@ struct CLIContextPayload: Equatable {
         }
         if let tmuxPane {
             info[Self.tmuxPaneKey] = tmuxPane
+        }
+        if let tmuxClient {
+            info[Self.tmuxClientKey] = tmuxClient
         }
         return info
     }
@@ -124,14 +132,21 @@ struct CLIContextPayload: Equatable {
         return isActionable(fileManager: fileManager) ? self : nil
     }
 
+    var tmuxTarget: TmuxTarget? {
+        guard let tmuxSocket, let tmuxPane, let tmuxClient else {
+            return nil
+        }
+        return TmuxTarget(socketPath: tmuxSocket, paneID: tmuxPane, clientName: tmuxClient)
+    }
+
     func validatedTmuxTarget(fileManager: FileManager = .default) -> TmuxTarget? {
-        guard let tmuxSocket, let tmuxPane,
-              let attributes = try? fileManager.attributesOfItem(atPath: tmuxSocket),
+        guard let target = tmuxTarget,
+              let attributes = try? fileManager.attributesOfItem(atPath: target.socketPath),
               attributes[.type] as? FileAttributeType == .typeSocket,
               attributes[.ownerAccountID] as? NSNumber == NSNumber(value: getuid()) else {
             return nil
         }
-        return TmuxTarget(socketPath: tmuxSocket, paneID: tmuxPane)
+        return target
     }
 }
 
@@ -153,13 +168,10 @@ struct KittyTarget: Equatable {
 struct TmuxTarget: Equatable {
     let socketPath: String
     let paneID: String
+    let clientName: String
 
-    var selectWindowArguments: [String] {
-        return ["-S", socketPath, "select-window", "-t", paneID]
-    }
-
-    var selectPaneArguments: [String] {
-        return ["-S", socketPath, "select-pane", "-t", paneID]
+    var switchClientArguments: [String] {
+        return ["-S", socketPath, "switch-client", "-c", clientName, "-t", paneID]
     }
 }
 
@@ -217,7 +229,11 @@ private func validatedKittyListen(_ value: String?, terminal: String?) -> String
     return value
 }
 
-private func validatedTmuxMetadata(socket: String?, pane: String?) -> (socket: String, pane: String)? {
+private func validatedTmuxMetadata(
+    socket: String?,
+    pane: String?,
+    client: String?
+) -> TmuxTarget? {
     guard let socket = normalizedText(socket),
           socket.hasPrefix("/"),
           socket.count <= 4096,
@@ -225,10 +241,17 @@ private func validatedTmuxMetadata(socket: String?, pane: String?) -> (socket: S
           pane.count <= 64,
           pane.first == "%",
           asciiDigitsOnly(String(pane.dropFirst())),
-          pane.count > 1 else {
+          pane.count > 1,
+          let client = normalizedText(client),
+          client.hasPrefix("/dev/"),
+          client.count <= 4096,
+          !client.contains("\0"),
+          !client.contains("\r"),
+          !client.contains("\n"),
+          URL(fileURLWithPath: client).standardizedFileURL.path == client else {
         return nil
     }
-    return (socket, pane)
+    return TmuxTarget(socketPath: socket, paneID: pane, clientName: client)
 }
 
 private func asciiDigitsOnly(_ value: String) -> Bool {
