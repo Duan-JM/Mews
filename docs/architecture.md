@@ -317,7 +317,7 @@ When `session_id` is present, the CLI displays the local return command as `mw h
 
 The terminal preference defaults to `auto`. Auto uses the recorded source terminal when available and falls back to Terminal.app. An explicit profile uses that terminal unless the event came from the same profile, in which case Mews prefers the existing application. Supported profiles are Terminal, kitty, iTerm2, WezTerm, Ghostty, and Alacritty.
 
-Return actions copy the Mews-owned history command and activate the source terminal. When an event originates in tmux, the CLI asks the validated local socket for the client associated with the source pane, including after that client moves to another session. The app uses one fixed `switch-client -c <client> -t <pane>` operation so tmux restores the source session, window, and pane together. Kitty window focus is attempted only when the event carries a numeric kitty window ID and an existing local Unix remote-control address; Mews does not enable kitty remote control. A failed exact kitty restore skips generic application activation and opens a new active kitty instance with `--directory <cwd>`, even if kitty is already running. If another source context is missing, stale, ambiguous, or unsafe, the configured terminal opens the event's validated absolute `cwd`. A directory-only event does not invent a session command. Mews never executes event-provided command text or reads terminal scrollback.
+Return actions copy the Mews-owned history command and activate the source terminal. When an event originates in tmux, the CLI preserves the validated same-user socket and source pane even when no client is attached. If a client is available, the app uses one fixed `switch-client -c <client> -t <pane>` operation so tmux restores the source session, window, and pane together. If the client is absent or disappears before the action, the app verifies the pane with a fixed `display-message` operation. For kitty, it then opens a new active instance that runs a fixed `attach-session -t <pane>` command with inherited tmux variables removed. Kitty window focus is attempted only when the event carries a numeric kitty window ID and an existing local Unix remote-control address; Mews does not enable kitty remote control. A failed exact kitty or detached tmux restore skips generic application activation and opens a new active kitty instance with `--directory <cwd>`, even if kitty is already running. Other unavailable source contexts use the configured terminal at the event's validated absolute `cwd`. A directory-only event does not invent a session command. Mews never executes event-provided command text or reads terminal scrollback.
 
 ## IPC
 
@@ -381,7 +381,7 @@ Notifications are delivered by the app bundle, which declares the Mews icon so N
 
 Action behavior:
 
-- **Return to CLI**: copy the local session history command, then restore a validated source terminal or open the configured terminal at the event directory.
+- **Return to CLI**: copy the local session history command, then restore a validated source terminal, attach a new kitty window to a detached tmux target, or open the configured terminal at the event directory.
 - **Copy Return Command**: copy only the Mews-generated session history command.
 - Default notification clicks use the same open action.
 - Relative, missing, and non-directory paths are never opened.
@@ -400,7 +400,7 @@ Hard boundaries:
 - Prompt-derived task titles require explicit opt-in, are truncated, and stay local.
 - No terminal scrollback scraping by default.
 - No shell command execution from received events.
-- Terminal restoration only invokes fixed kitty and tmux operations with validated identifiers and same-user local sockets.
+- Terminal restoration only invokes fixed kitty and tmux `display-message`, `switch-client`, and `attach-session` operations with validated identifiers and same-user local sockets.
 - No broad write access beyond known integration files and Mews-owned paths.
 
 Config writes:
@@ -593,7 +593,7 @@ Manual acceptance checks:
 4. `mw notify --status done --message "Task finished"` updates menu bar and history.
 5. `mw run -- false` produces a failed event.
 6. Claude Code notification hook reaches Mews without exposing transcript content.
-7. A notification action copies the Mews session command, returns to the source terminal when possible, and otherwise opens the configured terminal at the recorded directory.
+7. A notification action copies the Mews session command, returns to an attached source terminal, opens kitty on a detached tmux target, or falls back to the recorded directory.
 8. `mw undo` restores backed-up config and removes Mews-owned files.
 9. With notifications denied, menu bar status still works and doctor explains the permission.
 10. With the agent stopped, `mw notify` either starts it or gives a clear error.

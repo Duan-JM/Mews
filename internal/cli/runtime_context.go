@@ -21,10 +21,13 @@ func enrichRuntimeContext(event *events.Event) {
 	}
 
 	context := terminal.Detect(os.Getenv)
-	context.TmuxClient = resolveTmuxClient(context)
-	if context.TmuxSocket != "" && context.TmuxClient == "" {
-		context.TmuxSocket = ""
-		context.TmuxPane = ""
+	if context.TmuxSocket != "" {
+		if !isOwnedUnixSocket(context.TmuxSocket) {
+			context.TmuxSocket = ""
+			context.TmuxPane = ""
+		} else {
+			context.TmuxClient = resolveTmuxClient(context)
+		}
 	}
 	if event.Terminal == "" {
 		event.Terminal = string(context.Profile)

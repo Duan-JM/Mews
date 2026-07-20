@@ -122,6 +122,60 @@ func TestNotifyCapturesKittyAndTmuxContext(t *testing.T) {
 	}
 }
 
+func TestNotifyPreservesDetachedTmuxTarget(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	binDir := t.TempDir()
+	tmuxPath := filepath.Join(binDir, "tmux")
+	if err := os.WriteFile(tmuxPath, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+	t.Setenv("KITTY_WINDOW_ID", "17")
+	socketPath := newOwnedUnixSocket(t)
+	t.Setenv("TMUX", socketPath+",9336,2")
+	t.Setenv("TMUX_PANE", "%6")
+
+	runCLIForTest(t, []string{"notify", "--source", "copilot", "--status", "done"})
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("events = %#v, err=%v", recent, err)
+	}
+	event := recent[0]
+	if event.TmuxSocket != socketPath || event.TmuxPane != "%6" || event.TmuxClient != "" {
+		t.Fatalf("detached tmux context = %#v", event)
+	}
+}
+
+func TestNotifyDropsUnsafeTmuxTarget(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("KITTY_WINDOW_ID", "17")
+	socketPath := filepath.Join(t.TempDir(), "not-a-socket")
+	if err := os.WriteFile(socketPath, []byte("unsafe"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMUX", socketPath+",9336,2")
+	t.Setenv("TMUX_PANE", "%6")
+
+	runCLIForTest(t, []string{"notify", "--source", "copilot", "--status", "done"})
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("events = %#v, err=%v", recent, err)
+	}
+	event := recent[0]
+	if event.TmuxSocket != "" || event.TmuxPane != "" || event.TmuxClient != "" {
+		t.Fatalf("unsafe tmux context = %#v", event)
+	}
+}
+
 func TestResolveTmuxClientRejectsUnsafeClient(t *testing.T) {
 	binDir := t.TempDir()
 	tmuxPath := filepath.Join(binDir, "tmux")

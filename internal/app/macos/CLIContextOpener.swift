@@ -9,6 +9,13 @@ final class CLIContextBox: NSObject {
     }
 }
 
+private enum TmuxRestoreResult {
+    case notRequested
+    case restored
+    case opened
+    case failed
+}
+
 final class CLIContextOpener {
     private let workspace: NSWorkspace
     private let pasteboard: NSPasteboard
@@ -40,7 +47,12 @@ final class CLIContextOpener {
             return
         }
 
-        if returnToSource(context, target: target.profile, preference: preference) {
+        if returnToSource(
+            context,
+            terminalURL: target.url,
+            target: target.profile,
+            preference: preference
+        ) {
             return
         }
         openNewContext(context, terminalURL: target.url, profile: target.profile)
@@ -84,6 +96,7 @@ final class CLIContextOpener {
 
     private func returnToSource(
         _ context: CLIContextPayload,
+        terminalURL: URL,
         target: TerminalProfile,
         preference: TerminalProfile
     ) -> Bool {
@@ -97,11 +110,15 @@ final class CLIContextOpener {
         }
 
         var restoredTmux = false
-        if context.tmuxTarget != nil {
-            guard restoreTmux(context) else {
-                return false
-            }
+        switch restoreTmuxContext(context, terminalURL: terminalURL, profile: target) {
+        case .notRequested:
+            break
+        case .restored:
             restoredTmux = true
+        case .opened:
+            return true
+        case .failed:
+            return false
         }
         if target == .kitty, restoreKitty(context) {
             log("Returned to kitty CLI context")
@@ -129,16 +146,11 @@ final class CLIContextOpener {
         return true
     }
 
-    private func restoreTmux(_ context: CLIContextPayload) -> Bool {
-        guard let target = context.validatedTmuxTarget(fileManager: fileManager) else {
-            log("Could not restore tmux context")
+    private func restoreTmux(_ target: TmuxTarget, executable: URL) -> Bool {
+        guard let arguments = target.switchClientArguments else {
             return false
         }
-        guard let executable = tmuxExecutableURL() else {
-            log("Could not find tmux executable")
-            return false
-        }
-        return run(executable, arguments: target.switchClientArguments, action: "switch tmux client")
+        return run(executable, arguments: arguments, action: "switch tmux client")
     }
 
     private func restoreKitty(_ context: CLIContextPayload) -> Bool {
@@ -158,15 +170,18 @@ final class CLIContextOpener {
     private func openNewContext(
         _ context: CLIContextPayload,
         terminalURL: URL,
-        profile: TerminalProfile
+        profile: TerminalProfile,
+        launchArguments: [String] = []
     ) {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
         let directoryURL = context.validatedDirectoryURL(fileManager: fileManager)
         if profile == .kitty {
+            var arguments = launchArguments
             if let directoryURL {
-                configuration.arguments = ["--directory", directoryURL.path]
+                arguments.insert(contentsOf: ["--directory", directoryURL.path], at: 0)
             }
+            configuration.arguments = arguments
             configuration.createsNewApplicationInstance = true
             workspace.openApplication(
                 at: terminalURL,
@@ -234,5 +249,59 @@ final class CLIContextOpener {
                 log("Could not \(action): \(error)")
             }
         }
+    }
+}
+
+private extension CLIContextOpener {
+    func restoreTmuxContext(
+        _ context: CLIContextPayload,
+        terminalURL: URL,
+        profile: TerminalProfile
+    ) -> TmuxRestoreResult {
+        guard context.tmuxTarget != nil else {
+            return .notRequested
+        }
+        guard let target = context.validatedTmuxTarget(fileManager: fileManager) else {
+            log("Could not restore tmux context")
+            return .failed
+        }
+        guard let executable = tmuxExecutableURL() else {
+            log("Could not find tmux executable")
+            return .failed
+        }
+        if target.clientName != nil, restoreTmux(target, executable: executable) {
+            return .restored
+        }
+        return openDetachedTmux(
+            context,
+            target: target,
+            executable: executable,
+            terminalURL: terminalURL,
+            profile: profile
+        ) ? .opened : .failed
+    }
+
+    func openDetachedTmux(
+        _ context: CLIContextPayload,
+        target: TmuxTarget,
+        executable: URL,
+        terminalURL: URL,
+        profile: TerminalProfile
+    ) -> Bool {
+        guard profile == .kitty else {
+            log("Could not attach detached tmux context in \(profile.displayName)")
+            return false
+        }
+        guard run(executable, arguments: target.verifyPaneArguments, action: "verify detached tmux target") else {
+            return false
+        }
+        log("Opening detached tmux context in a new kitty window")
+        openNewContext(
+            context,
+            terminalURL: terminalURL,
+            profile: profile,
+            launchArguments: target.attachCommandArguments(tmuxExecutablePath: executable.path)
+        )
+        return true
     }
 }
