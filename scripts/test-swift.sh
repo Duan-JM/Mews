@@ -19,7 +19,10 @@ swiftc \
   "$ROOT/internal/app/macos/CLIContext.swift" \
   "$ROOT/internal/app/macos/MewsEvent.swift" \
   "$ROOT/internal/app/macos/MewsPresentationState.swift" \
+  "$ROOT/internal/app/macos/PixelStatusLogo.swift" \
   "$ROOT/internal/app/macos/tests/MewsAppModelTests.swift" \
+  "$ROOT/internal/app/macos/tests/PixelStatusLogoTests.swift" \
+  -framework AppKit \
   -o "$temp_dir/mews-app-model-tests"
 
 "$temp_dir/mews-app-model-tests"

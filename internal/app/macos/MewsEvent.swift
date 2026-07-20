@@ -135,21 +135,6 @@ struct MewsEvent: Decodable {
         }
     }
 
-    var menuBarTitle: String {
-        switch status {
-        case "running":
-            return "Mews Running"
-        case "needs_input":
-            return "Mews Needs Input"
-        case "done":
-            return "Mews Done"
-        case "failed":
-            return "Mews Failed"
-        default:
-            return "Mews Idle"
-        }
-    }
-
     var summary: String {
         let project = normalizedText(project) ?? "unknown project"
         let message = normalizedText(message) ?? "no message"

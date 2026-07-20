@@ -88,13 +88,13 @@ Mews turns that hidden state into a small local signal.
 
 - Native macOS notifications for primary-agent completion, failure, and input-needed events.
 - A local JSONL history so missed notifications are not gone forever.
-- A menu bar companion that shows the latest local state and recent events.
+- A menu bar companion with a compact, state-responsive pixel logo and recent events.
 - Clear doctor output for setup, all integrations, notification permission, LaunchAgent, socket, and the menu bar app.
 - Bounded local event history and an isolated package smoke test.
 
 ## Mac Companion
 
-The current menu bar companion is intentionally thin. It starts the local IPC agent, reads the local event history, and keeps the latest state visible from the menu bar.
+The current menu bar companion is intentionally thin. It starts the local IPC agent, reads local event history, and shows the latest state through a compact pixel logo in the menu bar.
 
 Later, **Mews for Mac** can add the notch cat: a small cat around the MacBook notch that walks while agents run, naps when idle, pounces when something finishes, and gets your attention when a prompt is waiting.
 
