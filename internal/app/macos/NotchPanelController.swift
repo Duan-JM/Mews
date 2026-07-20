@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 @MainActor
-final class NotchPanelController {
+final class NotchPanelController: NSObject {
     typealias ScreenProvider = () -> [ScreenSnapshot]
 
     let panel: NSPanel
@@ -12,7 +12,6 @@ final class NotchPanelController {
     private let screenProvider: ScreenProvider
     private let resolver = OverlayScreenResolver()
     private let calculator = OverlayPlacementCalculator()
-    private var screenObserver: NSObjectProtocol?
 
     init(
         notificationCenter: NotificationCenter = .default,
@@ -27,23 +26,23 @@ final class NotchPanelController {
             defer: false
         )
 
+        super.init()
         configurePanel()
         reposition()
-        screenObserver = notificationCenter.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.reposition()
-            }
-        }
+        notificationCenter.addObserver(
+            self,
+            selector: #selector(screenParametersDidChange),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
     }
 
     deinit {
-        if let screenObserver {
-            notificationCenter.removeObserver(screenObserver)
-        }
+        notificationCenter.removeObserver(
+            self,
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
     }
 
     @discardableResult
@@ -66,6 +65,10 @@ final class NotchPanelController {
             panel.ignoresMouseEvents = false
             panel.orderFrontRegardless()
         }
+    }
+
+    @objc private func screenParametersDidChange() {
+        reposition()
     }
 
     private func configurePanel() {
