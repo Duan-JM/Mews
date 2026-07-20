@@ -12,6 +12,7 @@ check:
 
 test:
 	MEWS_SOCKET_NAMESPACE=test go test ./...
+	./scripts/test-overlay-swift.sh
 	./scripts/test-swift.sh
 
 lint:
