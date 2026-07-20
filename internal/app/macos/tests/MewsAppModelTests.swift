@@ -10,6 +10,8 @@ enum MewsAppModelTests {
         try testTerminalMetadataValidation()
         try testDetachedTmuxMetadataValidation()
         try testNotificationPolicy()
+        try testPresentationStateMapping()
+        try testPresentationPrimaryEventPolicy()
         testActionRouting()
     }
 
@@ -256,6 +258,73 @@ enum MewsAppModelTests {
 }
 
 private extension MewsAppModelTests {
+    static func testPresentationStateMapping() throws {
+        let idle = MewsPresentationState(event: nil)
+        try expect(idle.status == .idle, "missing events should present as idle")
+        try expect(idle.pose == .sleeping, "idle should use the sleeping pose")
+        try expect(idle.attention == .quiet, "idle should stay quiet")
+        try expect(idle.motion == .none, "idle should not animate")
+        try expect(idle.accessibilityLabel == "Mews is idle", "idle should have an accessibility label")
+
+        let running = MewsPresentationState(event: try decodeEvent(agentScope: "main", status: "running"))
+        try expect(running.status == .running, "running should preserve its presentation status")
+        try expect(running.pose == .working, "running should use the working pose")
+        try expect(running.attention == .active, "running should be active without demanding attention")
+        try expect(running.motion == .workingLoop, "running should use a repeating working motion")
+        try expect(running.motion.repeats, "working motion should repeat")
+        try expect(
+            running.effectiveMotion(reduceMotion: true) == .none,
+            "Reduce Motion should disable working animation"
+        )
+
+        let needsInput = MewsPresentationState(
+            event: try decodeEvent(agentScope: "main", status: "needs_input")
+        )
+        try expect(needsInput.pose == .attention, "needs_input should use the attention pose")
+        try expect(needsInput.attention == .urgent, "needs_input should be urgent")
+        try expect(needsInput.motion == .attentionLoop, "needs_input should keep signaling attention")
+
+        let done = MewsPresentationState(
+            event: try decodeEvent(id: "event-done", agentScope: "main", status: "done")
+        )
+        try expect(done.pose == .success, "done should use the success pose")
+        try expect(done.attention == .notice, "done should be a notice")
+        try expect(done.motion == .completionOnce, "done should use a one-shot completion motion")
+        try expect(done.motion.isOneShot, "completion motion should be one-shot")
+        try expect(done.transitionIdentifier == "event-done", "event IDs should identify one-shot transitions")
+
+        let failedEvent = try decodeEvent(agentScope: "main", status: "failed")
+        let failed = MewsPresentationState(event: failedEvent)
+        try expect(failed.pose == .failure, "failed should use the failure pose")
+        try expect(failed.attention == .urgent, "failed should be urgent")
+        try expect(failed.motion == .failureOnce, "failed should use a one-shot failure motion")
+        try expect(failed.transitionIdentifier != nil, "legacy events should get a stable transition identifier")
+
+        let unknown = MewsPresentationState(
+            event: try decodeEvent(agentScope: "main", status: "future_status")
+        )
+        try expect(unknown.status == .idle, "unknown statuses should retain the existing idle fallback")
+    }
+
+    static func testPresentationPrimaryEventPolicy() throws {
+        let running = try decodeEvent(agentScope: "main", status: "running")
+        let subagentDone = try decodeEvent(agentScope: "subagent", status: "done")
+        let recoverableFailure = try decodeEvent(
+            agentScope: "main",
+            status: "failed",
+            recoverable: true
+        )
+
+        try expect(
+            latestPresentationState(in: [running, subagentDone]).status == .running,
+            "subagent events should not replace the primary presentation state"
+        )
+        try expect(
+            latestPresentationState(in: [running, recoverableFailure]).status == .running,
+            "recoverable failures should not replace the primary presentation state"
+        )
+    }
+
     static func testNotificationPolicy() throws {
         let mainCompletion = try decodeEvent(
             agentScope: "main",
@@ -289,6 +358,7 @@ private extension MewsAppModelTests {
     }
 
     static func decodeEvent(
+        id: String? = nil,
         agentScope: String,
         status: String,
         recoverable: Bool? = nil
@@ -299,6 +369,9 @@ private extension MewsAppModelTests {
             "agent_scope": agentScope,
             "timestamp": "2026-07-20T12:00:00Z"
         ]
+        if let id {
+            object["id"] = id
+        }
         if let recoverable {
             object["recoverable"] = recoverable
         }
