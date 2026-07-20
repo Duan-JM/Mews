@@ -15,6 +15,7 @@ swiftc \
 swiftc \
   -parse-as-library \
   -warnings-as-errors \
+  "$ROOT/internal/app/macos/TerminalProfile.swift" \
   "$ROOT/internal/app/macos/CLIContext.swift" \
   "$ROOT/internal/app/macos/MewsEvent.swift" \
   "$ROOT/internal/app/macos/tests/MewsAppModelTests.swift" \

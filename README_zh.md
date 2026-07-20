@@ -47,6 +47,15 @@ make build
 
 `mw setup` 会先展示 Mews 准备写入的本地改动。`mw setup --yes` 才会应用这些 Mews-owned 设置。`mw start` 会安装当前用户的 LaunchAgent，并启动由 `make build` 打包出来的轻量菜单栏 companion。
 
+终端返回默认使用 `auto`：能识别事件来源时回到原终端，否则使用 Terminal.app。可以在 setup 时指定，也可以之后修改：
+
+```bash
+mw setup --yes --terminal kitty
+mw config terminal kitty
+```
+
+可选项包括 `auto`、`terminal`、`kitty`、`iterm2`、`wezterm`、`ghostty` 和 `alacritty`。`mw status` 与 `mw config terminal` 会显示当前设置。
+
 所有通知都由 Mews.app 通过 macOS 原生通知中心发送。通知标题会标明 agent 和状态，并在工具提供相关信息时显示项目名和缩短后的 session id。正文会描述生命周期动作，但不会展示完整工作目录、完整 session id、prompt 或终端输出。如果希望正文带一个简短任务标题，需要显式开启：
 
 ```bash
@@ -55,7 +64,7 @@ mw setup --yes --include-task-title
 
 这个选项最多保存 80 个来自 hook payload 的本地字符。Mews 仍然不会上传 prompt、transcript 或终端输出。
 
-App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Open CLI Context** 和 **Copy Return Command**。打开上下文会先复制 Mews 生成的 `mw history --session 'abc123'`，再用 Terminal 打开经过校验的工作目录；目录不可用时仍会唤起 Terminal，并把命令留在剪贴板。Mews 不会执行事件传入的命令，也不会读取 terminal scrollback。
+App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Return to CLI** 和 **Copy Return Command**。返回时会先复制 Mews 生成的 `mw history --session 'abc123'`，再优先激活原终端；有 tmux pane 时会切回对应 pane，kitty 已配置本地 Unix remote-control socket 时还会尝试聚焦原窗口。原上下文不可用时，Mews 才会用选定终端打开经过校验的工作目录。Mews 不修改 kitty 配置，不执行事件传入的命令，也不读取 terminal scrollback。
 
 Setup 会安装：
 
@@ -117,9 +126,11 @@ Mews 的隐私边界应该简单、可审计。
 ```bash
 mw setup       # 查看 setup 计划
 mw setup --yes # 应用 Mews-owned setup
+mw setup --yes --terminal kitty # setup 时指定返回终端
 mw setup --yes --include-task-title # 显式开启本地短任务标题
 mw start       # setup 后启动本地 agent
 mw status      # 查看当前本地状态
+mw config terminal kitty # 修改返回终端
 mw history     # 查看最近本地事件
 mw history --session <id> # 查看某个 session 的事件
 mw listen      # 在终端里监听并打印事件

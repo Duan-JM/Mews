@@ -30,7 +30,7 @@ func TestServeAcceptsEventsAndStops(t *testing.T) {
 		Status:    events.StatusDone,
 		Timestamp: time.Now(),
 	}
-	if err := SendEvent(socketPath, event); err != nil {
+	if err := SendEvent(socketPath, &event); err != nil {
 		t.Fatalf("SendEvent returned error: %v", err)
 	}
 

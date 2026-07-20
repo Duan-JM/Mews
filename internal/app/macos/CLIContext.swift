@@ -1,16 +1,41 @@
+import Darwin
 import Foundation
 
 struct CLIContextPayload: Equatable {
     static let returnCommandKey = "return_command"
     static let workingDirectoryKey = "cwd"
+    static let terminalKey = "terminal"
+    static let terminalWindowIDKey = "terminal_window_id"
+    static let kittyListenOnKey = "kitty_listen_on"
+    static let tmuxSocketKey = "tmux_socket"
+    static let tmuxPaneKey = "tmux_pane"
 
     let returnCommand: String?
     let workingDirectory: String?
+    let terminal: String?
+    let terminalWindowID: String?
+    let kittyListenOn: String?
+    let tmuxSocket: String?
+    let tmuxPane: String?
 
-    init?(returnCommand: String?, workingDirectory: String?) {
+    init?(
+        returnCommand: String?,
+        workingDirectory: String?,
+        terminal: String? = nil,
+        terminalWindowID: String? = nil,
+        kittyListenOn: String? = nil,
+        tmuxSocket: String? = nil,
+        tmuxPane: String? = nil
+    ) {
         self.returnCommand = normalizedText(returnCommand)
         self.workingDirectory = normalizedText(workingDirectory)
-        if self.returnCommand == nil && self.workingDirectory == nil {
+        self.terminal = TerminalProfile.source(terminal)?.rawValue
+        self.terminalWindowID = validatedWindowID(terminalWindowID, terminal: self.terminal)
+        self.kittyListenOn = validatedKittyListen(kittyListenOn, terminal: self.terminal)
+        let tmux = validatedTmuxMetadata(socket: tmuxSocket, pane: tmuxPane)
+        self.tmuxSocket = tmux?.socket
+        self.tmuxPane = tmux?.pane
+        if self.returnCommand == nil && self.workingDirectory == nil && self.terminal == nil {
             return nil
         }
     }
@@ -18,7 +43,12 @@ struct CLIContextPayload: Equatable {
     init?(userInfo: [AnyHashable: Any]) {
         self.init(
             returnCommand: userInfo[Self.returnCommandKey] as? String,
-            workingDirectory: userInfo[Self.workingDirectoryKey] as? String
+            workingDirectory: userInfo[Self.workingDirectoryKey] as? String,
+            terminal: userInfo[Self.terminalKey] as? String,
+            terminalWindowID: userInfo[Self.terminalWindowIDKey] as? String,
+            kittyListenOn: userInfo[Self.kittyListenOnKey] as? String,
+            tmuxSocket: userInfo[Self.tmuxSocketKey] as? String,
+            tmuxPane: userInfo[Self.tmuxPaneKey] as? String
         )
     }
 
@@ -30,7 +60,46 @@ struct CLIContextPayload: Equatable {
         if let workingDirectory {
             info[Self.workingDirectoryKey] = workingDirectory
         }
+        if let terminal {
+            info[Self.terminalKey] = terminal
+        }
+        if let terminalWindowID {
+            info[Self.terminalWindowIDKey] = terminalWindowID
+        }
+        if let kittyListenOn {
+            info[Self.kittyListenOnKey] = kittyListenOn
+        }
+        if let tmuxSocket {
+            info[Self.tmuxSocketKey] = tmuxSocket
+        }
+        if let tmuxPane {
+            info[Self.tmuxPaneKey] = tmuxPane
+        }
         return info
+    }
+
+    var sourceTerminalProfile: TerminalProfile? {
+        return TerminalProfile.source(terminal)
+    }
+
+    var kittyTarget: KittyTarget? {
+        guard let terminalWindowID, let kittyListenOn else {
+            return nil
+        }
+        return KittyTarget(windowID: terminalWindowID, listenOn: kittyListenOn)
+    }
+
+    func validatedKittyTarget(fileManager: FileManager = .default) -> KittyTarget? {
+        guard let target = kittyTarget else {
+            return nil
+        }
+        let socketPath = String(target.listenOn.dropFirst("unix:".count))
+        guard let attributes = try? fileManager.attributesOfItem(atPath: socketPath),
+              attributes[.type] as? FileAttributeType == .typeSocket,
+              attributes[.ownerAccountID] as? NSNumber == NSNumber(value: getuid()) else {
+            return nil
+        }
+        return target
     }
 
     func validatedDirectoryURL(fileManager: FileManager = .default) -> URL? {
@@ -46,11 +115,51 @@ struct CLIContextPayload: Equatable {
     }
 
     func isActionable(fileManager: FileManager = .default) -> Bool {
-        return returnCommand != nil || validatedDirectoryURL(fileManager: fileManager) != nil
+        return returnCommand != nil ||
+            sourceTerminalProfile != nil ||
+            validatedDirectoryURL(fileManager: fileManager) != nil
     }
 
     func actionable(fileManager: FileManager = .default) -> CLIContextPayload? {
         return isActionable(fileManager: fileManager) ? self : nil
+    }
+
+    func validatedTmuxTarget(fileManager: FileManager = .default) -> TmuxTarget? {
+        guard let tmuxSocket, let tmuxPane,
+              let attributes = try? fileManager.attributesOfItem(atPath: tmuxSocket),
+              attributes[.type] as? FileAttributeType == .typeSocket,
+              attributes[.ownerAccountID] as? NSNumber == NSNumber(value: getuid()) else {
+            return nil
+        }
+        return TmuxTarget(socketPath: tmuxSocket, paneID: tmuxPane)
+    }
+}
+
+struct KittyTarget: Equatable {
+    let windowID: String
+    let listenOn: String
+
+    var focusArguments: [String] {
+        return [
+            "@",
+            "--to", listenOn,
+            "--use-password=never",
+            "focus-window",
+            "--match", "id:\(windowID)"
+        ]
+    }
+}
+
+struct TmuxTarget: Equatable {
+    let socketPath: String
+    let paneID: String
+
+    var selectWindowArguments: [String] {
+        return ["-S", socketPath, "select-window", "-t", paneID]
+    }
+
+    var selectPaneArguments: [String] {
+        return ["-S", socketPath, "select-pane", "-t", paneID]
     }
 }
 
@@ -86,4 +195,44 @@ func normalizedText(_ value: String?) -> String? {
     }
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed
+}
+
+private func validatedWindowID(_ value: String?, terminal: String?) -> String? {
+    guard terminal == TerminalProfile.kitty.rawValue,
+          let value = normalizedText(value),
+          value.count <= 64,
+          asciiDigitsOnly(value) else {
+        return nil
+    }
+    return value
+}
+
+private func validatedKittyListen(_ value: String?, terminal: String?) -> String? {
+    guard terminal == TerminalProfile.kitty.rawValue,
+          let value = normalizedText(value),
+          value.count <= 4096,
+          value.hasPrefix("unix:/") else {
+        return nil
+    }
+    return value
+}
+
+private func validatedTmuxMetadata(socket: String?, pane: String?) -> (socket: String, pane: String)? {
+    guard let socket = normalizedText(socket),
+          socket.hasPrefix("/"),
+          socket.count <= 4096,
+          let pane = normalizedText(pane),
+          pane.count <= 64,
+          pane.first == "%",
+          asciiDigitsOnly(String(pane.dropFirst())),
+          pane.count > 1 else {
+        return nil
+    }
+    return (socket, pane)
+}
+
+private func asciiDigitsOnly(_ value: String) -> Bool {
+    return !value.isEmpty && value.unicodeScalars.allSatisfy {
+        $0.value >= 48 && $0.value <= 57
+    }
 }

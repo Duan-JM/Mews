@@ -93,7 +93,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private func notificationCategories() -> Set<UNNotificationCategory> {
         let openAction = UNNotificationAction(
             identifier: CLIContextIntent.openActionIdentifier,
-            title: "Open CLI Context",
+            title: "Return to CLI",
             options: [.foreground]
         )
         let copyAction = UNNotificationAction(

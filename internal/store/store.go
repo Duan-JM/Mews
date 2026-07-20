@@ -28,6 +28,7 @@ type SetupState struct {
 	Copilot          string    `json:"copilot"`
 	CopilotHook      string    `json:"copilot_hook,omitempty"`
 	IncludeTaskTitle bool      `json:"include_task_title,omitempty"`
+	Terminal         string    `json:"terminal,omitempty"`
 	Claude           string    `json:"claude"`
 	UndoReady        bool      `json:"undo_ready"`
 }
@@ -136,7 +137,7 @@ func SaveSetupState(state SetupState) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(paths.Config, data, 0o600)
+	return writeFileAtomic(paths.Config, data, 0o600)
 }
 
 func RemoveSetupState() error {

@@ -10,7 +10,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private let homeURL: URL
 
     private lazy var eventReader = EventLogReader(url: eventsURL)
-    private lazy var contextOpener = CLIContextOpener { [weak self] message in
+    private lazy var contextOpener = CLIContextOpener(configURL: configURL) { [weak self] message in
         self?.appendAppLog(message)
     }
     private lazy var notifications = NotificationManager(
@@ -119,7 +119,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             return NSMenuItem(title: event.summary, action: nil, keyEquivalent: "")
         }
         let item = NSMenuItem(
-            title: "\(event.summary) [open CLI]",
+            title: "\(event.summary) [return to CLI]",
             action: #selector(openCLIContextClicked(_:)),
             keyEquivalent: ""
         )
@@ -231,6 +231,12 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         return eventsURL
             .deletingLastPathComponent()
             .appendingPathComponent("notification-status.json")
+    }
+
+    private var configURL: URL {
+        return eventsURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("config.json")
     }
 
     private var logsURL: URL {

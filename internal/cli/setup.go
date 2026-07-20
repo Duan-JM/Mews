@@ -9,11 +9,13 @@ import (
 	"github.com/Duan-JM/mews/internal/app"
 	"github.com/Duan-JM/mews/internal/integrations"
 	"github.com/Duan-JM/mews/internal/store"
+	"github.com/Duan-JM/mews/internal/terminal"
 )
 
 type setupOptions struct {
 	apply            bool
 	includeTaskTitle bool
+	terminal         terminal.Profile
 }
 
 func runSetup(args []string, stdout, stderr io.Writer) int {
@@ -27,34 +29,61 @@ func runSetup(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "Could not resolve Mews paths: %v\n", err)
 		return 1
 	}
-	printSetupPlan(&paths, options.includeTaskTitle, stdout)
+	terminalProfile, err := setupTerminalProfile(options.terminal)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not read terminal preference: %v\n", err)
+		return 1
+	}
+	printSetupPlan(&paths, options.includeTaskTitle, terminalProfile, stdout)
 
 	if !options.apply {
 		fmt.Fprintln(stdout, "Run `mw setup --yes` to apply this safe local setup.")
 		fmt.Fprintln(stdout, "Run `mw undo` later to remove Mews-owned setup state.")
 		return 0
 	}
-	return applySetup(options, stdout, stderr)
+	return applySetup(options, terminalProfile, stdout, stderr)
 }
 
 func parseSetupOptions(args []string, stderr io.Writer) (setupOptions, bool) {
 	var options setupOptions
-	for _, arg := range args {
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
 		switch arg {
 		case "--yes", "-y":
 			options.apply = true
 		case "--include-task-title":
 			options.includeTaskTitle = true
+		case "--terminal":
+			if index+1 >= len(args) {
+				printSetupUsage(stderr)
+				return setupOptions{}, false
+			}
+			profile, err := terminal.ParseProfile(args[index+1])
+			if err != nil {
+				fmt.Fprintf(stderr, "%v. Choose one of: %s\n", err, terminal.Choices())
+				return setupOptions{}, false
+			}
+			options.terminal = profile
+			index++
 		default:
 			fmt.Fprintf(stderr, "Unknown setup option: %s\n", arg)
-			fmt.Fprintln(stderr, "Usage: mw setup [--yes] [--include-task-title]")
+			printSetupUsage(stderr)
 			return setupOptions{}, false
 		}
 	}
 	return options, true
 }
 
-func printSetupPlan(paths *store.StorePaths, includeTaskTitle bool, stdout io.Writer) {
+func printSetupUsage(w io.Writer) {
+	fmt.Fprintln(w, "Usage: mw setup [--yes] [--include-task-title] [--terminal <name>]")
+}
+
+func printSetupPlan(
+	paths *store.StorePaths,
+	includeTaskTitle bool,
+	terminalProfile terminal.Profile,
+	stdout io.Writer,
+) {
 	fmt.Fprintln(stdout, "Mews setup plan")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Mews will:")
@@ -75,6 +104,7 @@ func printSetupPlan(paths *store.StorePaths, includeTaskTitle bool, stdout io.Wr
 		fmt.Fprintf(stdout, "  - install Codex notify integration: %s\n", configPath)
 	}
 	fmt.Fprintln(stdout, "  - include project, cwd, hook event, and session metadata in events")
+	fmt.Fprintf(stdout, "  - return to terminal: %s\n", terminal.Description(terminalProfile))
 	if includeTaskTitle {
 		fmt.Fprintln(stdout, "  - include a local-only task title, truncated to 80 characters")
 	} else {
@@ -84,7 +114,12 @@ func printSetupPlan(paths *store.StorePaths, includeTaskTitle bool, stdout io.Wr
 	fmt.Fprintln(stdout)
 }
 
-func applySetup(options setupOptions, stdout, stderr io.Writer) int {
+func applySetup(
+	options setupOptions,
+	terminalProfile terminal.Profile,
+	stdout io.Writer,
+	stderr io.Writer,
+) int {
 	mwPath, err := os.Executable()
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not resolve mw executable path: %v\n", err)
@@ -96,7 +131,7 @@ func applySetup(options setupOptions, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	state := newSetupState(installed, options.includeTaskTitle)
+	state := newSetupState(installed, options.includeTaskTitle, terminalProfile)
 	if err := store.SaveSetupState(state); err != nil {
 		_ = integrations.UndoAll()
 		fmt.Fprintf(stderr, "Could not save setup state: %v\n", err)
@@ -114,13 +149,18 @@ func applySetup(options setupOptions, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func newSetupState(installed []store.IntegrationState, includeTaskTitle bool) store.SetupState {
+func newSetupState(
+	installed []store.IntegrationState,
+	includeTaskTitle bool,
+	terminalProfile terminal.Profile,
+) store.SetupState {
 	state := store.SetupState{
 		Version:          1,
 		SetupAt:          time.Now(),
 		Agent:            "menu bar app configured",
 		Copilot:          "hooks installed",
 		IncludeTaskTitle: includeTaskTitle,
+		Terminal:         string(terminalProfile),
 		Claude:           "hooks installed",
 		UndoReady:        true,
 	}
@@ -130,4 +170,18 @@ func newSetupState(installed []store.IntegrationState, includeTaskTitle bool) st
 		}
 	}
 	return state
+}
+
+func setupTerminalProfile(requested terminal.Profile) (terminal.Profile, error) {
+	if requested != "" {
+		return requested, nil
+	}
+	state, configured, err := store.LoadSetupState()
+	if err != nil {
+		return "", err
+	}
+	if !configured {
+		return terminal.Auto, nil
+	}
+	return terminal.ParseProfile(state.Terminal)
 }

@@ -28,10 +28,10 @@ func TestAppendAndReadEvents(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	if err := AppendEvent(path, first); err != nil {
+	if err := AppendEvent(path, &first); err != nil {
 		t.Fatalf("AppendEvent(first) returned error: %v", err)
 	}
-	if err := AppendEvent(path, second); err != nil {
+	if err := AppendEvent(path, &second); err != nil {
 		t.Fatalf("AppendEvent(second) returned error: %v", err)
 	}
 
@@ -90,7 +90,7 @@ func TestAppendEventCompactsOversizedLog(t *testing.T) {
 
 	event.Status = events.StatusDone
 	event.Message = "latest"
-	if err := AppendEvent(path, event); err != nil {
+	if err := AppendEvent(path, &event); err != nil {
 		t.Fatalf("AppendEvent returned error: %v", err)
 	}
 	got, err := ReadEvents(path, retainedEvents+10)
