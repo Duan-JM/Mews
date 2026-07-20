@@ -11,7 +11,7 @@ mw setup --yes
 mw start
 ```
 
-After that, Mews starts a menu bar companion, finds supported AI tools, enables local notifications where it can, and keeps a recent status history. Users should not need to edit Claude Code, Codex, or Copilot CLI configuration by hand.
+After that, Mews starts a menu bar companion, installs the supported Claude Code, Codex, and Copilot CLI integrations, and keeps a recent status history. Users should not need to edit those configuration files by hand.
 
 ## Non-Goals
 
@@ -67,7 +67,7 @@ The CLI handles setup, diagnostics, undo, and scriptable events. The agent owns 
 Responsibilities:
 
 - Start and stop the menu bar agent.
-- Detect installed tools.
+- Resolve supported integration paths.
 - Install and remove integrations.
 - Send custom events with `mw notify`.
 - Wrap commands with `mw run -- <command>`.
@@ -77,7 +77,7 @@ Responsibilities:
 Recommended commands:
 
 ```bash
-mw setup      # Show and apply supported local integrations
+mw setup      # Show the supported integration plan
 mw start      # Start the local agent after setup
 mw status     # Print current watched tools and agent state
 mw config terminal <name> # Select the terminal used for return actions
@@ -87,7 +87,7 @@ mw listen     # Listen in the terminal and print events as they arrive
 mw doctor     # Diagnose permissions, hooks, LaunchAgent, and IPC
 mw stop       # Stop the local agent
 mw undo       # Remove Mews-installed integrations and restore backups
-mw reset      # Delete local Mews data and logs
+mw reset --yes # Delete local Mews data and logs after undo
 
 mw notify     # Advanced: send a custom event
 mw run -- cmd # Advanced: run a command and report completion
@@ -112,18 +112,18 @@ The agent is packaged as a small app bundle so macOS menu bar identity, notifica
 
 Responsibilities:
 
-- Discover installed tools.
-- Decide the safest available integration for each tool.
+- Resolve the supported configuration path for each tool.
+- Validate existing configuration before choosing a safe edit.
 - Install integration files with backups.
 - Verify that integrations can call back into Mews.
-- Report unsupported or partially supported tools to `mw doctor`.
+- Report integration status to `mw doctor`.
 
 Supported tools in the first version:
 
 | Tool | First strategy | Fallback |
 |---|---|---|
-| Claude Code | Install local hook command after confirmation | Show manual instructions in `mw doctor` |
-| Codex | Use notify command or config-backed hook after confirmation | Suggest `mw run -- codex` |
+| Claude Code | Install local hook commands after confirmation | Use `mw run -- <command>` for process-exit fallback |
+| Codex | Install a top-level notify command after confirmation | Use `mw run -- <command>` for process-exit fallback |
 | Copilot CLI | Install user-level hooks in `~/.copilot/hooks/mews.json` | `mw run -- copilot` for process-exit fallback |
 | Custom scripts | `mw notify` | None |
 
@@ -167,24 +167,34 @@ SQLite can wait. JSON and JSONL are easier to inspect, back up, and repair in th
 ```text
 User runs mw setup
   │
-  ├─ Ensure Application Support and Logs directories exist
+  ├─ Resolve the store, log, app, and integration paths
   ├─ Show the Claude Code, Codex, and Copilot CLI writes
-  ├─ Ask for approval before writing tool configs
-  ├─ Install supported integrations with backups
-  ├─ Record installed files and backups in integrations.json
-  └─ Print undo and start next actions
+  ├─ Show the terminal return profile and task-title policy
+  └─ With --yes:
+      ├─ Install supported integrations with backups
+      ├─ Record installed files and backups in integrations.json
+      └─ Print the mw start next action
 ```
 
-Expected output:
+Representative plan output, with paths shortened:
 
 ```text
-Mews setup plan:
-  ✓ Claude Code
-  ✓ Codex
-  ✓ Copilot CLI
+Mews setup plan
 
-Run `mw setup --yes` to apply.
-Run `mw undo` later to remove these changes.
+Mews will:
+  - create store: <home>/Library/Application Support/Mews
+  - create logs: <home>/Library/Logs/Mews
+  - launch menu bar app: <path-to-Mews.app>
+  - install Copilot CLI hooks: <copilot-home>/hooks/mews.json
+  - install Claude Code hooks: <home>/.claude/settings.json
+  - install Codex notify integration: <home>/.codex/config.toml
+  - include project, cwd, hook event, and session metadata in events
+  - return to terminal: auto (origin terminal, Terminal fallback)
+  - skip task titles by default; use --include-task-title to opt in
+  - record setup state for `mw doctor` and `mw undo`
+
+Run `mw setup --yes` to apply this safe local setup.
+Run `mw undo` later to remove Mews-owned setup state.
 ```
 
 ### `mw start`
@@ -196,15 +206,15 @@ User runs mw start
   ├─ Install or refresh the LaunchAgent for Mews.app
   ├─ Launch menu bar app
   ├─ Wait for the bundled local agent socket
-  └─ Print watched tools and next action
+  └─ Print the LaunchAgent and store paths
 ```
 
-Expected output:
+Representative output:
 
 ```text
-Mews is watching configured tools.
-Menu bar companion started.
-Run `mw doctor` if something does not notify correctly.
+Mews menu bar app is running.
+  LaunchAgent: <home>/Library/LaunchAgents/dev.mews.agent.plist
+  Store: <home>/Library/Application Support/Mews
 ```
 
 ### Agent Event Delivery
@@ -237,8 +247,9 @@ User runs mw undo
   ├─ Remove exact Mews-managed hook commands and marker blocks
   ├─ Preserve unrelated edits made after setup
   ├─ Remove generated Mews-owned files
-  ├─ Unload LaunchAgent if requested
-  ├─ Stop menu bar agent if requested
+  ├─ Unload and remove the Mews LaunchAgent
+  ├─ Stop the menu bar agent
+  ├─ Remove setup state while keeping event history
   └─ Print restored items
 ```
 
@@ -265,13 +276,13 @@ Mews should keep the event model small.
 ```json
 {
   "version": 1,
-  "source": "claude-code",
+  "source": "copilot",
   "hook_event": "agentStop",
   "session_id": "abc123",
   "project": "Mews",
   "task_title": "Fix doctor output",
   "status": "done",
-  "message": "copilot done: Mews - Fix doctor output",
+  "message": "Agent stopped",
   "cwd": "/Users/name/project",
   "pid": 12345,
   "timestamp": "2026-07-07T18:40:00+08:00"
@@ -307,7 +318,7 @@ Supported statuses:
 |---|---|---|
 | `running` | Work started or resumed | Usually silent |
 | `needs_input` | User action is needed | Notify immediately |
-| `done` | Work completed | Notify if task lasted long enough |
+| `done` | Work completed | Notify immediately |
 | `failed` | Work failed | Notify immediately |
 | `idle` | No active work | Silent |
 
@@ -417,30 +428,37 @@ Config writes:
 
 It checks:
 
-- Menu bar agent installed.
+- Store and log directories writable.
+- Event history writable.
+- Setup state configured.
+- Menu bar app bundle available.
 - LaunchAgent loaded.
-- Unix socket reachable.
+- Local agent running.
+- Unix socket available.
 - Notification permission granted.
-- Mews store writable.
-- Claude Code integration installed and reachable.
-- Codex integration installed or marked fallback.
+- Integration rollback state ready.
+- Claude Code hooks installed.
+- Codex notify integration installed.
 - Copilot CLI hook status.
-- Integration rollback state.
 
 Example:
 
 ```text
 Mews Doctor
 
-Agent              running
-Socket             reachable
-Notifications      authorized
-Claude Code        enabled
-Codex              enabled
-Copilot CLI        hooks installed
 Store              writable
-
-No action needed.
+Logs               writable
+Events             ready
+Setup              configured
+Menu bar app       <path-to-Mews.app>
+LaunchAgent        loaded
+Local agent        running
+Socket             available
+Notifications      authorized
+Undo               ready
+Claude Code        hooks installed
+Codex              notify integration installed
+Copilot CLI        hooks installed
 ```
 
 ## Packaging
@@ -454,15 +472,14 @@ libexec/Mews.app
 
 The fallback installer writes only beneath `PREFIX` and does not edit shell startup files. Users of a custom prefix must expose `PREFIX/bin` through their shell configuration.
 
-`mw setup` should:
+`mw setup`:
 
-1. Ensure `libexec/Mews.app` exists.
-2. Discover supported tools.
-3. Show every planned write.
-4. Write backups before editing tool config.
-5. Record rollback state.
+1. Resolve store, app, terminal, and supported integration paths.
+2. Show every planned write and the task-title policy.
+3. With `--yes`, write backups before editing tool config.
+4. Record setup and rollback state.
 
-`mw start` should:
+`mw start`:
 
 1. Verify setup exists.
 2. Install `~/Library/LaunchAgents/dev.mews.agent.plist`.
@@ -481,13 +498,13 @@ Go owns:
 
 - CLI commands.
 - Setup, doctor, undo, and rollback.
-- Tool detection and integration management.
+- Integration path validation and management.
 - Local store and event validation.
 - Unix socket IPC.
 - `mw notify` and `mw run`.
 - Release binaries and Homebrew packaging.
 
-`Mews.app` should stay thin. The init-preview app is a small Swift/AppKit LSUIElement app that owns the menu bar icon and recent event UI while reusing the Go helper for local IPC. If a pure-Go menu bar implementation proves reliable enough, it can be considered, but the architecture should not force the product into a non-native Mac UX just to keep one language.
+`Mews.app` stays thin. The current app is a small Swift/AppKit LSUIElement app that owns the menu bar icon and recent event UI while reusing the Go helper for local IPC. If a pure-Go menu bar implementation proves reliable enough, it can be considered, but the architecture should not force the product into a non-native Mac UX just to keep one language.
 
 Do not use Rust in the first version. Mews needs simple distribution, fast iteration, and boring local tooling more than Rust's extra safety guarantees.
 
@@ -507,8 +524,8 @@ internal/
   integrations/
   ipc/
   launchd/
-  notify/
   store/
+  terminal/
   undo/
 lib/
   Mews.app/
@@ -575,8 +592,8 @@ make clean          # Remove build outputs
 Workflows:
 
 ```text
-check.yml           # formatting, lint, shellcheck
-test.yml            # Go tests
+check.yml           # Go, Swift, source-size, and shell lint checks
+test.yml            # Go tests and Swift model tests
 codeql.yml          # CodeQL scan
 package.yml         # build, checksum, and artifact smoke
 ```
@@ -587,8 +604,8 @@ The goal is the same feeling as Mole: a serious local Mac utility with simple co
 
 Manual acceptance checks:
 
-1. Fresh install, run `mw start`, menu bar icon appears.
-2. `mw start` discovers installed tools and asks before writing integrations.
+1. Fresh install, run `mw setup` to review planned integration writes.
+2. Run `mw setup --yes`, then `mw start`; the menu bar icon appears.
 3. `mw doctor` reports green state after setup.
 4. `mw notify --status done --message "Task finished"` updates menu bar and history.
 5. `mw run -- false` produces a failed event.
@@ -596,7 +613,7 @@ Manual acceptance checks:
 7. A notification action copies the Mews session command, returns to an attached source terminal, opens kitty on a detached tmux target, or falls back to the recorded directory.
 8. `mw undo` restores backed-up config and removes Mews-owned files.
 9. With notifications denied, menu bar status still works and doctor explains the permission.
-10. With the agent stopped, `mw notify` either starts it or gives a clear error.
+10. With the agent stopped, `mw notify` stores the validated event locally for later history.
 11. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
 
 Automated tests:
@@ -618,7 +635,7 @@ Every external write must have a rollback path:
 | LaunchAgent plist | unload and delete plist |
 | Claude Code settings | restore backup or remove Mews marker block |
 | Codex config | restore backup or remove Mews marker block |
-| shell wrapper or alias suggestion | remove generated Mews-owned file |
+| Copilot CLI hook | remove the Mews-owned hook file |
 | Mews store | keep by default, delete with explicit reset command |
 
 `mw undo` should not delete event history unless the user runs a separate reset command.

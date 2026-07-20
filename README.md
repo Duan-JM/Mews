@@ -134,7 +134,7 @@ mw config terminal kitty # Change the return terminal
 mw history     # Show recent local events
 mw history --session <id> # Show events for one session reference
 mw listen      # Listen in the terminal and print events as they arrive
-mw doctor      # Check setup and fix anything that needs attention
+mw doctor      # Diagnose setup, integrations, LaunchAgent, and IPC
 mw undo        # Remove Mews-installed integrations and setup state
 ```
 
