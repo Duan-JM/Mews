@@ -38,7 +38,7 @@ For development from this repository:
 
 ```bash
 make lint-tools
-make build
+make check
 ./bin/mw setup
 ./bin/mw setup --yes
 ./bin/mw start
