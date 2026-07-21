@@ -37,9 +37,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     func start() {
-        guard !started else {
-            return
-        }
+        guard !started else { return }
         started = true
         NSApp.setActivationPolicy(.accessory)
         configureInteractionShell()
@@ -75,14 +73,14 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         for event in reload.newEvents {
             notifications.send(for: event)
         }
-        updateStatusItem()
+        updateStatusItem(newEvents: reload.newEvents)
     }
 
     @objc private func reloadTimerDidFire(_ timer: Timer) {
         reloadEvents()
     }
 
-    private func updateStatusItem() {
+    private func updateStatusItem(newEvents: [MewsEvent]) {
         let latest = latestPrimaryEvent(in: events)
         let presentationState = MewsPresentationState(event: latest)
         let menu = NSMenu()
@@ -121,7 +119,11 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             state: presentationState,
             menu: menu
         )
-        interactionCoordinator?.update(presentationState: presentationState)
+        let announcesTransition = notchTransitionIsNew(latestEvent: latest, newEvents: newEvents)
+        interactionCoordinator?.update(
+            presentationState: presentationState,
+            announcesTransition: announcesTransition
+        )
     }
 
     private func eventMenuItem(for event: MewsEvent) -> NSMenuItem {
@@ -198,9 +200,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     private func stopAgent() {
-        guard let agent else {
-            return
-        }
+        guard let agent else { return }
         if agent.isRunning {
             agent.terminate()
         }

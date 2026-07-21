@@ -57,6 +57,7 @@ enum NotchInteractionAction: Equatable {
     case hoverOpenTimerFired
     case hoverCloseTimerFired
     case notificationPeekTimerFired(sequence: Int)
+    case presentationSynchronized(MewsPresentationState)
     case presentationChanged(MewsPresentationState)
 }
 
@@ -110,6 +111,16 @@ struct NotchPanelPresentationPolicy {
     }
 }
 
+func notchTransitionIsNew(
+    latestEvent: MewsEvent?,
+    newEvents: [MewsEvent]
+) -> Bool {
+    guard let latestEvent else {
+        return false
+    }
+    return newEvents.contains { $0.id == latestEvent.id }
+}
+
 struct NotchInteractionModel {
     private static let handledTransitionLimit = 64
 
@@ -140,6 +151,8 @@ struct NotchInteractionModel {
             return handleHoverCloseTimer()
         case let .notificationPeekTimerFired(sequence):
             return handleNotificationPeekTimer(sequence: sequence)
+        case let .presentationSynchronized(presentationState):
+            return synchronizePresentation(presentationState)
         case let .presentationChanged(presentationState):
             return handlePresentationChanged(presentationState)
         }
@@ -290,6 +303,19 @@ struct NotchInteractionModel {
             break
         }
         return effects
+    }
+
+    private mutating func synchronizePresentation(
+        _ presentationState: MewsPresentationState
+    ) -> [NotchInteractionEffect] {
+        if let identifier = presentationState.transitionIdentifier {
+            _ = rememberTransition(identifier)
+        }
+        guard presentationState != state.presentationState else {
+            return []
+        }
+        state.presentationState = presentationState
+        return closeAutomaticPeek()
     }
 
     private mutating func beginTransitionPeek(

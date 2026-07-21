@@ -5,6 +5,7 @@ extension MewsAppModelTests {
         try testLogoAndNotchClicks()
         try testHoverTimers()
         try testOutsideClick()
+        try testHistoricalPresentationSync()
         try testNeedsInputPeek()
         try testTimedNotificationPeeks()
         try testNotificationPeekDeduplication()
@@ -156,6 +157,61 @@ extension MewsAppModelTests {
             automaticModel.send(.presentationChanged(idle)).isEmpty &&
                 automaticModel.state.visibility == .closed,
             "idle should not open a closed shell"
+        )
+    }
+
+    private static func testHistoricalPresentationSync() throws {
+        var needsInputModel = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
+        let historicalNeedsInput = MewsPresentationState(
+            event: try notchEvent(id: "historical-input", status: "needs_input")
+        )
+        try notchExpect(
+            needsInputModel.send(.presentationSynchronized(historicalNeedsInput)).isEmpty,
+            "historical needs_input state should synchronize without effects"
+        )
+        try notchExpect(
+            needsInputModel.state.visibility == .closed &&
+                needsInputModel.state.presentationState == historicalNeedsInput,
+            "historical needs_input state should not replay a persistent peek"
+        )
+
+        var doneModel = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
+        let historicalDone = MewsPresentationState(
+            event: try notchEvent(id: "historical-done", status: "done")
+        )
+        _ = doneModel.send(.presentationSynchronized(historicalDone))
+        try notchExpect(
+            doneModel.state.visibility == .closed,
+            "historical completion should synchronize without replaying its peek"
+        )
+
+        let running = MewsPresentationState(event: try notchEvent(status: "running"))
+        _ = doneModel.send(.presentationChanged(running))
+        try notchExpect(
+            doneModel.send(.presentationChanged(historicalDone)).isEmpty &&
+                doneModel.state.visibility == .closed,
+            "a synchronized terminal transition should remain deduplicated"
+        )
+
+        var activePeekModel = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
+        let liveDone = MewsPresentationState(
+            event: try notchEvent(id: "live-done", status: "done")
+        )
+        _ = activePeekModel.send(.presentationChanged(liveDone))
+        try notchExpect(
+            activePeekModel.send(.presentationSynchronized(liveDone)).isEmpty &&
+                activePeekModel.state.visibility == .peek,
+            "a periodic silent sync should not shorten an active live peek"
+        )
+
+        let historicalEvent = try notchEvent(id: "history-event", status: "failed")
+        try notchExpect(
+            !notchTransitionIsNew(latestEvent: historicalEvent, newEvents: []),
+            "the initial history scan should not announce a notch transition"
+        )
+        try notchExpect(
+            notchTransitionIsNew(latestEvent: historicalEvent, newEvents: [historicalEvent]),
+            "a newly appended latest primary event should announce a notch transition"
         )
     }
 

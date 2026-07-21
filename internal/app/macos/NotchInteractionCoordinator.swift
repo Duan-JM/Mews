@@ -37,9 +37,7 @@ final class NotchInteractionCoordinator: NSObject {
     }
 
     func start() {
-        guard !started else {
-            return
-        }
+        guard !started else { return }
         started = true
         installLocalEventMonitor()
         installGlobalClickMonitor()
@@ -54,9 +52,7 @@ final class NotchInteractionCoordinator: NSObject {
     }
 
     func stop() {
-        guard started else {
-            return
-        }
+        guard started else { return }
         started = false
         invalidateTimers()
         removeEventMonitors()
@@ -66,10 +62,6 @@ final class NotchInteractionCoordinator: NSObject {
             object: nil
         )
         panelController.hide()
-    }
-
-    func update(presentationState: MewsPresentationState) {
-        send(.presentationChanged(presentationState))
     }
 
     func logoPrimaryClicked() {
@@ -162,9 +154,7 @@ final class NotchInteractionCoordinator: NSObject {
     }
 
     private func screenPoint(for event: NSEvent) -> CGPoint {
-        guard let window = event.window else {
-            return NSEvent.mouseLocation
-        }
+        guard let window = event.window else { return NSEvent.mouseLocation }
         return window.convertPoint(toScreen: event.locationInWindow)
     }
 
@@ -275,5 +265,17 @@ final class NotchInteractionCoordinator: NSObject {
         localEventMonitor = nil
         globalClickMonitor = nil
         globalHoverMonitor = nil
+    }
+}
+
+extension NotchInteractionCoordinator {
+    func update(
+        presentationState: MewsPresentationState,
+        announcesTransition: Bool
+    ) {
+        let action: NotchInteractionAction = announcesTransition
+            ? .presentationChanged(presentationState)
+            : .presentationSynchronized(presentationState)
+        send(action)
     }
 }
