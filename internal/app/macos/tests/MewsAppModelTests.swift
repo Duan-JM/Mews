@@ -21,6 +21,7 @@ enum MewsAppModelTests {
         try testRuntimeHealthSnapshot()
         try testPixelStatusLogoPlans()
         try testNotchInteractionPolicy()
+        try testNotchShellPresentation()
         try testNotchPanelContent()
         try testNotchPanelControllerTopology()
         testActionRouting()

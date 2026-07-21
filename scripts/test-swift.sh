@@ -45,6 +45,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchInteractionTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \
   "$ROOT/internal/app/macos/tests/PixelStatusLogoTests.swift" \

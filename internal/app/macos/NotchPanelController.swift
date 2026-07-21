@@ -133,6 +133,33 @@ final class NotchPanelController: NSObject {
         return false
     }
 
+    func containsNotchTrigger(_ point: CGPoint) -> Bool {
+        guard let placement, placement.mode == .notch else {
+            return false
+        }
+        let visibility = interactionState.visibility == .expanded
+            ? NotchVisibility.closed
+            : interactionState.visibility
+        return shellGeometry(visibility: visibility).contains(
+            point,
+            in: placement.frame
+        )
+    }
+
+    func containsVisibleShell(_ point: CGPoint) -> Bool {
+        guard let placement,
+              NotchPanelPresentationPolicy.isVisible(
+                  visibility: interactionState.visibility,
+                  placementMode: placement.mode
+              ) else {
+            return false
+        }
+        return shellGeometry(visibility: interactionState.visibility).contains(
+            point,
+            in: placement.frame
+        )
+    }
+
     @objc private func screenParametersDidChange(_ notification: Notification) {
         reposition()
     }
@@ -205,6 +232,15 @@ final class NotchPanelController: NSObject {
         )
         panel.orderFrontRegardless()
     }
+
+    private func shellGeometry(
+        visibility: NotchVisibility
+    ) -> NotchShellGeometry {
+        return NotchShellGeometry.resolved(
+            snapshot: shellModel.snapshot,
+            visibility: visibility
+        )
+    }
 }
 
 final class NotchHostingView<Content: View>: NSHostingView<Content> {
@@ -218,9 +254,9 @@ private extension NotchVisibility {
     var accessibilityDescription: String {
         switch self {
         case .closed:
-            return "panel closed"
+            return "compact status"
         case .peek:
-            return "panel preview"
+            return "status preview"
         case .expanded:
             return "panel expanded"
         }

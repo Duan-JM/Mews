@@ -119,32 +119,32 @@ final class NotchInteractionCoordinator: NSObject {
     }
 
     private func handleMouseMoved(_ event: NSEvent) {
-        guard let placement = panelController.placement else {
+        guard panelController.placement != nil else {
             send(.pointerMoved(isInsideNotch: false, isInsideInteractiveSurface: false))
             return
         }
         let point = screenPoint(for: event)
         send(
             .pointerMoved(
-                isInsideNotch: placement.containsPhysicalNotch(point),
-                isInsideInteractiveSurface: placement.containsInteractiveSurface(point)
+                isInsideNotch: panelController.containsNotchTrigger(point),
+                isInsideInteractiveSurface: panelController.containsVisibleShell(point)
             )
         )
     }
 
     private func handleMouseDown(_ event: NSEvent) {
-        guard let placement = panelController.placement else {
+        guard panelController.placement != nil else {
             send(.outsideClick)
             return
         }
         let point = screenPoint(for: event)
         let targetsControl = panelController.eventTargetsControl(event)
 
-        if event.type == .leftMouseDown && placement.containsPhysicalNotch(point) {
+        if event.type == .leftMouseDown && panelController.containsNotchTrigger(point) {
             send(.notchClick(isPanelControl: targetsControl))
             return
         }
-        if placement.containsPanel(point) {
+        if panelController.containsVisibleShell(point) {
             if event.type == .leftMouseDown {
                 send(.panelSurfaceClick(isPanelControl: targetsControl))
             }

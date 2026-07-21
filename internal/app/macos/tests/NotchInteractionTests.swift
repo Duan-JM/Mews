@@ -11,7 +11,6 @@ extension MewsAppModelTests {
         try testTimedNotificationPeeks()
         try testNotificationPeekDeduplication()
         try testExpandedStatusUpdates()
-        try testNotchMotionAndFallbackPolicy()
         try testStatusItemClickPolicy()
     }
 
@@ -118,29 +117,58 @@ extension MewsAppModelTests {
     }
 
     private static func testNeedsInputPeek() throws {
+        try testBoundedNeedsInputPreview()
+        try testNeedsInputStateChanges()
+    }
+
+    private static func testBoundedNeedsInputPreview() throws {
         var model = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
         let needsInput = MewsPresentationState(event: try notchEvent(status: "needs_input"))
         let effects = model.send(.presentationChanged(needsInput))
+        let sequence = try notificationSequence(in: effects)
 
-        try notchExpect(effects.isEmpty, "needs_input should not schedule automatic dismissal")
+        try notchExpect(
+            effects == [
+                .scheduleNotificationPeek(
+                    sequence: sequence,
+                    after: NotchInteractionTiming.needsInputPeek
+                )
+            ],
+            "needs_input should schedule a bounded four second preview"
+        )
         try notchExpect(
             model.state.visibility == .peek && model.state.openReason == .notification,
-            "needs_input should open a persistent notification peek"
+            "needs_input should open a notification preview"
         )
         try notchExpect(
             model.send(.presentationChanged(needsInput)).isEmpty,
             "an unchanged needs_input state should not reopen or restart its peek"
         )
+        _ = model.send(.notificationPeekTimerFired(sequence: sequence))
+        try notchExpect(
+            model.state.visibility == .closed,
+            "needs_input should return to its compact attention state"
+        )
 
         _ = model.send(.logoPrimaryClick)
         try notchExpect(
             model.state.visibility == .expanded && model.state.openReason == .click,
-            "clicking a needs_input peek should expand it"
+            "clicking compact needs_input status should expand it"
         )
+    }
+
+    private static func testNeedsInputStateChanges() throws {
+        let needsInput = MewsPresentationState(event: try notchEvent(status: "needs_input"))
         let running = MewsPresentationState(event: try notchEvent(status: "running"))
-        _ = model.send(.presentationChanged(running))
+
+        var expandedModel = NotchInteractionModel(
+            presentationState: MewsPresentationState(event: nil)
+        )
+        _ = expandedModel.send(.presentationChanged(needsInput))
+        _ = expandedModel.send(.logoPrimaryClick)
+        _ = expandedModel.send(.presentationChanged(running))
         try notchExpect(
-            model.state.visibility == .expanded,
+            expandedModel.state.visibility == .expanded,
             "running should not close a panel that the user explicitly expanded"
         )
 
@@ -150,7 +178,8 @@ extension MewsAppModelTests {
         _ = automaticModel.send(.presentationChanged(needsInput))
         let closeEffects = automaticModel.send(.presentationChanged(running))
         try notchExpect(
-            closeEffects.isEmpty && automaticModel.state.visibility == .closed,
+            closeEffects == [.cancelNotificationPeek] &&
+                automaticModel.state.visibility == .closed,
             "running should close an automatic needs_input peek without opening another surface"
         )
         let idle = MewsPresentationState(event: nil)
@@ -176,7 +205,7 @@ extension MewsAppModelTests {
         try notchExpect(model.state.visibility == .closed, "the first input peek should be dismissible")
 
         try notchExpect(
-            model.send(.presentationChanged(second)).isEmpty &&
+            !model.send(.presentationChanged(second)).isEmpty &&
                 model.state.visibility == .peek &&
                 model.state.openReason == .notification,
             "a distinct needs_input event should reopen the notch alert"
@@ -195,7 +224,7 @@ extension MewsAppModelTests {
         try notchExpect(
             needsInputModel.state.visibility == .closed &&
                 needsInputModel.state.presentationState == historicalNeedsInput,
-            "historical needs_input state should not replay a persistent peek"
+            "historical needs_input state should not replay a bounded preview"
         )
 
         var doneModel = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
@@ -326,54 +355,6 @@ extension MewsAppModelTests {
                 "an explicitly expanded shell should survive \(status)"
             )
         }
-    }
-
-    private static func testNotchMotionAndFallbackPolicy() throws {
-        try notchExpect(
-            NotchShellTransitionStyle.resolved(reduceMotion: false) == .spatial,
-            "standard motion should allow spatial shell transitions"
-        )
-        try notchExpect(
-            NotchShellTransitionStyle.resolved(reduceMotion: true) == .opacityOnly,
-            "Reduce Motion should select non-spatial shell transitions"
-        )
-        let standardContrast = NotchContrastPalette.resolved(increaseContrast: false)
-        let increasedContrast = NotchContrastPalette.resolved(increaseContrast: true)
-        try notchExpect(
-            increasedContrast.metadataText > standardContrast.metadataText &&
-                increasedContrast.separator > standardContrast.separator &&
-                increasedContrast.disabledText > standardContrast.disabledText,
-            "Increase Contrast should strengthen secondary text, separators, and disabled controls"
-        )
-        try notchExpect(
-            !NotchPanelPresentationPolicy.isVisible(
-                visibility: .closed,
-                placementMode: .topCenter
-            ),
-            "top-center fallback should stay fully hidden while closed"
-        )
-        try notchExpect(
-            !NotchPanelPresentationPolicy.isVisible(
-                visibility: .peek,
-                placementMode: .topCenter
-            ),
-            "top-center fallback should not duplicate an automatic system notification"
-        )
-        try notchExpect(
-            NotchPanelPresentationPolicy.isVisible(
-                visibility: .expanded,
-                placementMode: .topCenter
-            ),
-            "top-center fallback should remain available after an explicit user action"
-        )
-        try notchExpect(
-            !NotchPanelPresentationPolicy.acceptsMouseEvents(visibility: .peek),
-            "peek should remain noninteractive"
-        )
-        try notchExpect(
-            NotchPanelPresentationPolicy.acceptsMouseEvents(visibility: .expanded),
-            "expanded should accept panel interaction"
-        )
     }
 
     private static func testStatusItemClickPolicy() throws {
