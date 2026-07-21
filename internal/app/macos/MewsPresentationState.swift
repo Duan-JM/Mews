@@ -53,7 +53,7 @@ struct MewsPresentationState: Equatable {
         attention = Self.presentationAttention(for: status)
         motion = Self.presentationMotion(for: status)
         accessibilityLabel = Self.accessibilityLabel(for: status)
-        transitionIdentifier = Self.transitionIdentifier(for: event, motion: motion)
+        transitionIdentifier = Self.transitionIdentifier(for: event, status: status)
     }
 
     func effectiveMotion(reduceMotion: Bool) -> MewsPresentationMotion {
@@ -137,9 +137,10 @@ struct MewsPresentationState: Equatable {
 
     private static func transitionIdentifier(
         for event: MewsEvent?,
-        motion: MewsPresentationMotion
+        status: MewsPresentationStatus
     ) -> String? {
-        guard motion.isOneShot, let event else {
+        guard [.needsInput, .done, .failed].contains(status),
+              let event else {
             return nil
         }
         if let id = normalizedText(event.id) {

@@ -100,10 +100,12 @@ struct NotchPanelPresentationPolicy {
         visibility: NotchVisibility,
         placementMode: OverlayPlacementMode
     ) -> Bool {
-        if placementMode == .topCenter && visibility == .closed {
-            return false
+        switch placementMode {
+        case .notch:
+            return visibility != .closed
+        case .topCenter:
+            return visibility == .expanded
         }
-        return visibility != .closed
     }
 
     static func acceptsMouseEvents(visibility: NotchVisibility) -> Bool {

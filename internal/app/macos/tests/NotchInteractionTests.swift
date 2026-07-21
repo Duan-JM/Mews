@@ -7,6 +7,7 @@ extension MewsAppModelTests {
         try testOutsideClick()
         try testHistoricalPresentationSync()
         try testNeedsInputPeek()
+        try testDistinctNeedsInputPeek()
         try testTimedNotificationPeeks()
         try testNotificationPeekDeduplication()
         try testExpandedStatusUpdates()
@@ -157,6 +158,28 @@ extension MewsAppModelTests {
             automaticModel.send(.presentationChanged(idle)).isEmpty &&
                 automaticModel.state.visibility == .closed,
             "idle should not open a closed shell"
+        )
+    }
+
+    private static func testDistinctNeedsInputPeek() throws {
+        var model = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
+        let first = MewsPresentationState(
+            event: try notchEvent(id: "needs-input-1", status: "needs_input")
+        )
+        let second = MewsPresentationState(
+            event: try notchEvent(id: "needs-input-2", status: "needs_input")
+        )
+
+        _ = model.send(.presentationChanged(first))
+        _ = model.send(.logoPrimaryClick)
+        _ = model.send(.logoPrimaryClick)
+        try notchExpect(model.state.visibility == .closed, "the first input peek should be dismissible")
+
+        try notchExpect(
+            model.send(.presentationChanged(second)).isEmpty &&
+                model.state.visibility == .peek &&
+                model.state.openReason == .notification,
+            "a distinct needs_input event should reopen the notch alert"
         )
     }
 
@@ -330,11 +353,18 @@ extension MewsAppModelTests {
             "top-center fallback should stay fully hidden while closed"
         )
         try notchExpect(
-            NotchPanelPresentationPolicy.isVisible(
+            !NotchPanelPresentationPolicy.isVisible(
                 visibility: .peek,
                 placementMode: .topCenter
             ),
-            "top-center fallback should become visible for a peek"
+            "top-center fallback should not duplicate an automatic system notification"
+        )
+        try notchExpect(
+            NotchPanelPresentationPolicy.isVisible(
+                visibility: .expanded,
+                placementMode: .topCenter
+            ),
+            "top-center fallback should remain available after an explicit user action"
         )
         try notchExpect(
             !NotchPanelPresentationPolicy.acceptsMouseEvents(visibility: .peek),

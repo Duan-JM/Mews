@@ -100,18 +100,20 @@ Responsibilities:
 - Render current state as a compact, monochrome pixel logo in the menu bar.
 - Open a compact status shell at the physical notch or top center from that pixel logo.
 - Show recent event history.
-- Deliver macOS notifications.
+- Route each attention event to the physical-notch shell or a macOS notification fallback.
 - Receive local events from integrations and the CLI.
-- Deliver native notifications for the implemented attention states.
+- Deliver native notifications for implemented attention states when no physical notch can present them.
 - Return to a validated source terminal context when possible, or open the configured terminal working directory.
 - Copy a Mews-owned session history command from notification or panel actions.
 - Persist recent events and settings.
 
-The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, renders a state-responsive template pixel logo, reads local event history for the context menu, opens a compact notch/top-center shell, and delivers native notifications for attention states. Before launching a child and after a child exits, the app asynchronously pings the same Unix socket path used by the Go store resolver, including the private short-path and namespace fallback. In-flight probes are deduplicated so the main actor never waits on IPC. A responsive external agent is treated as healthy, is never duplicated, and is not terminated when the app exits. While externally owned, liveness is checked by the existing two-second refresh. A missing helper, launch failure, or short-lived child uses monotonic exponential restart delays from 10 seconds to a five-minute cap. One minute of healthy child runtime resets the delay, which avoids a persistent process-launch loop while retaining automatic recovery.
+The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, renders a state-responsive template pixel logo, reads local event history for the context menu, opens a compact notch/top-center shell, and routes attention events through either the physical-notch shell or native notifications. Before launching a child and after a child exits, the app asynchronously pings the same Unix socket path used by the Go store resolver, including the private short-path and namespace fallback. In-flight probes are deduplicated so the main actor never waits on IPC. A responsive external agent is treated as healthy, is never duplicated, and is not terminated when the app exits. While externally owned, liveness is checked by the existing two-second refresh. A missing helper, launch failure, or short-lived child uses monotonic exponential restart delays from 10 seconds to a five-minute cap. One minute of healthy child runtime resets the delay, which avoids a persistent process-launch loop while retaining automatic recovery.
 
 The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separate from AppKit timers and event monitors. AppKit owns the fixed 420×220 nonactivating panel, display placement, passive local/global mouse observation, and teardown. Outside clicks close an expanded panel without consuming or synthesizing the target event. SwiftUI renders the black morphing shell inside that frame. Left-clicking the status item toggles the shell, while right-click and Control-click preserve the existing event, Refresh, and Quit menu. Physical-notch hover is optional: if global hover monitoring is unavailable, the app logs the degradation and keeps the status-item click and top-center fallback paths.
 
 Display placement is recalculated on `NSApplication.didChangeScreenParametersNotification`. The resolver prefers any available physical notch, otherwise uses the main display's `visibleFrame` top center so the shell stays below the menu bar. This covers external-display, clamshell, resolution, coordinate, and main-screen changes. A transient empty screen list clears placement and orders the panel out; the next display notification restores it. The panel remains stationary, joins all Spaces, and participates as a full-screen auxiliary window.
+
+Alert routing reads that live placement for every new event. Only the current event that the physical notch will actually present suppresses its system notification; other new events keep Notification Center fallback so a two-second reload batch cannot silently drop an earlier completion. Without a physical notch, presentation state still updates the menu bar and top-center shell content, but the shell does not auto-open for the event.
 
 New presentation changes can show a noninteractive peek without collapsing an expanded shell. Startup history is synchronized silently, so relaunching Mews does not replay stale attention or completion peeks. `needs_input` persists until the state changes or the user expands or closes it, `done` peeks for 2.5 seconds, and `failed` peeks for 4 seconds. Completion and failure peeks are deduplicated by the presentation transition identifier. `running` and `idle` do not auto-open.
 
@@ -408,9 +410,9 @@ Mews may derive `project` from `cwd` and preserve a hook `session_id` when provi
 
 Implemented default behavior:
 
-- Primary-agent `needs_input`: notify immediately.
-- Primary-agent non-recoverable `failed`: notify immediately.
-- Primary-agent `done`: notify immediately.
+- Primary-agent `needs_input`: show a persistent physical-notch peek, or notify immediately when no physical notch is available.
+- Primary-agent non-recoverable `failed`: show a four-second physical-notch peek, or notify immediately when no physical notch is available.
+- Primary-agent `done`: show a 2.5-second physical-notch peek, or notify immediately when no physical notch is available.
 - Subagent events and recoverable errors: keep in history without notifying or replacing primary status.
 - `running`: update menu bar only.
 - `idle`: update menu bar only.
@@ -424,7 +426,7 @@ Action behavior:
 - Default notification clicks use the same open action.
 - Relative, missing, and non-directory paths are never opened.
 
-General duplicate suppression, runtime thresholds, and configurable quiet mode remain post-MVP notification policy work.
+Semantic replay suppression, runtime thresholds, and configurable quiet mode remain post-MVP notification policy work.
 
 ## Security and Privacy
 
@@ -644,11 +646,13 @@ Manual acceptance checks:
 11. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
 12. A Copilot subagent completion stays in history without triggering a native notification or replacing primary status.
 13. The pixel logo opens the compact notch/top-center shell, while right-click and Control-click retain the existing menu.
+14. A physical-notch attention event does not also send a system notification; clamshell and no-notch layouts keep the notification fallback.
 
 Automated tests:
 
 - Event validation.
 - Primary-agent and subagent notification policy.
+- Physical-notch versus system-notification routing, including topology changes and batched events.
 - Notification action routing, terminal metadata validation, and CLI-context path validation.
 - Closed, peek, and expanded shell policy, notification-peek timing, deduplication, and placement hit testing.
 - JSONL store append and rotation.

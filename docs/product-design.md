@@ -90,9 +90,9 @@ Mews first handles five states:
 | State | Meaning | UI expression |
 |---|---|---|
 | `running` | Agent is working | Running state in the menu bar |
-| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Persistent compact peek |
-| `done` | Main task finished | Gentle notification and 2.5-second peek |
-| `failed` | Main task failed or a command exited unexpectedly | Clear notification and 4-second peek |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Persistent notch peek, or a system notification without a physical notch |
+| `done` | Main task finished | 2.5-second notch peek, or a system notification fallback |
+| `failed` | Main task failed or a command exited unexpectedly | 4-second notch peek, or a system notification fallback |
 | `idle` | No active task | Quiet idle state |
 
 UI freshness is separate from stored history. `running` and `needs_input` can drive the current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. After that, the current state becomes `idle`, current-context panel actions disable, and the event stays available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
@@ -119,10 +119,12 @@ Events stay deliberately small:
 5. Missed notifications and silent subagent events should be recoverable from recent local history.
 6. Stale states return to `idle` on the fixed freshness schedule above instead of getting stuck forever.
 7. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
+8. Each attention event uses one automatic channel: the physical-notch shell when available, otherwise Notification Center.
 
 ## Display and Accessibility Behavior
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
+- Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
