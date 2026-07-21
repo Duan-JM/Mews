@@ -119,6 +119,8 @@ New presentation changes can show a noninteractive peek without collapsing an ex
 
 Presentation selection uses an injected current time rather than mutating stored history. `running` and `needs_input` events remain current for 24 hours; settled `done`, `failed`, and explicit `idle` events remain current for 30 minutes. Events more than five minutes in the future are not selected as current. When the latest primary event expires, the status logo and current shell summary return to `idle`, automatic peeks close, and current-context panel actions disable. Up to three expired primary events remain visible as bounded recent history, and the context menu continues to expose stored history.
 
+The same centralized freshness policy applies to the recoverable session index. Repository updates and explicit history recovery reject evidence beyond the five-minute future tolerance. A valid current event may replace an already persisted too-future record so clock-skewed evidence cannot block the session until its timestamp arrives. Expiry is derived at read time with an injected clock: it changes the reported status to `idle` without rewriting the accepted evidence, the session index, or `events.jsonl`.
+
 The expanded shell maps only primary, non-recoverable events into a display model. It shows the current source and status, a bounded project label, an eight-column session reference, a single-line message, and up to three earlier primary events. Prompt-derived task titles remain gated by the existing setup opt-in. The model never exposes the full session identifier or working directory, and runner events use lifecycle copy instead of command text. Panel actions receive the current `CLIContextPayload` only after the existing validation path marks it actionable. **Return to CLI** delegates to `CLIContextOpener.open`, while **Copy Command** delegates to `CLIContextOpener.copy`; no event-provided command is executed.
 
 The status item uses a monochrome template image so system menu bar contrast remains authoritative. `NSWorkspace.accessibilityDisplayOptionsDidChangeNotification` refreshes panel rendering when Reduce Motion or Increase Contrast changes. Reduce Motion selects static logo poses and opacity-only shell transitions without changing layout. Increase Contrast raises secondary-copy, separator, border, status, and disabled-control contrast without changing geometry. The status item, panel window, shell container, summaries, and buttons expose accessibility labels or native text for VoiceOver; these adaptations do not add a Mews permission prompt.
@@ -152,6 +154,7 @@ Recommended paths:
 ~/Library/Application Support/Mews/
   config.json
   events.jsonl
+  sessions.json
   integrations.json
   backups/
   copilot-hooks/
@@ -169,6 +172,7 @@ Storage format:
 
 - `config.json`: setup state, terminal preference, and notification rules.
 - `events.jsonl`: append-only recent event log, capped by size or age.
+- `sessions.json`: versioned recoverable current-session index derived from accepted events.
 - `integrations.json`: installed integration records and backup paths.
 - `backups/`: original config files before Mews modifies them.
 - `copilot-hooks/`: opaque hashes used to correlate Copilot subagent lifecycle events.
@@ -176,6 +180,12 @@ Storage format:
 The socket normally lives in Application Support. If the full path would exceed the macOS Unix socket limit, Mews uses a private `0700` directory under the system temporary directory for the current user.
 
 SQLite can wait. JSON and JSONL are easier to inspect, back up, and repair in the first version.
+
+The session index uses `source` plus a non-empty `session_id` as its stable identity. Events without a session ID remain available in history but never enter current session state. Each record keeps the accepted status, status-change time, latest evidence time, source, project, hook event, and validated terminal-return metadata. New accepted evidence retains the previous non-empty project and merges validated return metadata field by field when optional fields are omitted, while newer non-empty values replace matching fields. The merged context is reconstructed through `CLIContextPayload`, so a terminal-profile change removes incompatible kitty metadata while retaining still-valid fields such as `cwd`. The hook event always belongs to the latest evidence and is never inherited. Mews-owned history commands are regenerated from the identity and current CLI location rather than persisted as command text.
+
+The fold is incremental and deterministic. Older evidence and duplicate event IDs are ignored; legacy events without IDs include their exact timestamp in the fallback evidence identity. Equal-time evidence uses a centralized precedence policy so explicit session end, idle, and runner process-exit evidence cannot be replaced by a less conclusive update merely because it arrived later. Persisted precedence must match that same policy for the stored identity, status, and hook. Main-agent, subagent, and recoverable rules remain the same as notification and primary presentation rules: subagent and recoverable events stay in history and do not replace current primary state.
+
+`sessions.json` is written through a private `0600` staging file followed by an atomic rename. Missing storage starts with an empty index. On every repository start, the first `EventLogReader` scan reconciles its full recovery event set into the persisted index, including events appended while the app was offline; sessions absent from the bounded scan remain intact. Invalid JSON, unsupported versions, duplicate identities, and invalid persisted records return explicit errors without deleting the damaged file. Persisted return metadata must round-trip exactly through `CLIContextPayload`; forbidden commands, unknown keys, or values that validation would drop make the record corrupt rather than silently reducing its context. Corrupt storage recovery is an explicit rebuild from validated `MewsEvent` values followed by another atomic write.
 
 ## Data Flow
 

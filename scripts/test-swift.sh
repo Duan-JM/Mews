@@ -21,6 +21,10 @@ swiftc \
   "$ROOT/internal/app/macos/TerminalProfile.swift" \
   "$ROOT/internal/app/macos/CLIContext.swift" \
   "$ROOT/internal/app/macos/MewsEvent.swift" \
+  "$ROOT/internal/app/macos/EventLogReader.swift" \
+  "$ROOT/internal/app/macos/SessionReturnContext.swift" \
+  "$ROOT/internal/app/macos/SessionState.swift" \
+  "$ROOT/internal/app/macos/SessionStateStore.swift" \
   "$ROOT/internal/app/macos/MewsPresentationState.swift" \
   "$ROOT/internal/app/macos/OverlayPlacement.swift" \
   "$ROOT/internal/app/macos/NotchAccessibilityModel.swift" \
@@ -33,6 +37,10 @@ swiftc \
   "$ROOT/internal/app/macos/tests/MewsAppModelTests.swift" \
   "$ROOT/internal/app/macos/tests/EventAlertRoutingTests.swift" \
   "$ROOT/internal/app/macos/tests/MewsRuntimeHardeningTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateCorruptionTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateMetadataTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchInteractionTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \

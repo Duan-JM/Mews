@@ -3,6 +3,17 @@ import Foundation
 struct EventReload {
     let events: [MewsEvent]
     let newEvents: [MewsEvent]
+    let recoveryEvents: [MewsEvent]
+
+    init(
+        events: [MewsEvent],
+        newEvents: [MewsEvent],
+        recoveryEvents: [MewsEvent]? = nil
+    ) {
+        self.events = events
+        self.newEvents = newEvents
+        self.recoveryEvents = recoveryEvents ?? events
+    }
 }
 
 final class EventLogReader {
@@ -47,7 +58,11 @@ final class EventLogReader {
         eventFileNumber = fileNumber
         lastEventID = chunk.events.last?.id
         didInitialEventScan = true
-        return EventReload(events: events, newEvents: newEvents)
+        return EventReload(
+            events: events,
+            newEvents: newEvents,
+            recoveryEvents: chunk.events
+        )
     }
 
     private func loadChangedFile(fileNumber: UInt64, fileSize: UInt64) -> EventReload {
