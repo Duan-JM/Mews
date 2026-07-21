@@ -44,6 +44,7 @@ enum StatusItemClickIntent: Equatable {
 enum NotchInteractionTiming {
     static let hoverOpen: TimeInterval = 0.45
     static let hoverClose: TimeInterval = 0.25
+    static let needsInputPeek: TimeInterval = 4
     static let donePeek: TimeInterval = 2.5
     static let failedPeek: TimeInterval = 4
 }
@@ -102,7 +103,7 @@ struct NotchPanelPresentationPolicy {
     ) -> Bool {
         switch placementMode {
         case .notch:
-            return visibility != .closed
+            return true
         case .topCenter:
             return visibility == .expanded
         }
@@ -290,7 +291,10 @@ struct NotchInteractionModel {
 
         switch presentationState.status {
         case .needsInput:
-            effects.append(contentsOf: beginNotificationPeek(duration: nil))
+            effects.append(contentsOf: beginTransitionPeek(
+                identifier: presentationState.transitionIdentifier,
+                duration: NotchInteractionTiming.needsInputPeek
+            ))
         case .done:
             effects.append(contentsOf: beginTransitionPeek(
                 identifier: presentationState.transitionIdentifier,

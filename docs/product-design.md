@@ -91,11 +91,11 @@ Mews first handles five states:
 
 | State | Meaning | UI expression |
 |---|---|---|
-| `running` | Agent is working | Running state in the menu bar |
-| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Persistent notch peek, or a system notification without a physical notch |
-| `done` | Main task finished | 2.5-second notch peek, or a system notification fallback |
-| `failed` | Main task failed or a command exited unexpectedly | 4-second notch peek, or a system notification fallback |
-| `idle` | No active task | Quiet idle state |
+| `running` | Agent is working | `RUN` compact notch state and running menu-bar pose |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | 4-second notch preview followed by compact `ASK`, or a system notification without a physical notch |
+| `done` | Main task finished | 2.5-second notch preview followed by compact `DONE`, or a system notification fallback |
+| `failed` | Main task failed or a command exited unexpectedly | 4-second notch preview followed by compact `FAIL`, or a system notification fallback |
+| `idle` | No active task | Quiet `IDLE` compact notch state |
 
 UI freshness is separate from stored history. `running` and `needs_input` can drive the current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. After that, the current state becomes `idle`, current-context panel actions disable, and the event stays available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
 
@@ -127,6 +127,7 @@ Events stay deliberately small:
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
+- Keep a hardware-width neck over the physical notch and place recognizable compact status below the occluded area. Preview and expanded hit regions must follow the rendered shell rather than the transparent panel bounds.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.

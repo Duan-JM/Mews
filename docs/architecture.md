@@ -109,13 +109,13 @@ Responsibilities:
 
 The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, renders a state-responsive template pixel logo, reads local event history for the context menu, opens a compact notch/top-center shell, and routes attention events through either the physical-notch shell or native notifications. Before launching a child and after a child exits, the app asynchronously pings the same Unix socket path used by the Go store resolver, including the private short-path and namespace fallback. In-flight probes are deduplicated so the main actor never waits on IPC. A responsive external agent is treated as healthy, is never duplicated, and is not terminated when the app exits. While externally owned, liveness is checked by the existing two-second refresh. A missing helper, launch failure, or short-lived child uses monotonic exponential restart delays from 10 seconds to a five-minute cap. One minute of healthy child runtime resets the delay, which avoids a persistent process-launch loop while retaining automatic recovery.
 
-The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separate from AppKit timers and event monitors. AppKit owns the fixed 420×220 nonactivating panel, display placement, passive local/global mouse observation, and teardown. Outside clicks close an expanded panel without consuming or synthesizing the target event. SwiftUI renders the black morphing shell inside that frame. Left-clicking the status item toggles the shell, while right-click and Control-click preserve the existing event, Refresh, and Quit menu. Physical-notch hover is optional: if global hover monitoring is unavailable, the app logs the degradation and keeps the status-item click and top-center fallback paths.
+The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separate from AppKit timers and event monitors. On a physical notch, `closed` is a persistent compact strip below a hardware-width neck, `peek` is a bounded wider status preview, and `expanded` is the existing full panel. The top-center fallback still renders only `expanded`. AppKit owns the fixed 420×220 nonactivating panel, display placement, passive local/global mouse observation, and teardown. Hit testing derives from the current rendered shell frame rather than the transparent maximum panel, so the visible compact strip, preview, and expanded surface match their click and hover targets. Outside clicks close an expanded panel without consuming or synthesizing the target event. SwiftUI renders the black morphing shell inside that frame. Left-clicking the status item toggles the shell, while right-click and Control-click preserve the existing event, Refresh, and Quit menu. Physical-notch hover is optional: if global hover monitoring is unavailable, the app logs the degradation and keeps the status-item click and top-center fallback paths.
 
 Display placement is recalculated on `NSApplication.didChangeScreenParametersNotification`. The resolver prefers any available physical notch, otherwise uses the main display's `visibleFrame` top center so the shell stays below the menu bar. This covers external-display, clamshell, resolution, coordinate, and main-screen changes. A transient empty screen list clears placement and orders the panel out; the next display notification restores it. The panel remains stationary, joins all Spaces, and participates as a full-screen auxiliary window.
 
 Alert routing reads that live placement for every new event. Only the current event that the physical notch will actually present suppresses its system notification; other new events keep Notification Center fallback so a two-second reload batch cannot silently drop an earlier completion. Without a physical notch, presentation state still updates the menu bar and top-center shell content, but the shell does not auto-open for the event.
 
-New presentation changes can show a noninteractive peek without collapsing an expanded shell. Startup history is synchronized silently, so relaunching Mews does not replay stale attention or completion peeks. `needs_input` persists until the state changes or the user expands or closes it, `done` peeks for 2.5 seconds, and `failed` peeks for 4 seconds. Completion and failure peeks are deduplicated by the presentation transition identifier. `running` and `idle` do not auto-open.
+New presentation changes can show a bounded preview without collapsing an expanded shell. Startup history is synchronized silently, so relaunching Mews does not replay stale attention or completion peeks. `needs_input` and `failed` preview for 4 seconds, while `done` previews for 2.5 seconds. Each then returns to the compact `ASK`, `FAIL`, or `DONE` state until normal presentation freshness changes the status. Attention previews are deduplicated by the presentation transition identifier. `running` and `idle` stay compact and do not auto-preview.
 
 Presentation selection uses an injected current time rather than mutating stored history. `running` and `needs_input` events remain current for 24 hours; settled `done`, `failed`, and explicit `idle` events remain current for 30 minutes. Events more than five minutes in the future are not selected as current. When the latest primary event expires, the status logo and current shell summary return to `idle`, automatic peeks close, and current-context panel actions disable. Up to three expired primary events remain visible as bounded recent history, and the context menu continues to expose stored history.
 
@@ -420,9 +420,9 @@ Mews may derive `project` from `cwd` and preserve a hook `session_id` when provi
 
 Implemented default behavior:
 
-- Primary-agent `needs_input`: show a persistent physical-notch peek, or notify immediately when no physical notch is available.
-- Primary-agent non-recoverable `failed`: show a four-second physical-notch peek, or notify immediately when no physical notch is available.
-- Primary-agent `done`: show a 2.5-second physical-notch peek, or notify immediately when no physical notch is available.
+- Primary-agent `needs_input`: show a four-second physical-notch preview and retain compact `ASK`, or notify immediately when no physical notch is available.
+- Primary-agent non-recoverable `failed`: show a four-second physical-notch preview and retain compact `FAIL`, or notify immediately when no physical notch is available.
+- Primary-agent `done`: show a 2.5-second physical-notch preview and retain compact `DONE`, or notify immediately when no physical notch is available.
 - Subagent events and recoverable errors: keep in history without notifying or replacing primary status.
 - `running`: update menu bar only.
 - `idle`: update menu bar only.
@@ -674,6 +674,7 @@ Manual acceptance checks:
 12. A Copilot subagent completion stays in history without triggering a native notification or replacing primary status.
 13. The pixel logo opens the compact notch/top-center shell, while right-click and Control-click retain the existing menu.
 14. A physical-notch attention event does not also send a system notification; clamshell and no-notch layouts keep the notification fallback.
+15. A physical notch keeps a recognizable compact status below the hardware, briefly previews new attention events, and expands from the same visible hit region.
 
 Automated tests:
 
@@ -681,7 +682,7 @@ Automated tests:
 - Primary-agent and subagent notification policy.
 - Physical-notch versus system-notification routing, including topology changes and batched events.
 - Notification action routing, terminal metadata validation, and CLI-context path validation.
-- Closed, peek, and expanded shell policy, notification-peek timing, deduplication, and placement hit testing.
+- Closed, peek, and expanded shell policy, compact status copy, notification-peek timing, deduplication, rendered-shell hit testing, and physical-notch occlusion geometry.
 - JSONL store append and rotation.
 - IPC request parsing.
 - Integration marker insertion and removal.

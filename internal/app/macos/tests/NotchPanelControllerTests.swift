@@ -15,16 +15,7 @@ extension MewsAppModelTests {
             screenProvider: { screens }
         )
 
-        try controllerExpect(
-            controllerShowsNotch(controller),
-            "controller should start on the available notched display"
-        )
-        try controllerExpect(
-            controller.panel.collectionBehavior.contains(.canJoinAllSpaces) &&
-                controller.panel.collectionBehavior.contains(.fullScreenAuxiliary) &&
-                controller.panel.collectionBehavior.contains(.stationary),
-            "panel should remain available across Spaces and full-screen transitions"
-        )
+        try testInitialNotchPresentation(controller)
 
         screens = [controllerExternalScreen()]
         notifications.post(
@@ -34,6 +25,10 @@ extension MewsAppModelTests {
         try controllerExpect(
             controllerUsesExternalFallback(controller),
             "clamshell transition should reposition below the external menu bar"
+        )
+        try controllerExpect(
+            !controller.containsVisibleShell(CGPoint(x: 2472, y: 850)),
+            "the closed top-center fallback should not expose a hidden hit region"
         )
 
         screens = []
@@ -54,6 +49,36 @@ extension MewsAppModelTests {
         try controllerExpect(
             controllerShowsNotch(controller),
             "reconnecting the laptop display should restore notch placement"
+        )
+    }
+
+    private static func testInitialNotchPresentation(
+        _ controller: NotchPanelController
+    ) throws {
+        try controllerExpect(
+            controllerShowsNotch(controller),
+            "controller should start on the available notched display"
+        )
+        try controllerExpect(
+            controller.containsNotchTrigger(CGPoint(x: 756, y: 940)) &&
+                controller.containsVisibleShell(CGPoint(x: 756, y: 940)),
+            "the visible compact strip below the physical notch should be clickable"
+        )
+        try controllerExpect(
+            !controller.containsNotchTrigger(CGPoint(x: 756, y: 800)) &&
+                !controller.containsVisibleShell(CGPoint(x: 756, y: 800)),
+            "transparent panel space should not become a compact click target"
+        )
+        try controllerExpect(
+            !controller.containsNotchTrigger(CGPoint(x: 690, y: 970)) &&
+                !controller.containsVisibleShell(CGPoint(x: 690, y: 970)),
+            "transparent space beside the notch neck should not become a click target"
+        )
+        try controllerExpect(
+            controller.panel.collectionBehavior.contains(.canJoinAllSpaces) &&
+                controller.panel.collectionBehavior.contains(.fullScreenAuxiliary) &&
+                controller.panel.collectionBehavior.contains(.stationary),
+            "panel should remain available across Spaces and full-screen transitions"
         )
     }
 
