@@ -3,8 +3,10 @@ package cli
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/Duan-JM/mews/internal/events"
+	"github.com/Duan-JM/mews/internal/health"
 	"github.com/Duan-JM/mews/internal/ipc"
 	"github.com/Duan-JM/mews/internal/store"
 )
@@ -16,6 +18,11 @@ func runAgent(stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintln(stdout, "Mews local agent started.")
+	healthDone := make(chan struct{})
+	defer close(healthDone)
+	go health.Monitor(2*time.Second, healthDone, func(err error) {
+		fmt.Fprintf(stderr, "Could not refresh runtime health: %v\n", err)
+	})
 	if err := ipc.ServeWithObserver(paths.Socket, paths.Events, func(event events.Event) {
 		printEventSummary(stdout, "Event", &event)
 	}); err != nil {

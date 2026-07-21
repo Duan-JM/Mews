@@ -76,6 +76,10 @@ Existing Claude and Codex files are backed up before editing. Mews preserves unr
 
 If something cannot be enabled safely, Mews leaves it alone and explains the fix in `mw doctor`.
 
+## Runtime health
+
+`mw status` and `mw doctor` render the same local runtime-health snapshot, and the native app includes a reader contract for later UI presentation. Health is `checking` when a transition is pending and no confirmed degraded or blocked capability outranks it, `ready` when every configured capability works, `degraded` when an optional capability such as notifications or one integration is affected, and `blocked` when core local event delivery cannot work. Unhealthy output names only the affected capability, separates configuration problems from functional IPC failure, and gives an explicit recovery action. The local agent checks health every two seconds and requires two consecutive matching observations before applying either degradation or recovery. Mews.app refreshes notification authorization every 30 seconds; status older than 90 seconds is stale.
+
 ## Why
 
 AI agents are easy to start and easy to forget.

@@ -282,6 +282,10 @@ private extension MewsApp {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: helper)
         process.arguments = ["agent"]
+        process.environment = AgentProcessEnvironment.merging(
+            ProcessInfo.processInfo.environment,
+            appPath: Bundle.main.bundleURL.path
+        )
         let log = logFile()
         process.standardOutput = log
         process.standardError = log

@@ -76,6 +76,8 @@ Must have:
 8. A thin menu bar companion with a compact notch/top-center shell for primary status, three recent primary events, and validated return actions, launched by `mw start`.
 9. Versioned, checksummed packages and a credential-gated signed release path.
 
+Runtime health is separate from agent lifecycle presentation. `mw status` and `mw doctor` use one local snapshot, with a native reader contract available for later app presentation: `checking` applies when a transition is pending and no confirmed degraded or blocked capability outranks it, `ready` hides repair controls, `degraded` preserves core event delivery while naming the affected capability, and `blocked` means a core local dependency is unavailable. Configuration drift and functional IPC failure remain distinct.
+
 Can wait:
 
 1. Graphical setup.

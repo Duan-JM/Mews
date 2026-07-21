@@ -18,6 +18,9 @@ swiftc \
   -warnings-as-errors \
   "$ROOT/internal/app/macos/AgentSocketProbe.swift" \
   "$ROOT/internal/app/macos/AgentRestartBackoff.swift" \
+  "$ROOT/internal/app/macos/AgentProcessEnvironment.swift" \
+  "$ROOT/internal/app/macos/NotificationStatusRecord.swift" \
+  "$ROOT/internal/app/macos/RuntimeHealthSnapshot.swift" \
   "$ROOT/internal/app/macos/TerminalProfile.swift" \
   "$ROOT/internal/app/macos/CLIContext.swift" \
   "$ROOT/internal/app/macos/MewsEvent.swift" \
@@ -49,4 +52,5 @@ swiftc \
   -framework Network \
   -o "$temp_dir/mews-app-model-tests"
 
-"$temp_dir/mews-app-model-tests"
+MEWS_GO_HEALTH_FIXTURE="$ROOT/internal/health/testdata/runtime-health-go.json" \
+  "$temp_dir/mews-app-model-tests"

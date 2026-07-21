@@ -9,6 +9,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private let statusURL: URL
     private let contextOpener: CLIContextOpener
     private let log: (String) -> Void
+    private var settingsTimer: Timer?
 
     init(
         center: UNUserNotificationCenter = .current(),
@@ -22,15 +23,35 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         self.log = log
     }
 
+    deinit {
+        settingsTimer?.invalidate()
+    }
+
     func configure() {
         center.delegate = self
         center.setNotificationCategories(notificationCategories())
+        startSettingsRefresh()
+        readNotificationSettings()
         center.requestAuthorization(options: [.alert, .sound]) { [weak self] _, error in
             if let error {
                 self?.log("Could not request notification permission: \(error)")
             }
             self?.readNotificationSettings()
         }
+    }
+
+    private func startSettingsRefresh() {
+        guard settingsTimer == nil else {
+            return
+        }
+        let timer = Timer(
+            timeInterval: NotificationHealthTiming.refreshInterval,
+            repeats: true
+        ) { [weak self] _ in
+            self?.readNotificationSettings()
+        }
+        settingsTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     func send(for event: MewsEvent) {
@@ -145,10 +166,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
 
         do {
-            let data = try JSONSerialization.data(
-                withJSONObject: ["status": value],
-                options: [.prettyPrinted, .sortedKeys]
-            )
+            let data = try NotificationStatusRecord(status: value, checkedAt: Date()).encoded()
             try FileManager.default.createDirectory(
                 at: statusURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
