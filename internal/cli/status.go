@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/Duan-JM/mews/internal/events"
-	"github.com/Duan-JM/mews/internal/ipc"
+	"github.com/Duan-JM/mews/internal/health"
 	"github.com/Duan-JM/mews/internal/store"
 	"github.com/Duan-JM/mews/internal/terminal"
 )
@@ -20,6 +21,12 @@ func runStatus(stdout, stderr io.Writer) int {
 
 	fmt.Fprintln(stdout, "Mews Status")
 	fmt.Fprintf(stdout, "Store: %s\n", paths.AppSupport)
+	snapshot, observation, err := health.Refresh(time.Now())
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not check runtime health: %v\n", err)
+		return 1
+	}
+	health.PrintSummary(stdout, snapshot)
 	state, configured, err := store.LoadSetupState()
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not read setup state: %v\n", err)
@@ -36,11 +43,7 @@ func runStatus(stdout, stderr io.Writer) int {
 		return 1
 	}
 	fmt.Fprintf(stdout, "Terminal: %s\n", terminal.Description(terminalProfile))
-	if err := ipc.Ping(paths.Socket); err == nil {
-		fmt.Fprintln(stdout, "Agent: running")
-	} else {
-		fmt.Fprintln(stdout, "Agent: not running")
-	}
+	printAgentStatus(stdout, observation)
 	recent, err := store.ReadEvents(paths.Events, 1)
 	if err != nil {
 		fmt.Fprintf(stderr, "Could not read event history: %v\n", err)
@@ -52,6 +55,14 @@ func runStatus(stdout, stderr io.Writer) int {
 	}
 	printEventSummary(stdout, "Latest event", &recent[0])
 	return 0
+}
+
+func printAgentStatus(w io.Writer, observation health.Observation) {
+	status := "not running"
+	if observation.Socket == health.SocketAvailable {
+		status = "running"
+	}
+	fmt.Fprintf(w, "Agent: %s\n", status)
 }
 
 func runHistory(args []string, stdout, stderr io.Writer) int {

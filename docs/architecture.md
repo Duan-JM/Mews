@@ -461,6 +461,21 @@ Config writes:
 - Support `mw undo`.
 - Refuse to edit malformed config files and explain through `mw doctor`.
 
+## Runtime Health
+
+The Go runtime evaluates setup, event and agent-log write access, the app bundle, LaunchAgent presence and load state, functional IPC responsiveness, notification authorization, and integration drift through one pure policy. It writes a versioned `runtime-health.json` snapshot under Application Support. `mw status` and `mw doctor` render that snapshot directly. A standalone Swift reader decodes the same versioned state, capability kind, transition, message, and recovery fields for later native UI presentation.
+
+The policy has four states:
+
+- `checking`: a proposed degradation or recovery has not passed two consecutive matching checks yet.
+- `ready`: every configured capability is available.
+- `degraded`: Mews still provides core event delivery, but an optional capability or one integration is affected.
+- `blocked`: local state, setup, the app bundle, or functional IPC prevents core operation.
+
+The first observation without history is immediate. Later changes in either direction require two consecutive matching observations; a return to the stable state cancels the pending transition, and a different target restarts confirmation. An expired pending transition keeps its last stable source but restarts at one matching observation. The snapshot records transition source, target, and count. Overall state uses highest severity: confirmed `blocked` or `degraded` capabilities outrank another capability's pending `checking` transition. The local agent checks every two seconds; CLI health commands also check before printing. Healthy output omits repair actions. Unhealthy output includes only affected capabilities and distinguishes configuration failures from functional failures. Recovery actions never edit third-party configuration automatically.
+
+`NotificationManager` owns a 30-second local timer that calls `getNotificationSettings` while Mews.app is alive. It atomically writes authorization plus `checked_at`. The Go reader distinguishes missing, unreadable, invalid, stale, denied, undecided, unknown, and authorized records. A record older than 90 seconds is stale, allowing temporary timer delays without leaving old authorization trusted indefinitely.
+
 ## Doctor
 
 `mw doctor` is a first-class user experience.
@@ -484,6 +499,8 @@ Example:
 
 ```text
 Mews Doctor
+
+Runtime health: Ready — All configured runtime capabilities are available.
 
 Store              writable
 Logs               writable

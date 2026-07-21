@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "state": "checking",
+  "summary": "Mews is confirming runtime health changes.",
+  "checked_at": "2026-07-21T04:00:00.123456789Z",
+  "valid_until": "2026-07-21T04:00:30.123456789Z",
+  "capabilities": [
+    {
+      "id": "notifications",
+      "name": "Notifications",
+      "kind": "functional",
+      "state": "checking",
+      "message": "Confirming notifications change from ready to degraded (1/2).",
+      "recovery": "Allow Mews notifications in System Settings.",
+      "transition_from": "ready",
+      "transition_target": "degraded",
+      "transition_count": 1
+    }
+  ]
+}

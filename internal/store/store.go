@@ -18,6 +18,7 @@ type StorePaths struct {
 	Backups            string
 	CopilotHooks       string
 	NotificationStatus string
+	RuntimeHealth      string
 	SocketDir          string
 	Socket             string
 }
@@ -79,6 +80,7 @@ func Paths() (StorePaths, error) {
 		Backups:            filepath.Join(appSupport, "backups"),
 		CopilotHooks:       filepath.Join(appSupport, "copilot-hooks"),
 		NotificationStatus: filepath.Join(appSupport, "notification-status.json"),
+		RuntimeHealth:      filepath.Join(appSupport, "runtime-health.json"),
 		SocketDir:          socketDir,
 		Socket:             socket,
 	}, nil

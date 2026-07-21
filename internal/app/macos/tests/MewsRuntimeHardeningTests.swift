@@ -13,6 +13,138 @@ extension MewsAppModelTests {
         try testStableAgentRetryReset()
         try testAgentProcessOwnership()
         try testAgentSocketPath()
+        try testAgentProcessEnvironment()
+    }
+
+    static func testRuntimeHealthSnapshot() throws {
+        let fixturePath = try hardeningRequire(
+            ProcessInfo.processInfo.environment["MEWS_GO_HEALTH_FIXTURE"],
+            "Go runtime-health fixture path should be provided"
+        )
+        let snapshot = try RuntimeHealthSnapshotReader(
+            url: URL(fileURLWithPath: fixturePath)
+        ).load()
+        try hardeningExpect(snapshot.version == 1, "the app should decode the Go snapshot version")
+        try hardeningExpect(snapshot.state == .checking, "the app should decode the CLI health state")
+        try hardeningExpect(
+            snapshot.affectedCapabilities.map { $0.id } == ["notifications"],
+            "the app should expose only affected capabilities"
+        )
+        let capability = try hardeningRequire(
+            snapshot.affectedCapabilities.first,
+            "Go fixture should include an affected capability"
+        )
+        try hardeningExpect(
+            capability.transitionFrom == .ready &&
+                capability.transitionTarget == .degraded &&
+                capability.transitionCount == 1,
+            "the app should decode Go transition metadata"
+        )
+        try hardeningExpect(
+            snapshot.checkedAt.timeIntervalSince1970.truncatingRemainder(dividingBy: 1) > 0,
+            "the app should decode Go fractional RFC3339 timestamps"
+        )
+        try hardeningExpect(
+            snapshot.effectiveState(at: snapshot.validUntil.addingTimeInterval(-1)) == .checking,
+            "a current snapshot should preserve its policy state"
+        )
+        try hardeningExpect(
+            snapshot.effectiveState(at: snapshot.validUntil.addingTimeInterval(1)) == .checking,
+            "a stale snapshot should return to checking instead of showing old health"
+        )
+        try hardeningExpect(
+            snapshot.effectiveState(
+                at: snapshot.checkedAt.addingTimeInterval(-RuntimeHealthSnapshot.futureTolerance - 1)
+            ) == .checking,
+            "a materially future-dated snapshot should return to checking"
+        )
+        try testRuntimeHealthValidityWindows()
+        try testUnsupportedRuntimeHealthVersion(fixturePath: fixturePath)
+    }
+
+    private static func testRuntimeHealthValidityWindows() throws {
+        let checkedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let valid = RuntimeHealthSnapshot(
+            version: RuntimeHealthSnapshot.currentVersion,
+            state: .ready,
+            summary: "ready",
+            checkedAt: checkedAt,
+            validUntil: checkedAt.addingTimeInterval(RuntimeHealthSnapshot.lifetime),
+            capabilities: []
+        )
+        try hardeningExpect(
+            valid.effectiveState(at: checkedAt) == .ready,
+            "a bounded validity window should preserve snapshot state"
+        )
+
+        let overlong = RuntimeHealthSnapshot(
+            version: valid.version,
+            state: valid.state,
+            summary: valid.summary,
+            checkedAt: checkedAt,
+            validUntil: checkedAt.addingTimeInterval(RuntimeHealthSnapshot.lifetime + 1),
+            capabilities: []
+        )
+        try hardeningExpect(
+            overlong.effectiveState(at: checkedAt) == .checking,
+            "an overlong validity window should return to checking"
+        )
+
+        let reversed = RuntimeHealthSnapshot(
+            version: valid.version,
+            state: valid.state,
+            summary: valid.summary,
+            checkedAt: checkedAt,
+            validUntil: checkedAt.addingTimeInterval(-1),
+            capabilities: []
+        )
+        try hardeningExpect(
+            reversed.effectiveState(at: checkedAt) == .checking,
+            "a reversed validity window should return to checking"
+        )
+    }
+
+    private static func testUnsupportedRuntimeHealthVersion(fixturePath: String) throws {
+        let data = try Data(contentsOf: URL(fileURLWithPath: fixturePath))
+        var object = try hardeningRequire(
+            JSONSerialization.jsonObject(with: data) as? [String: Any],
+            "Go runtime-health fixture should decode as an object"
+        )
+        object["version"] = RuntimeHealthSnapshot.currentVersion + 1
+        let unsupported = try JSONSerialization.data(withJSONObject: object)
+
+        do {
+            _ = try RuntimeHealthSnapshotDecoder.decode(unsupported)
+            throw MewsRuntimeHardeningTestFailure(message: "unsupported health version was accepted")
+        } catch let error as RuntimeHealthSnapshotDecodingError {
+            try hardeningExpect(
+                error == .unsupportedVersion(RuntimeHealthSnapshot.currentVersion + 1),
+                "the app should report the unsupported health version"
+            )
+        }
+    }
+
+    static func testNotificationStatusRecord() throws {
+        let checkedAt = Date(timeIntervalSince1970: 1_800_000_000.125)
+        let data = try NotificationStatusRecord(
+            status: "authorized",
+            checkedAt: checkedAt
+        ).encoded()
+        let object = try hardeningRequire(
+            JSONSerialization.jsonObject(with: data) as? [String: Any],
+            "notification status should encode as an object"
+        )
+
+        try hardeningExpect(object["status"] as? String == "authorized", "status should be encoded")
+        try hardeningExpect(
+            object["checked_at"] is String,
+            "notification status should include its check timestamp"
+        )
+        try hardeningExpect(
+            NotificationHealthTiming.refreshInterval == 30 &&
+                NotificationHealthTiming.staleAfter == 90,
+            "notification refresh and stale timing should stay bounded"
+        )
     }
 
     private static func testEscalatingAgentRetry() throws {
@@ -199,6 +331,29 @@ extension MewsAppModelTests {
         )
     }
 
+    private static func testAgentProcessEnvironment() throws {
+        let base = [
+            "HOME": "/Users/mews",
+            "MEWS_APP_PATH": "/old/Mews.app",
+            "PRESERVED": "value"
+        ]
+        let environment = AgentProcessEnvironment.merging(
+            base,
+            appPath: "/Applications/Mews.app"
+        )
+
+        try hardeningExpect(
+            environment["MEWS_APP_PATH"] == "/Applications/Mews.app",
+            "the bundled helper should receive the enclosing app path"
+        )
+        try hardeningExpect(
+            environment["HOME"] == base["HOME"] &&
+                environment["PRESERVED"] == base["PRESERVED"] &&
+                environment.count == base.count,
+            "the helper app-path override should preserve the current environment"
+        )
+    }
+
     private static func decodePresentationEvent(
         status: String,
         timestamp: Date
@@ -223,6 +378,16 @@ extension MewsAppModelTests {
         guard condition() else {
             throw MewsRuntimeHardeningTestFailure(message: message)
         }
+    }
+
+    private static func hardeningRequire<T>(
+        _ value: T?,
+        _ message: String
+    ) throws -> T {
+        guard let value else {
+            throw MewsRuntimeHardeningTestFailure(message: message)
+        }
+        return value
     }
 }
 
