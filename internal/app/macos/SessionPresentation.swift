@@ -1,0 +1,303 @@
+import Foundation
+
+enum SessionPresentationPriority: Int, Comparable {
+    case needsInput
+    case failed
+    case unacknowledgedDone
+    case running
+    case recent
+
+    static func < (
+        left: SessionPresentationPriority,
+        right: SessionPresentationPriority
+    ) -> Bool {
+        return left.rawValue < right.rawValue
+    }
+}
+
+struct SessionPresentationRow: Equatable {
+    let identity: SessionIdentity
+    let status: SessionStatus
+    let sourceLabel: String
+    let projectLabel: String?
+    let sessionLabel: String
+    let statusLabel: String
+    let statusCode: String
+    let returnContext: CLIContextPayload?
+    let evidenceAt: Date
+    let priority: SessionPresentationPriority
+
+    var returnCommand: String? {
+        return returnContext?.returnCommand
+    }
+
+    var primaryLabel: String {
+        let source = sourceLabel.uppercased()
+        guard let projectLabel else {
+            return source
+        }
+        let separator = "  ·  "
+        let remaining = max(
+            0,
+            30 - notchDisplayColumnCount(source) -
+                notchDisplayColumnCount(separator)
+        )
+        guard let boundedProject = notchDisplayText(
+            projectLabel,
+            maximumColumns: remaining
+        ) else {
+            return source
+        }
+        return "\(source)\(separator)\(boundedProject)"
+    }
+
+    var menuTitle: String {
+        var metadata = [sourceLabel]
+        if let projectLabel {
+            metadata.append(projectLabel)
+        }
+        metadata.append(sessionLabel)
+        return "\(statusCode)  \(metadata.joined(separator: " · "))"
+    }
+
+    var accessibilityLabel: String {
+        var parts = [sourceLabel]
+        if let projectLabel {
+            parts.append(projectLabel)
+        }
+        parts.append("session \(sessionLabel)")
+        parts.append(statusLabel)
+        parts.append(
+            returnContext == nil
+                ? "Return to CLI unavailable"
+                : "Return to CLI available"
+        )
+        return parts.joined(separator: ", ")
+    }
+
+    func disablingActions() -> SessionPresentationRow {
+        return SessionPresentationRow(
+            identity: identity,
+            status: status,
+            sourceLabel: sourceLabel,
+            projectLabel: projectLabel,
+            sessionLabel: sessionLabel,
+            statusLabel: statusLabel,
+            statusCode: statusCode,
+            returnContext: nil,
+            evidenceAt: evidenceAt,
+            priority: priority
+        )
+    }
+}
+
+struct RuntimeHealthPresentation: Equatable {
+    let state: RuntimeHealthState
+    let capabilityID: String
+    let title: String
+    let message: String
+    let recovery: String?
+    let additionalCount: Int
+
+    var statusCode: String {
+        return state == .blocked ? "BLOCKED" : "DEGRADED"
+    }
+
+    var accessibilityLabel: String {
+        var parts = ["Health \(statusCode.lowercased())", title, message]
+        if recovery != nil {
+            parts.append("Recovery instruction available")
+        }
+        return parts.joined(separator: ", ")
+    }
+}
+
+struct SessionPresentation: Equatable {
+    static let panelLimit = 3
+    static let menuLimit = 5
+
+    let rows: [SessionPresentationRow]
+    let health: RuntimeHealthPresentation?
+
+    var panelRows: [SessionPresentationRow] {
+        return Array(rows.prefix(Self.panelLimit))
+    }
+
+    var menuRows: [SessionPresentationRow] {
+        return Array(rows.prefix(Self.menuLimit))
+    }
+}
+
+struct SessionPresentationPolicy {
+    static func resolve(
+        sessions: [CurrentSessionState],
+        attentionRecords: [AttentionRecord],
+        healthSnapshot: RuntimeHealthSnapshot?,
+        now: Date,
+        fileManager: FileManager = .default
+    ) -> SessionPresentation {
+        let attentionByIdentity = Dictionary(
+            uniqueKeysWithValues: attentionRecords.map { ($0.identity, $0) }
+        )
+        let rows = sessions.filter {
+            isDisplayable(session: $0, now: now)
+        }.map { session in
+            row(
+                session: session,
+                attentionRecord: attentionByIdentity[session.identity],
+                fileManager: fileManager
+            )
+        }.sorted(by: rowPrecedes)
+        return SessionPresentation(
+            rows: rows,
+            health: healthSnapshot.flatMap { health(snapshot: $0, now: now) }
+        )
+    }
+
+    static func stabilizedRows(
+        canonical: [SessionPresentationRow],
+        previous: [SessionPresentationRow]
+    ) -> [SessionPresentationRow] {
+        let canonicalByIdentity = Dictionary(
+            uniqueKeysWithValues: canonical.map { ($0.identity, $0) }
+        )
+        var retained = previous.map { row in
+            canonicalByIdentity[row.identity] ?? row.disablingActions()
+        }
+        let retainedIdentities = Set(retained.map(\.identity))
+        retained.append(
+            contentsOf: canonical.filter { !retainedIdentities.contains($0.identity) }
+        )
+        return retained
+    }
+
+    private static func row(
+        session: CurrentSessionState,
+        attentionRecord: AttentionRecord?,
+        fileManager: FileManager
+    ) -> SessionPresentationRow {
+        let matchingAttention = attentionRecord.flatMap { record in
+            record.key.status == session.status &&
+                record.key.statusChangedAt == session.statusChangedAt
+                ? record
+                : nil
+        }
+
+        return SessionPresentationRow(
+            identity: session.identity,
+            status: session.status,
+            sourceLabel: notchDisplayText(
+                mewsSourceLabel(session.source),
+                maximumColumns: 18
+            ) ?? "Agent",
+            projectLabel: notchProjectLabel(session.project),
+            sessionLabel: notchSessionLabel(session.sessionID) ?? "unknown",
+            statusLabel: mewsStatusLabel(session.status.rawValue),
+            statusCode: statusCode(session.status),
+            returnContext: session.returnContext?.actionable(fileManager: fileManager),
+            evidenceAt: session.evidenceAt,
+            priority: priority(
+                status: session.status,
+                attention: matchingAttention
+            )
+        )
+    }
+
+    private static func isDisplayable(
+        session: CurrentSessionState,
+        now: Date
+    ) -> Bool {
+        let age = now.timeIntervalSince(session.evidenceAt)
+        let policy = SessionFreshnessPolicy.standard
+        return age >= -policy.futureTolerance &&
+            age <= policy.activeLifetime
+    }
+
+    private static func priority(
+        status: SessionStatus,
+        attention: AttentionRecord?
+    ) -> SessionPresentationPriority {
+        switch status {
+        case .needsInput:
+            return .needsInput
+        case .failed:
+            return .failed
+        case .done:
+            return attention?.disposition == .acknowledged
+                ? .recent
+                : .unacknowledgedDone
+        case .running:
+            return .running
+        case .idle:
+            return .recent
+        }
+    }
+
+    private static func rowPrecedes(
+        left: SessionPresentationRow,
+        right: SessionPresentationRow
+    ) -> Bool {
+        if left.priority != right.priority {
+            return left.priority < right.priority
+        }
+        if left.evidenceAt != right.evidenceAt {
+            return left.evidenceAt > right.evidenceAt
+        }
+        return left.identity < right.identity
+    }
+
+    private static func statusCode(_ status: SessionStatus) -> String {
+        switch status {
+        case .idle:
+            return "IDLE"
+        case .running:
+            return "RUN"
+        case .needsInput:
+            return "ASK"
+        case .done:
+            return "DONE"
+        case .failed:
+            return "FAIL"
+        }
+    }
+
+    private static func health(
+        snapshot: RuntimeHealthSnapshot,
+        now: Date
+    ) -> RuntimeHealthPresentation? {
+        let effectiveState = snapshot.effectiveState(at: now)
+        guard effectiveState == .degraded || effectiveState == .blocked else {
+            return nil
+        }
+        let affected = snapshot.affectedCapabilities
+            .filter { $0.state == .blocked || $0.state == .degraded }
+            .sorted(by: healthCapabilityPrecedes)
+        guard let capability = affected.first else {
+            return nil
+        }
+        return RuntimeHealthPresentation(
+            state: capability.state,
+            capabilityID: capability.id,
+            title: notchDisplayText(capability.name, maximumColumns: 24) ?? "Runtime health",
+            message: notchDisplayText(
+                capability.message,
+                maximumColumns: capability.recovery == nil ? 48 : 36
+            ) ?? "Capability affected",
+            recovery: capability.recovery,
+            additionalCount: max(0, affected.count - 1)
+        )
+    }
+
+    private static func healthCapabilityPrecedes(
+        left: RuntimeHealthCapability,
+        right: RuntimeHealthCapability
+    ) -> Bool {
+        if left.state != right.state {
+            return left.state == .blocked
+        }
+        if left.kind != right.kind {
+            return left.kind == .functional
+        }
+        return left.id < right.id
+    }
+}

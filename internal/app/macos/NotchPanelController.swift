@@ -23,6 +23,7 @@ final class NotchPanelController: NSObject {
     private let calculator = OverlayPlacementCalculator()
     private let shellModel = NotchShellViewModel()
     private var content = NotchPanelContent.empty
+    private var canonicalContent = NotchPanelContent.empty
     private var interactionState = NotchInteractionState(
         presentationState: MewsPresentationState(event: nil)
     )
@@ -98,17 +99,25 @@ final class NotchPanelController: NSObject {
         interactionState: NotchInteractionState,
         accessibilityPreferences: NotchAccessibilityPreferences
     ) {
+        let wasExpanded = self.interactionState.visibility == .expanded
         self.interactionState = interactionState
         self.accessibilityPreferences = accessibilityPreferences
+        if wasExpanded && interactionState.visibility != .expanded {
+            content = canonicalContent
+        }
         refreshShell()
         applyWindowPresentation()
     }
 
     func update(content: NotchPanelContent) {
-        guard self.content != content else {
+        canonicalContent = content
+        let presentedContent = interactionState.visibility == .expanded
+            ? content.stabilized(relativeTo: self.content)
+            : content
+        guard self.content != presentedContent else {
             return
         }
-        self.content = content
+        self.content = presentedContent
         refreshShell()
     }
 

@@ -43,7 +43,7 @@ Scope:
 
 - Receive local events from CLI commands, hooks, wrappers, or scripts.
 - Show the latest state in the macOS menu bar.
-- Open a compact physical-notch or top-center shell with bounded primary status, recent events, and validated return actions.
+- Open a compact physical-notch or top-center shell with prioritized recent sessions, bounded history, and validated per-session actions.
 - Keep a short recent-event history.
 - Support system notifications.
 - Provide integrations for Claude Code, Codex, and Copilot CLI when stable hooks are available.
@@ -73,10 +73,10 @@ Must have:
 5. `mw doctor` that reports setup, hook, store, and companion state honestly.
 6. `mw undo` for Mews-owned integrations.
 7. Clear privacy copy in the README.
-8. A thin menu bar companion with a compact notch/top-center shell for primary status, three recent primary events, and validated return actions, launched by `mw start`.
+8. A thin menu bar companion with a compact notch/top-center shell for at most three prioritized recent sessions, bounded history, and validated per-session actions, launched by `mw start`.
 9. Versioned, checksummed packages and a credential-gated signed release path.
 
-Runtime health is separate from agent lifecycle presentation. `mw status` and `mw doctor` use one local snapshot, with a native reader contract available for later app presentation: `checking` applies when a transition is pending and no confirmed degraded or blocked capability outranks it, `ready` hides repair controls, `degraded` preserves core event delivery while naming the affected capability, and `blocked` means a core local dependency is unavailable. Configuration drift and functional IPC failure remain distinct.
+Runtime health is separate from agent lifecycle presentation. `mw status`, `mw doctor`, and the native companion use one local snapshot: `checking` applies when a transition is pending and no confirmed degraded or blocked capability outranks it, `ready` hides repair controls, `degraded` preserves core event delivery while naming the affected capability, and `blocked` means a core local dependency is unavailable. The native UI shows only fresh confirmed degradation or blockage, with a copyable recovery instruction when available. Configuration drift and functional IPC failure remain distinct.
 
 Can wait:
 
@@ -116,12 +116,13 @@ Events stay deliberately small:
 
 1. Quiet by default. Only primary-agent completion, non-recoverable failure, and user-needed states should interrupt.
 2. The menu bar should be reliable. Extra visuals are optional enhancements.
-3. The pixel logo should open a compact shell without turning Mews into a dashboard. Keep one current summary, at most three earlier primary events, and only validated return actions.
+3. The pixel logo should open a compact shell without turning Mews into a dashboard. Keep at most three prioritized session rows, use bounded history for events without stable identity, and expose only validated per-session actions.
 4. Integrations must be explicit. Mews should not secretly read terminal output.
 5. Missed notifications and silent subagent events should be recoverable from recent local history.
 6. Stale states return to `idle` on the fixed freshness schedule above instead of getting stuck forever.
 7. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
 8. Each attention event uses one automatic channel: the physical-notch shell when available, otherwise Notification Center.
+9. While expanded, session order and health actions stay fixed until collapse so refreshes cannot move an action target beneath the pointer.
 
 ## Display and Accessibility Behavior
 
@@ -133,6 +134,7 @@ Events stay deliberately small:
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
 - Increase Contrast strengthens secondary copy, separators, borders, status labels, and disabled controls.
 - VoiceOver should identify the status item and expanded panel, then read native summaries and action labels in visual order.
+- Session rows should expose agent, bounded project, shortened session reference, status, and Return availability without reading full local identifiers or paths.
 - Idle uses a static pixel frame. The app reuses a responsive external agent, checks that ownership through its existing two-second local refresh, and never terminates an agent it did not launch. Failed child restarts back off from 10 seconds to a five-minute cap and reset after one healthy minute.
 
 ## Install and Distribution

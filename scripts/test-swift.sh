@@ -31,6 +31,8 @@ swiftc \
   "$ROOT/internal/app/macos/AttentionReconciler.swift" \
   "$ROOT/internal/app/macos/AttentionStateStore.swift" \
   "$ROOT/internal/app/macos/AttentionController.swift" \
+  "$ROOT/internal/app/macos/SessionPresentation.swift" \
+  "$ROOT/internal/app/macos/SessionPresentationSource.swift" \
   "$ROOT/internal/app/macos/MewsPresentationState.swift" \
   "$ROOT/internal/app/macos/OverlayPlacement.swift" \
   "$ROOT/internal/app/macos/NotchAccessibilityModel.swift" \
@@ -38,6 +40,7 @@ swiftc \
   "$ROOT/internal/app/macos/NotchPanelContent.swift" \
   "$ROOT/internal/app/macos/PixelStatusLogo.swift" \
   "$ROOT/internal/app/macos/NotchExpandedContentView.swift" \
+  "$ROOT/internal/app/macos/NotchSessionContentView.swift" \
   "$ROOT/internal/app/macos/NotchShellView.swift" \
   "$ROOT/internal/app/macos/NotchPanelController.swift" \
   "$ROOT/internal/app/macos/tests/MewsAppModelTests.swift" \
@@ -49,6 +52,8 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionReconcilerTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionControllerTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionPresentationTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionPresentationSourceTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchInteractionTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
