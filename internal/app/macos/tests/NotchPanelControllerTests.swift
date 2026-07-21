@@ -5,9 +5,13 @@ extension MewsAppModelTests {
     static func testNotchPanelControllerTopology() throws {
         _ = NSApplication.shared
         let notifications = NotificationCenter()
+        let screenChangeNotification = Notification.Name(
+            "MewsNotchPanelControllerTestsScreenChanged"
+        )
         var screens = [controllerNotchedScreen()]
         let controller = NotchPanelController(
             notificationCenter: notifications,
+            screenChangeNotification: screenChangeNotification,
             screenProvider: { screens }
         )
 
@@ -24,7 +28,7 @@ extension MewsAppModelTests {
 
         screens = [controllerExternalScreen()]
         notifications.post(
-            name: NSApplication.didChangeScreenParametersNotification,
+            name: screenChangeNotification,
             object: nil
         )
         try controllerExpect(
@@ -36,7 +40,7 @@ extension MewsAppModelTests {
 
         screens = []
         notifications.post(
-            name: NSApplication.didChangeScreenParametersNotification,
+            name: screenChangeNotification,
             object: nil
         )
         try controllerExpect(
@@ -46,7 +50,7 @@ extension MewsAppModelTests {
 
         screens = [controllerNotchedScreen()]
         notifications.post(
-            name: NSApplication.didChangeScreenParametersNotification,
+            name: screenChangeNotification,
             object: nil
         )
         try controllerExpect(

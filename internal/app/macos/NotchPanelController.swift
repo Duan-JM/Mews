@@ -12,6 +12,7 @@ final class NotchPanelController: NSObject {
     private(set) var placement: OverlayPlacement?
 
     private let notificationCenter: NotificationCenter
+    private let screenChangeNotification: Notification.Name
     private let screenProvider: ScreenProvider
     private let onOpenContext: OpenContextHandler
     private let onCopyCommand: CopyCommandHandler
@@ -37,11 +38,14 @@ final class NotchPanelController: NSObject {
 
     init(
         notificationCenter: NotificationCenter = .default,
+        screenChangeNotification: Notification.Name? = nil,
         screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens,
         onOpenContext: @escaping OpenContextHandler = { _ in },
         onCopyCommand: @escaping CopyCommandHandler = { _ in }
     ) {
         self.notificationCenter = notificationCenter
+        self.screenChangeNotification =
+            screenChangeNotification ?? NSApplication.didChangeScreenParametersNotification
         self.screenProvider = screenProvider
         self.onOpenContext = onOpenContext
         self.onCopyCommand = onCopyCommand
@@ -58,7 +62,7 @@ final class NotchPanelController: NSObject {
         notificationCenter.addObserver(
             self,
             selector: #selector(screenParametersDidChange(_:)),
-            name: NSApplication.didChangeScreenParametersNotification,
+            name: self.screenChangeNotification,
             object: nil
         )
     }
@@ -66,7 +70,7 @@ final class NotchPanelController: NSObject {
     deinit {
         notificationCenter.removeObserver(
             self,
-            name: NSApplication.didChangeScreenParametersNotification,
+            name: screenChangeNotification,
             object: nil
         )
     }
