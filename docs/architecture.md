@@ -98,6 +98,7 @@ mw run -- cmd # Advanced: run a command and report completion
 Responsibilities:
 
 - Render current state as a compact, monochrome pixel logo in the menu bar.
+- Open a compact status shell at the physical notch or top center from that pixel logo.
 - Show recent event history.
 - Deliver macOS notifications.
 - Receive local events from integrations and the CLI.
@@ -106,7 +107,11 @@ Responsibilities:
 - Copy a Mews-owned session history command from notification actions.
 - Persist recent events and settings.
 
-The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, renders a state-responsive template pixel logo, reads local event history for the menu, and delivers native notifications for attention states.
+The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, renders a state-responsive template pixel logo, reads local event history for the context menu, opens a compact notch/top-center shell, and delivers native notifications for attention states.
+
+The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separate from AppKit timers and event monitors. AppKit owns the fixed 420×220 nonactivating panel, display placement, passive local/global mouse observation, and teardown. Outside clicks close an expanded panel without consuming or synthesizing the target event. SwiftUI renders the black morphing shell inside that frame. Left-clicking the status item toggles the shell, while right-click and Control-click preserve the existing event, Refresh, and Quit menu. Physical-notch hover is optional: if global hover monitoring is unavailable, the app logs the degradation and keeps the status-item click and top-center fallback paths.
+
+New presentation changes can show a noninteractive peek without collapsing an expanded shell. Startup history is synchronized silently, so relaunching Mews does not replay stale attention or completion peeks. `needs_input` persists until the state changes or the user expands or closes it, `done` peeks for 2.5 seconds, and `failed` peeks for 4 seconds. Completion and failure peeks are deduplicated by the presentation transition identifier. `running` and `idle` do not auto-open. The current shell contains only the pixel status and a minimal header; detailed status cards and panel-level terminal-return controls remain future work.
 
 ### 3. Integration Manager
 
@@ -518,7 +523,7 @@ Go owns:
 - `mw notify` and `mw run`.
 - Release binaries and Homebrew packaging.
 
-`Mews.app` stays thin. The current app is a small Swift/AppKit LSUIElement app that owns the menu bar icon and recent event UI while reusing the Go helper for local IPC. If a pure-Go menu bar implementation proves reliable enough, it can be considered, but the architecture should not force the product into a non-native Mac UX just to keep one language.
+`Mews.app` stays thin. The current app is a small Swift/AppKit LSUIElement app that owns the menu bar icon, AppKit panel behavior, and SwiftUI status shell while reusing the Go helper for local IPC. If a pure-Go menu bar implementation proves reliable enough, it can be considered, but the architecture should not force the product into a non-native Mac UX just to keep one language.
 
 Do not use Rust in the first version. Mews needs simple distribution, fast iteration, and boring local tooling more than Rust's extra safety guarantees.
 
@@ -630,12 +635,14 @@ Manual acceptance checks:
 10. With the agent stopped, `mw notify` stores the validated event locally for later history.
 11. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
 12. A Copilot subagent completion stays in history without triggering a native notification or replacing primary status.
+13. The pixel logo opens the compact notch/top-center shell, while right-click and Control-click retain the existing menu.
 
 Automated tests:
 
 - Event validation.
 - Primary-agent and subagent notification policy.
 - Notification action routing, terminal metadata validation, and CLI-context path validation.
+- Closed, peek, and expanded shell policy, notification-peek timing, deduplication, and placement hit testing.
 - JSONL store append and rotation.
 - IPC request parsing.
 - Integration marker insertion and removal.

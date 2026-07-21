@@ -6,8 +6,10 @@ final class StatusItemController: NSObject {
     private let statusBar: NSStatusBar
     private let statusItem: NSStatusItem
     private let workspace: NSWorkspace
+    private let onPrimaryClick: () -> Void
     private var animationTimer: Timer?
     private var animationPlan: PixelStatusAnimationPlan?
+    private var contextMenu: NSMenu?
     private var frameIndex = 0
     private var presentationState: MewsPresentationState?
     private var reduceMotion: Bool
@@ -15,10 +17,12 @@ final class StatusItemController: NSObject {
 
     init(
         statusBar: NSStatusBar = .system,
-        workspace: NSWorkspace = .shared
+        workspace: NSWorkspace = .shared,
+        onPrimaryClick: @escaping () -> Void
     ) {
         self.statusBar = statusBar
         self.workspace = workspace
+        self.onPrimaryClick = onPrimaryClick
         statusItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
         reduceMotion = workspace.accessibilityDisplayShouldReduceMotion
         super.init()
@@ -43,7 +47,7 @@ final class StatusItemController: NSObject {
     }
 
     func update(state: MewsPresentationState, menu: NSMenu) {
-        statusItem.menu = menu
+        contextMenu = menu
         statusItem.button?.setAccessibilityLabel(state.accessibilityLabel)
 
         let previousState = presentationState
@@ -54,6 +58,15 @@ final class StatusItemController: NSObject {
         apply(state: state, keepOneShotStable: false)
     }
 
+    func buttonFrameOnScreen() -> CGRect? {
+        guard let button = statusItem.button,
+              let window = button.window else {
+            return nil
+        }
+        let windowRect = button.convert(button.bounds, to: nil)
+        return window.convertToScreen(windowRect)
+    }
+
     private func configureButton() {
         guard let button = statusItem.button else {
             return
@@ -61,6 +74,12 @@ final class StatusItemController: NSObject {
         button.title = ""
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleNone
+        button.target = self
+        button.action = #selector(statusItemClicked(_:))
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.setAccessibilityHelp(
+            "Click to open Mews. Right-click or Control-click for recent events and app actions."
+        )
     }
 
     private func shouldApply(
@@ -147,6 +166,33 @@ final class StatusItemController: NSObject {
             return
         }
         apply(state: presentationState, keepOneShotStable: true)
+    }
+
+    @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
+        guard let event = NSApp.currentEvent else {
+            onPrimaryClick()
+            return
+        }
+        let button: StatusItemMouseButton = event.type == .rightMouseUp ? .secondary : .primary
+        let intent = StatusItemClickIntent.resolve(
+            button: button,
+            controlPressed: event.modifierFlags.contains(.control)
+        )
+        switch intent {
+        case .primaryAction:
+            onPrimaryClick()
+        case .contextMenu:
+            showContextMenu(from: sender)
+        }
+    }
+
+    private func showContextMenu(from button: NSStatusBarButton) {
+        guard let contextMenu else {
+            return
+        }
+        statusItem.menu = contextMenu
+        button.performClick(nil)
+        statusItem.menu = nil
     }
 
     private func render(frame: PixelFrame) {
