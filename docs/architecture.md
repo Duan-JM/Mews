@@ -555,6 +555,8 @@ This keeps the install path simple while still using a proper app bundle for men
 
 `make build` produces universal `arm64` and `x86_64` CLI and app executables, then applies a complete ad-hoc signature to the local app bundle so menu bar identity and notification permission work during development. `make package` produces a versioned tarball and SHA-256 checksum. `VERSION=vX.Y.Z make release-check` runs tests, lint, checksum verification, and an isolated installed-runtime smoke that applies setup, executes all three generated integration paths through IPC, checks privacy-safe history, and verifies undo/reset. Formal `make release` must run from a clean `main` synchronized with `origin/main` and requires a Developer ID identity and notarization keychain profile. It replaces the local signature with Developer ID signatures, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, and generates a checksum-pinned Homebrew formula for tap publication. Homebrew-managed hooks and LaunchAgent paths use the stable `opt/mews` prefix rather than a versioned Cellar path.
 
+`make screenshots` is a developer-only documentation path. It compiles an explicit set of production UI model and view sources together with synthetic fixtures and a renderer under `scripts/`, writes into temporary directories, and renders fixed dark-appearance 420-by-220-point scenes at 2x resolution. The command validates the fixture manifest, dimensions, file set, current username and HOME exclusions, prohibited sensitive-text markers, and expected visible labels through the macOS Vision framework. It renders twice and requires byte-identical PNG output before replacing `assets/screenshots` through a rollback-protected directory swap. The app build still compiles only `internal/app/macos/*.swift`, and the release package does not copy `scripts/`, so the fixture and renderer never enter Mews.app or the installed runtime. Only the validated documentation PNGs remain under `assets/`.
+
 ## Technology Choice
 
 Mews should use Go as the primary implementation language.
@@ -693,6 +695,7 @@ Automated tests:
 - Physical-notch versus system-notification routing, including topology changes and batched events.
 - Notification action routing, terminal metadata validation, and CLI-context path validation.
 - Closed, peek, and expanded shell policy, compact status copy, notification-peek timing, deduplication, rendered-shell hit testing, and physical-notch occlusion geometry.
+- Synthetic screenshot state coverage, privacy manifest checks, fixed pixel dimensions, and byte-identical repeat rendering.
 - JSONL store append and rotation.
 - IPC request parsing.
 - Integration marker insertion and removal.

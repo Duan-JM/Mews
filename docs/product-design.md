@@ -136,6 +136,7 @@ Events stay deliberately small:
 - VoiceOver should identify the status item and expanded panel, then read native summaries and action labels in visual order.
 - Session rows should expose agent, bounded project, shortened session reference, status, and Return availability without reading full local identifiers or paths.
 - Idle uses a static pixel frame. The app reuses a responsive external agent, checks that ownership through its existing two-second local refresh, and never terminates an agent it did not launch. Failed child restarts back off from 10 seconds to a five-minute cap and reset after one healthy minute.
+- Public interface previews use fixed synthetic projects, short session identifiers, safe messages, and no local history, prompt, path, username, or terminal content.
 
 ## Install and Distribution
 

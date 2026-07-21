@@ -108,6 +108,22 @@ The expanded shell shows at most three sessions, ordered by `needs_input`, `fail
 
 The monochrome pixel mascot now sleeps while idle, works while an agent runs, signals when input is needed, and plays a short one-shot pose for completion or failure.
 
+### Synthetic interface previews
+
+The compact synthetic preview shows the pixel mascot with the `IDLE`, `RUN`, `ASK`, `DONE`, and `FAIL` notch states.
+
+![Synthetic Mews compact notch states with the pixel mascot and IDLE, RUN, ASK, DONE, and FAIL labels](assets/screenshots/mews-status-states.png)
+
+The multi-session synthetic panel shows `needs_input`, `failed`, and `done` sessions. Its safe local contexts enable **Return** and **Copy**, while unavailable contexts leave both controls visibly disabled.
+
+![Synthetic expanded Mews panel with needs-input, failed, and done sessions, enabled Return and Copy controls, and disabled Return and Copy controls](assets/screenshots/mews-multi-session.png)
+
+The degraded-health synthetic panel shows an event-delivery warning with **Copy Fix**, an actionable running session, and an idle session with disabled controls.
+
+![Synthetic expanded Mews panel with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled idle session](assets/screenshots/mews-degraded-health.png)
+
+Contributors regenerate all three fixed-size images with `make screenshots`. The development-only fixtures render no local event history, prompts, terminal output, usernames, home paths, or real or long session identifiers.
+
 ## What Mews Watches
 
 Mews should work out of the box with the tools terminal AI users already have:

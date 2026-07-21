@@ -1,4 +1,4 @@
-.PHONY: all build check test lint lint-tools hooks package release-check release install-local clean
+.PHONY: all build check test lint lint-tools hooks screenshots package release-check release install-local clean
 
 all: build
 
@@ -27,6 +27,9 @@ hooks:
 		exit 1; \
 	}
 	pre-commit install
+
+screenshots:
+	./scripts/generate-screenshots.sh
 
 package:
 	./scripts/package.sh
