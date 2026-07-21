@@ -108,6 +108,22 @@ Mews 把这些隐藏状态变成本地、低打扰的提醒。
 
 现在的单色像素小猫会在空闲时睡觉、agent 运行时工作、需要输入时提醒，并在完成或失败时播放一次短动作。
 
+### 合成界面预览
+
+第一张合成预览展示像素小猫与 `IDLE`、`RUN`、`ASK`、`DONE`、`FAIL` 五种紧凑刘海状态。
+
+![Mews 合成紧凑刘海状态，包含像素小猫以及 IDLE、RUN、ASK、DONE、FAIL 标签](assets/screenshots/mews-status-states.png)
+
+多 session 合成面板展示 `needs_input`、`failed`、`done` 三种 session。安全的本地上下文会启用 **Return** 与 **Copy**，上下文不可用时两个按钮保持明显的禁用状态。
+
+![Mews 合成展开面板，包含 needs-input、failed、done session，以及启用和禁用的 Return、Copy 按钮](assets/screenshots/mews-multi-session.png)
+
+降级健康状态合成面板展示 event delivery 警告、**Copy Fix**、可操作的 running session，以及按钮禁用的 idle session。
+
+![Mews 合成展开面板，包含降级的 event-delivery 健康状态、Copy Fix、可操作的 running session 和按钮禁用的 idle session](assets/screenshots/mews-degraded-health.png)
+
+贡献者可运行 `make screenshots` 重新生成三张固定尺寸图片。开发专用 fixture 不会渲染本地事件历史、prompt、终端输出、用户名、HOME 路径或真实、冗长的 session id。
+
 ## Mews 监控什么
 
 Mews 面向终端 AI 用户已经在用的工具：

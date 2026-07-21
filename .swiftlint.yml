@@ -1,6 +1,8 @@
 included:
   - internal/app/macos
   - scripts/generate-icon.swift
+  - scripts/render-screenshots.swift
+  - scripts/screenshot-fixtures.swift
 
 # Portable command-line toolchains do not always expose SourceKit.
 disabled_rules:

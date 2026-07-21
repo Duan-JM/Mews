@@ -30,6 +30,7 @@ make check          # Run lint, tests, and the build
 make build          # Build the mw CLI and package Mews.app
 make test           # Run Go tests and Swift model tests
 make lint           # Run Go, Swift, source-size, and shell lint checks
+make screenshots    # Regenerate privacy-safe synthetic interface screenshots
 make package        # Produce local release artifacts
 make release        # Sign, notarize, verify, and package a formal release
 make install-local  # Install into a local test prefix
