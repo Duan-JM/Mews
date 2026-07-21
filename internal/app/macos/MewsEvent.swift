@@ -145,7 +145,7 @@ struct MewsEvent: Decodable {
         return text
     }
 
-    private var sourceLabel: String {
+    var sourceLabel: String {
         switch source {
         case "claude-code":
             return "Claude Code"
@@ -160,7 +160,7 @@ struct MewsEvent: Decodable {
         }
     }
 
-    private var statusLabel: String {
+    var statusLabel: String {
         switch status {
         case "needs_input":
             return "Needs Input"
@@ -168,6 +168,10 @@ struct MewsEvent: Decodable {
             return "Done"
         case "failed":
             return "Failed"
+        case "running":
+            return "Running"
+        case "idle":
+            return "Idle"
         default:
             return status
         }

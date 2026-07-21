@@ -104,14 +104,16 @@ Responsibilities:
 - Receive local events from integrations and the CLI.
 - Deliver native notifications for the implemented attention states.
 - Return to a validated source terminal context when possible, or open the configured terminal working directory.
-- Copy a Mews-owned session history command from notification actions.
+- Copy a Mews-owned session history command from notification or panel actions.
 - Persist recent events and settings.
 
 The agent is packaged as a small app bundle so macOS menu bar identity, notification permission, and local visibility are reliable. It starts the bundled `mw agent` helper, renders a state-responsive template pixel logo, reads local event history for the context menu, opens a compact notch/top-center shell, and delivers native notifications for attention states.
 
 The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separate from AppKit timers and event monitors. AppKit owns the fixed 420×220 nonactivating panel, display placement, passive local/global mouse observation, and teardown. Outside clicks close an expanded panel without consuming or synthesizing the target event. SwiftUI renders the black morphing shell inside that frame. Left-clicking the status item toggles the shell, while right-click and Control-click preserve the existing event, Refresh, and Quit menu. Physical-notch hover is optional: if global hover monitoring is unavailable, the app logs the degradation and keeps the status-item click and top-center fallback paths.
 
-New presentation changes can show a noninteractive peek without collapsing an expanded shell. Startup history is synchronized silently, so relaunching Mews does not replay stale attention or completion peeks. `needs_input` persists until the state changes or the user expands or closes it, `done` peeks for 2.5 seconds, and `failed` peeks for 4 seconds. Completion and failure peeks are deduplicated by the presentation transition identifier. `running` and `idle` do not auto-open. The current shell contains only the pixel status and a minimal header; detailed status cards and panel-level terminal-return controls remain future work.
+New presentation changes can show a noninteractive peek without collapsing an expanded shell. Startup history is synchronized silently, so relaunching Mews does not replay stale attention or completion peeks. `needs_input` persists until the state changes or the user expands or closes it, `done` peeks for 2.5 seconds, and `failed` peeks for 4 seconds. Completion and failure peeks are deduplicated by the presentation transition identifier. `running` and `idle` do not auto-open.
+
+The expanded shell maps only primary, non-recoverable events into a display model. It shows the current source and status, a bounded project label, an eight-column session reference, a single-line message, and up to three earlier primary events. Prompt-derived task titles remain gated by the existing setup opt-in. The model never exposes the full session identifier or working directory, and runner events use lifecycle copy instead of command text. Panel actions receive the current `CLIContextPayload` only after the existing validation path marks it actionable. **Return to CLI** delegates to `CLIContextOpener.open`, while **Copy Command** delegates to `CLIContextOpener.copy`; no event-provided command is executed.
 
 ### 3. Integration Manager
 

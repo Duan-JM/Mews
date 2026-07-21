@@ -7,6 +7,7 @@ struct NotchShellSnapshot: Equatable {
     let panelSize: CGSize
     let anchorSize: CGSize
     let presentationState: MewsPresentationState
+    let content: NotchPanelContent
     let transitionStyle: NotchShellTransitionStyle
 
     static let initial = NotchShellSnapshot(
@@ -15,6 +16,7 @@ struct NotchShellSnapshot: Equatable {
         panelSize: OverlayPlacementCalculator.maximumSize,
         anchorSize: .zero,
         presentationState: MewsPresentationState(event: nil),
+        content: .empty,
         transitionStyle: .spatial
     )
 }
@@ -60,6 +62,18 @@ final class NotchShellViewModel: ObservableObject {
 
 struct NotchShellView: View {
     @ObservedObject var model: NotchShellViewModel
+    let onReturnToCLI: (CLIContextPayload) -> Void
+    let onCopyCommand: (String) -> Void
+
+    init(
+        model: NotchShellViewModel,
+        onReturnToCLI: @escaping (CLIContextPayload) -> Void = { _ in },
+        onCopyCommand: @escaping (String) -> Void = { _ in }
+    ) {
+        self.model = model
+        self.onReturnToCLI = onReturnToCLI
+        self.onCopyCommand = onCopyCommand
+    }
 
     var body: some View {
         let snapshot = model.snapshot
@@ -75,8 +89,14 @@ struct NotchShellView: View {
             alignment: .top
         )
         .allowsHitTesting(snapshot.visibility == .expanded)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(snapshot.presentationState.accessibilityLabel)
+        .accessibilityElement(
+            children: snapshot.visibility == .expanded ? .contain : .ignore
+        )
+        .accessibilityLabel(
+            snapshot.visibility == .expanded
+                ? "Mews status panel"
+                : snapshot.presentationState.accessibilityLabel
+        )
         .accessibilityHint(accessibilityHint(for: snapshot.visibility))
     }
 
@@ -87,7 +107,11 @@ struct NotchShellView: View {
     ) -> some View {
         Group {
             if snapshot.visibility == .expanded {
-                expandedContent(state: snapshot.presentationState)
+                NotchExpandedContentView(
+                    snapshot: snapshot,
+                    onReturnToCLI: onReturnToCLI,
+                    onCopyCommand: onCopyCommand
+                )
             } else {
                 peekContent(state: snapshot.presentationState)
             }
@@ -112,7 +136,7 @@ struct NotchShellView: View {
         state: MewsPresentationState
     ) -> some View {
         HStack(spacing: 10) {
-            statusImage(state: state, size: 24)
+            PixelStatusView(state: state, size: 24)
             Text(state.accessibilityLabel)
                 .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
@@ -120,48 +144,6 @@ struct NotchShellView: View {
         .foregroundStyle(Color.white)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func expandedContent(
-        state: MewsPresentationState
-    ) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                statusImage(state: state, size: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Mews")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text(state.accessibilityLabel)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.72))
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-
-            Spacer()
-
-            Text("Compact agent status")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color.white.opacity(0.62))
-                .padding(.bottom, 20)
-        }
-        .foregroundStyle(Color.white)
-    }
-
-    private func statusImage(
-        state: MewsPresentationState,
-        size: CGFloat
-    ) -> some View {
-        let frame = PixelStatusLogo.animationPlan(for: state, reduceMotion: true).stableFrame
-        return Image(nsImage: PixelStatusLogoRenderer.image(for: frame))
-            .renderingMode(.template)
-            .interpolation(.none)
-            .resizable()
-            .foregroundStyle(Color.white)
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
     }
 
     private func spatialAnimation(
@@ -190,6 +172,22 @@ struct NotchShellView: View {
         case .expanded:
             return "Mews status panel is expanded"
         }
+    }
+}
+
+struct PixelStatusView: View {
+    let state: MewsPresentationState
+    let size: CGFloat
+
+    var body: some View {
+        let frame = PixelStatusLogo.animationPlan(for: state, reduceMotion: true).stableFrame
+        return Image(nsImage: PixelStatusLogoRenderer.image(for: frame))
+            .renderingMode(.template)
+            .interpolation(.none)
+            .resizable()
+            .foregroundStyle(Color.white)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
 

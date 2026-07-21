@@ -88,13 +88,15 @@ Mews 把这些隐藏状态变成本地、低打扰的提醒。
 
 - 完成、失败和需要输入时发送原生 macOS 通知。
 - 本地 JSONL 历史记录，错过通知后还能找回。
-- 菜单栏 companion 使用随状态变化的像素 Logo、最近事件，以及紧凑的刘海/顶部居中状态层。
+- 菜单栏 companion 使用随状态变化的像素 Logo、受限的主事件上下文，以及紧凑的刘海/顶部居中状态层。
 - `doctor` 会显示 setup、三种接入、通知权限、LaunchAgent、socket 和菜单栏 app 状态。
 - 本地事件日志有容量上限，发布包带隔离 smoke test。
 
 ## Mac companion
 
-当前菜单栏 companion 故意保持轻量。它会启动本地 IPC agent，读取本地事件历史，并通过紧凑的像素 Logo 显示最新状态。左键点击 Logo 会打开贴合实体刘海或其他屏幕顶部居中的小型状态层；右键或 Control-click 仍会打开最近事件、Refresh 和 Quit 菜单。当前状态层只提供紧凑的状态框架，详细状态卡片和面板内 Return to CLI 控件仍是后续工作。
+当前菜单栏 companion 故意保持轻量。它会启动本地 IPC agent，读取本地事件历史，并通过紧凑的像素 Logo 显示最新状态。左键点击 Logo 会打开贴合实体刘海或其他屏幕顶部居中的小型状态层；右键或 Control-click 仍会打开最近事件、Refresh 和 Quit 菜单。
+
+展开后的状态层会显示当前主事件的来源与状态、项目名、缩短后的 session id、一行受限消息，以及最多三条更早的主事件。只有显式开启现有选项后，面板才会显示来自 prompt 的任务标题。完整 session id、工作目录、subagent 事件、可恢复失败和 `mw run` 的命令文本不会出现在面板里。**Return to CLI** 与 **Copy Return Command** 复用通知动作已经校验过的本地上下文和 Mews 生成的历史命令；上下文不可用时按钮保持禁用。
 
 之后的 **Mews for Mac** 可以加入刘海小猫：agent 运行时小猫走动，空闲时睡觉，完成时跳一下，需要你处理时吸引注意。
 
