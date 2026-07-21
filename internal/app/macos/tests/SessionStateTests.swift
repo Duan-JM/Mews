@@ -10,6 +10,8 @@ extension MewsAppModelTests {
         try testEqualTimeEvidencePrecedence()
         try testSessionContextValidation()
         try testRecoverableSessionStateStore()
+        try testSessionPresentation()
+        try testSessionPresentationSource()
     }
 
     private static func testIndependentSessions() throws {

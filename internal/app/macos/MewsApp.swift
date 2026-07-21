@@ -10,17 +10,19 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private var agent: Process?
     private var agentProcessCoordinator = AgentProcessCoordinator()
     private var agentProbeInFlight = false
-    private var events: [MewsEvent] = []
+    var events: [MewsEvent] = []
     private var started = false
     var attentionController: AttentionController?
     var attentionErrorMessage: String?
+    var runtimeHealthErrorMessage: String?
+    var sessionPresentationErrorMessage: String?
     private let homeURL: URL
 
     private lazy var eventReader = EventLogReader(url: eventsURL)
     private lazy var agentSocketProbe = AgentSocketProbe(
         path: AgentSocketPath.resolve(homeURL: homeURL)
     )
-    private lazy var contextOpener = CLIContextOpener(configURL: configURL) { [weak self] message in
+    lazy var contextOpener = CLIContextOpener(configURL: configURL) { [weak self] message in
         self?.appendAppLog(message)
     }
     lazy var notifications = NotificationManager(
@@ -80,7 +82,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         stopAgent()
     }
 
-    private func reloadEvents() {
+    func reloadEvents() {
         let now = Date()
         ensureAgentRunning(at: ProcessInfo.processInfo.systemUptime)
         let reload = eventReader.reload()
@@ -88,6 +90,16 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         let current = currentPrimaryEvent(in: events, now: now)
         let physicalNotchAvailable = notchPanelController?.canPresentNotchAlert == true
         let attentionUpdate = reconcileAttention(reload)
+        let presentationInput = sessionPresentationInput(
+            attentionUpdate: attentionUpdate,
+            reload: reload
+        )
+        let sessionPresentation = SessionPresentationPolicy.resolve(
+            sessions: presentationInput.sessions,
+            attentionRecords: presentationInput.attentionRecords,
+            healthSnapshot: loadRuntimeHealth(),
+            now: now
+        )
         let notchSession = attentionUpdate.flatMap {
             currentSession(for: current, in: $0.sessions)
         }
@@ -111,6 +123,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         )
         updateStatusItem(
             now: now,
+            sessionPresentation: sessionPresentation,
             announcesNotchTransition: announcesNotchTransition
         )
     }
@@ -121,18 +134,19 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem(
         now: Date,
+        sessionPresentation: SessionPresentation,
         announcesNotchTransition: Bool
     ) {
-        let latest = latestPrimaryEvent(in: events)
         let current = currentPrimaryEvent(in: events, now: now)
         let presentationState = MewsPresentationState(event: current)
         notchPanelController?.update(
             content: NotchPanelContent(
+                presentation: sessionPresentation,
                 events: events,
                 currentEvent: current
             )
         )
-        let menu = buildMenu(latest: latest)
+        let menu = buildMenu(presentation: sessionPresentation)
         statusItemController?.update(
             state: presentationState,
             menu: menu
@@ -141,95 +155,6 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             presentationState: presentationState,
             announcesTransition: announcesNotchTransition
         )
-    }
-
-    private func buildMenu(latest: MewsEvent?) -> NSMenu {
-        let menu = NSMenu()
-        if let latest {
-            menu.addItem(eventMenuItem(for: latest))
-            if let command = latest.cliContext?.returnCommand {
-                menu.addItem(copyMenuItem(command: command))
-            }
-        } else {
-            menu.addItem(NSMenuItem(title: "No events yet", action: nil, keyEquivalent: ""))
-        }
-        menu.addItem(NSMenuItem.separator())
-        for event in events.reversed().prefix(5) {
-            menu.addItem(eventMenuItem(for: event))
-        }
-        if !events.isEmpty {
-            menu.addItem(NSMenuItem.separator())
-        }
-
-        let refresh = NSMenuItem(
-            title: "Refresh",
-            action: #selector(refreshClicked),
-            keyEquivalent: "r"
-        )
-        refresh.target = self
-        menu.addItem(refresh)
-
-        let quit = NSMenuItem(
-            title: "Quit Mews",
-            action: #selector(quitClicked),
-            keyEquivalent: "q"
-        )
-        quit.target = self
-        menu.addItem(quit)
-        return menu
-    }
-
-    private func eventMenuItem(for event: MewsEvent) -> NSMenuItem {
-        guard let context = event.cliContext, context.isActionable() else {
-            return NSMenuItem(title: event.summary, action: nil, keyEquivalent: "")
-        }
-        let item = NSMenuItem(
-            title: "\(event.summary) [return to CLI]",
-            action: #selector(openCLIContextClicked(_:)),
-            keyEquivalent: ""
-        )
-        item.target = self
-        item.representedObject = CLIContextBox(
-            context,
-            identity: SessionIdentity(source: event.source, sessionID: event.sessionID)
-        )
-        return item
-    }
-
-    private func copyMenuItem(command: String) -> NSMenuItem {
-        let item = NSMenuItem(
-            title: "Copy latest return command",
-            action: #selector(copyReturnCommandClicked(_:)),
-            keyEquivalent: "c"
-        )
-        item.target = self
-        item.representedObject = command
-        return item
-    }
-
-    @objc private func refreshClicked() {
-        reloadEvents()
-    }
-
-    @objc private func openCLIContextClicked(_ sender: NSMenuItem) {
-        guard let box = sender.representedObject as? CLIContextBox else {
-            appendAppLog("Menu item did not contain CLI context")
-            return
-        }
-        acknowledgeAttention(identity: box.identity)
-        contextOpener.open(box.payload)
-    }
-
-    @objc private func copyReturnCommandClicked(_ sender: NSMenuItem) {
-        guard let command = sender.representedObject as? String else {
-            appendAppLog("Menu item did not contain a return command")
-            return
-        }
-        contextOpener.copy(command)
-    }
-
-    @objc private func quitClicked() {
-        NSApp.terminate(nil)
     }
 
     private var eventsURL: URL {

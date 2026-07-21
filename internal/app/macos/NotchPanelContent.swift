@@ -1,20 +1,40 @@
 import Foundation
 
 struct NotchPanelContent: Equatable {
+    static let recentLimit = 3
+
     static let empty = NotchPanelContent(
         current: nil,
         recent: [],
         actionableContext: nil,
-        actionableIdentity: nil
+        actionableIdentity: nil,
+        actionableEventID: nil,
+        sessionRows: [],
+        health: nil,
+        unscopedRecent: []
     )
 
     let current: NotchEventSummary?
     let recent: [NotchEventSummary]
     let actionableContext: CLIContextPayload?
     let actionableIdentity: SessionIdentity?
+    let actionableEventID: String?
+    let sessionRows: [SessionPresentationRow]
+    let health: RuntimeHealthPresentation?
+    let unscopedRecent: [NotchEventSummary]
 
     var returnCommand: String? {
         return actionableContext?.returnCommand
+    }
+
+    var visibleSessionRows: [SessionPresentationRow] {
+        return Array(sessionRows.prefix(SessionPresentation.panelLimit))
+    }
+
+    var visibleRecent: [NotchEventSummary] {
+        let remaining = max(0, Self.recentLimit - visibleSessionRows.count)
+        let candidates = sessionRows.isEmpty ? recent : unscopedRecent
+        return Array(candidates.prefix(remaining))
     }
 
     init(
@@ -41,16 +61,74 @@ struct NotchPanelContent: Equatable {
         )
     }
 
+    init(
+        presentation: SessionPresentation,
+        events: [MewsEvent],
+        currentEvent: MewsEvent?,
+        fileManager: FileManager = .default
+    ) {
+        let primaryEvents = events.filter(\.affectsPrimaryStatus)
+        let legacy = NotchPanelContent(
+            primaryEvents: primaryEvents,
+            currentEvent: currentEvent,
+            fileManager: fileManager
+        )
+        let unscopedRecent = events
+            .filter(\.affectsPrimaryStatus)
+            .filter {
+                SessionIdentity(source: $0.source, sessionID: $0.sessionID) == nil
+            }
+            .suffix(Self.recentLimit)
+            .reversed()
+            .map(NotchEventSummary.init)
+        self.init(
+            current: legacy.current,
+            recent: legacy.recent,
+            actionableContext: legacy.actionableContext,
+            actionableIdentity: legacy.actionableIdentity,
+            actionableEventID: legacy.actionableEventID,
+            sessionRows: presentation.rows,
+            health: presentation.health,
+            unscopedRecent: unscopedRecent
+        )
+    }
+
+    func stabilized(relativeTo previous: NotchPanelContent) -> NotchPanelContent {
+        let retainsLegacyTarget = actionableEventID != nil &&
+            actionableEventID == previous.actionableEventID
+        return NotchPanelContent(
+            current: previous.current,
+            recent: previous.recent,
+            actionableContext: retainsLegacyTarget ? actionableContext : nil,
+            actionableIdentity: retainsLegacyTarget ? actionableIdentity : nil,
+            actionableEventID: previous.actionableEventID,
+            sessionRows: SessionPresentationPolicy.stabilizedRows(
+                canonical: sessionRows,
+                previous: previous.visibleSessionRows
+            ),
+            health: previous.health,
+            unscopedRecent: previous.unscopedRecent
+        )
+    }
+
     private init(
         current: NotchEventSummary?,
         recent: [NotchEventSummary],
         actionableContext: CLIContextPayload?,
-        actionableIdentity: SessionIdentity?
+        actionableIdentity: SessionIdentity?,
+        actionableEventID: String?,
+        sessionRows: [SessionPresentationRow],
+        health: RuntimeHealthPresentation?,
+        unscopedRecent: [NotchEventSummary]
     ) {
         self.current = current
         self.recent = recent
         self.actionableContext = actionableContext
         self.actionableIdentity = actionableIdentity
+        self.actionableEventID = actionableEventID
+        self.sessionRows = sessionRows
+        self.health = health
+        self.unscopedRecent = unscopedRecent
     }
 
     private init(
@@ -60,9 +138,16 @@ struct NotchPanelContent: Equatable {
     ) {
         guard let currentEvent else {
             current = nil
-            recent = primaryEvents.suffix(3).reversed().map(NotchEventSummary.init)
+            recent = primaryEvents
+                .suffix(Self.recentLimit)
+                .reversed()
+                .map(NotchEventSummary.init)
             actionableContext = nil
             actionableIdentity = nil
+            actionableEventID = nil
+            sessionRows = []
+            health = nil
+            unscopedRecent = []
             return
         }
 
@@ -71,12 +156,19 @@ struct NotchPanelContent: Equatable {
         if let currentIndex = historyEvents.lastIndex(where: { $0.id == currentEvent.id }) {
             historyEvents.remove(at: currentIndex)
         }
-        recent = historyEvents.suffix(3).reversed().map(NotchEventSummary.init)
+        recent = historyEvents
+            .suffix(Self.recentLimit)
+            .reversed()
+            .map(NotchEventSummary.init)
         actionableContext = currentEvent.cliContext?.actionable(fileManager: fileManager)
         actionableIdentity = SessionIdentity(
             source: currentEvent.source,
             sessionID: currentEvent.sessionID
         )
+        actionableEventID = currentEvent.id
+        sessionRows = []
+        health = nil
+        unscopedRecent = []
     }
 }
 
@@ -169,7 +261,7 @@ private func notchRedactingAbsolutePaths(_ value: String) -> String {
     }.joined(separator: " ")
 }
 
-private func notchProjectLabel(_ value: String?) -> String? {
+func notchProjectLabel(_ value: String?) -> String? {
     guard let value,
           !value.isEmpty else {
         return nil
@@ -196,7 +288,7 @@ private func notchEventMessage(_ event: MewsEvent) -> String {
     return notchDisplayText(rawMessage, maximumColumns: 58) ?? "Status updated"
 }
 
-private func notchSessionLabel(_ value: String?) -> String? {
+func notchSessionLabel(_ value: String?) -> String? {
     guard let value = notchDisplayText(value, maximumColumns: 256) else {
         return nil
     }

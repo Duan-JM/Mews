@@ -12,14 +12,25 @@ struct NotchExpandedContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-            currentSummary
-            rule
-                .padding(.top, 9)
-            recentEvents
-                .padding(.top, 7)
-            Spacer(minLength: 6)
-            actions
-                .padding(.bottom, 14)
+            if let health = snapshot.content.health {
+                NotchHealthRowView(
+                    health: health,
+                    transitionStyle: snapshot.transitionStyle,
+                    palette: palette,
+                    onCopyCommand: onCopyCommand
+                )
+                    .padding(.top, 5)
+            }
+            if snapshot.content.visibleSessionRows.isEmpty {
+                legacyContent
+            } else {
+                NotchSessionContentView(
+                    snapshot: snapshot,
+                    palette: palette,
+                    onReturnToCLI: onReturnToCLI,
+                    onCopyCommand: onCopyCommand
+                )
+            }
         }
         .padding(.horizontal, 18)
         .foregroundStyle(Color.white)
@@ -29,19 +40,32 @@ struct NotchExpandedContentView: View {
         HStack(spacing: 10) {
             PixelStatusView(state: snapshot.presentationState, size: 28)
             Spacer()
-            Text(currentStatusLabel.uppercased())
+            Text(topBarLabel)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .tracking(0.8)
                 .foregroundStyle(Color.white.opacity(palette.badgeText))
                 .padding(.horizontal, 9)
                 .frame(height: 24)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 7)
+                    RoundedRectangle(cornerRadius: 4)
                         .stroke(Color.white.opacity(palette.border), lineWidth: 1)
                 )
         }
         .frame(height: 28)
         .padding(.top, 14)
+    }
+
+    private var legacyContent: some View {
+        VStack(spacing: 0) {
+            currentSummary
+            rule
+                .padding(.top, 9)
+            recentEvents
+                .padding(.top, 7)
+            Spacer(minLength: 6)
+            legacyActions
+                .padding(.bottom, 14)
+        }
     }
 
     private var currentSummary: some View {
@@ -70,7 +94,7 @@ struct NotchExpandedContentView: View {
 
     private var recentEvents: some View {
         VStack(spacing: 4) {
-            if snapshot.content.recent.isEmpty {
+            if legacyRecent.isEmpty {
                 HStack {
                     Text("NO EARLIER PRIMARY EVENTS")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
@@ -80,7 +104,10 @@ struct NotchExpandedContentView: View {
                 }
                 .frame(height: 16)
             } else {
-                ForEach(Array(snapshot.content.recent.enumerated()), id: \.offset) { _, event in
+                ForEach(
+                    Array(legacyRecent.enumerated()),
+                    id: \.offset
+                ) { _, event in
                     recentRow(event)
                 }
             }
@@ -104,7 +131,7 @@ struct NotchExpandedContentView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var actions: some View {
+    private var legacyActions: some View {
         HStack(spacing: 8) {
             Button("RETURN TO CLI") {
                 if let context = snapshot.content.actionableContext {
@@ -112,7 +139,7 @@ struct NotchExpandedContentView: View {
                 }
             }
             .buttonStyle(
-                NotchActionButtonStyle(
+                NotchRowActionButtonStyle(
                     emphasis: true,
                     transitionStyle: snapshot.transitionStyle,
                     palette: palette
@@ -127,7 +154,7 @@ struct NotchExpandedContentView: View {
                 }
             }
             .buttonStyle(
-                NotchActionButtonStyle(
+                NotchRowActionButtonStyle(
                     emphasis: false,
                     transitionStyle: snapshot.transitionStyle,
                     palette: palette
@@ -148,8 +175,28 @@ struct NotchExpandedContentView: View {
         return snapshot.content.current?.sourceLabel ?? "Mews"
     }
 
+    private var legacyRecent: [NotchEventSummary] {
+        guard snapshot.content.health != nil else {
+            return snapshot.content.visibleRecent
+        }
+        return Array(snapshot.content.visibleRecent.prefix(1))
+    }
+
     private var currentStatusLabel: String {
-        return snapshot.content.current?.statusLabel ?? snapshot.presentationState.status.panelLabel
+        return snapshot.content.current?.statusLabel ??
+            snapshot.presentationState.status.panelLabel
+    }
+
+    private var topBarLabel: String {
+        let count = snapshot.content.visibleSessionRows.count
+        guard count > 0 else {
+            return currentStatusLabel.uppercased()
+        }
+        let total = snapshot.content.sessionRows.count
+        if total > count {
+            return "\(count) OF \(total) SESSIONS"
+        }
+        return count == 1 ? "1 SESSION" : "\(count) SESSIONS"
     }
 
     private func statusOpacity(_ status: MewsPresentationStatus) -> Double {
@@ -165,68 +212,6 @@ struct NotchExpandedContentView: View {
             opacity = 0.42
         }
         return max(opacity, palette.statusFloor)
-    }
-}
-
-private struct NotchActionButtonStyle: ButtonStyle {
-    let emphasis: Bool
-    let transitionStyle: NotchShellTransitionStyle
-    let palette: NotchContrastPalette
-
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-            .tracking(0.5)
-            .foregroundStyle(foregroundColor)
-            .frame(maxWidth: .infinity)
-            .frame(height: 28)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(backgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(borderColor, lineWidth: 1)
-            )
-            .opacity(configuration.isPressed && transitionStyle == .opacityOnly ? 0.72 : 1)
-            .scaleEffect(pressedScale(configuration: configuration))
-            .animation(buttonAnimation, value: configuration.isPressed)
-    }
-
-    private var foregroundColor: Color {
-        if !isEnabled {
-            return Color.white.opacity(palette.disabledText)
-        }
-        return emphasis ? .black : .white
-    }
-
-    private var backgroundColor: Color {
-        if !isEnabled {
-            return Color.white.opacity(palette.disabledSurface)
-        }
-        return emphasis ? .white : Color.white.opacity(0.08)
-    }
-
-    private var borderColor: Color {
-        if !isEnabled {
-            return Color.white.opacity(palette.disabledBorder)
-        }
-        return emphasis ? .white : Color.white.opacity(palette.border)
-    }
-
-    private var buttonAnimation: Animation? {
-        return transitionStyle == .spatial ? .easeOut(duration: 0.08) : nil
-    }
-
-    private func pressedScale(configuration: Configuration) -> CGFloat {
-        guard isEnabled,
-              configuration.isPressed,
-              transitionStyle == .spatial else {
-            return 1
-        }
-        return 0.98
     }
 }
 

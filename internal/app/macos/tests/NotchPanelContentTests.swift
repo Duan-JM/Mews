@@ -7,6 +7,9 @@ extension MewsAppModelTests {
         try testSensitiveCopyRedaction()
         try testPanelActionAvailability()
         try testExpiredCurrentEvent()
+        try testUnscopedSessionHistory()
+        try testExpandedContentStability()
+        try testExpiredExpandedAction()
     }
 
     private static func testPrimaryHistoryFiltering() throws {
@@ -160,6 +163,160 @@ extension MewsAppModelTests {
         try panelExpect(
             content.actionableContext == nil,
             "expired state should not keep current-context actions enabled"
+        )
+    }
+
+    private static func testUnscopedSessionHistory() throws {
+        let row = try panelSessionRow(
+            id: "stable-session",
+            status: .running,
+            evidenceAt: Date(timeIntervalSince1970: 1_900_001_000)
+        )
+        let scoped = try panelEvent([
+            "id": "scoped",
+            "session_id": "stable-session",
+            "message": "Scoped event"
+        ])
+        let unscoped = try panelEvent([
+            "id": "unscoped",
+            "session_id": "",
+            "status": "done",
+            "message": "History-only event"
+        ])
+        let content = NotchPanelContent(
+            presentation: SessionPresentation(rows: [row], health: nil),
+            events: [scoped, unscoped],
+            currentEvent: scoped
+        )
+
+        try panelExpect(
+            content.visibleSessionRows.map(\.identity.sessionID) == ["stable-session"],
+            "stable sessions should render as actionable rows"
+        )
+        try panelExpect(
+            content.visibleRecent.count == 1 &&
+                content.visibleRecent.first?.sessionLabel == nil,
+            "events without stable identity should remain bounded history"
+        )
+    }
+
+    private static func testExpandedContentStability() throws {
+        let first = try panelSessionRow(
+            id: "first",
+            status: .running,
+            evidenceAt: Date(timeIntervalSince1970: 1_900_001_100)
+        )
+        let second = try panelSessionRow(
+            id: "second",
+            status: .running,
+            evidenceAt: Date(timeIntervalSince1970: 1_900_001_099)
+        )
+        let urgent = try panelSessionRow(
+            id: "urgent",
+            status: .needsInput,
+            evidenceAt: Date(timeIntervalSince1970: 1_900_001_101)
+        )
+        let previous = panelContent(
+            rows: [first, second],
+            health: panelHealth(id: "prior", state: .degraded)
+        )
+        let canonical = panelContent(
+            rows: [urgent, second, first],
+            health: panelHealth(
+                id: "next",
+                state: .blocked,
+                recovery: "mw doctor"
+            )
+        )
+        let stabilized = canonical.stabilized(relativeTo: previous)
+
+        try panelExpect(
+            stabilized.visibleSessionRows.map(\.identity.sessionID) == [
+                "first",
+                "second",
+                "urgent"
+            ],
+            "expanded rows should not move beneath the pointer"
+        )
+        try panelExpect(
+            stabilized.health?.capabilityID == "prior",
+            "expanded health controls should remain stable until collapse"
+        )
+    }
+
+    private static func testExpiredExpandedAction() throws {
+        let event = try panelEvent([
+            "id": "expanded-expiry",
+            "session_id": "session-expiry",
+            "status": "done",
+            "cwd": "/tmp"
+        ])
+        let previous = NotchPanelContent(
+            events: [event],
+            currentEvent: event
+        )
+        let expired = NotchPanelContent(
+            events: [event],
+            currentEvent: nil
+        ).stabilized(relativeTo: previous)
+
+        try panelExpect(
+            expired.current != nil,
+            "expanded legacy copy should stay visually stable"
+        )
+        try panelExpect(
+            expired.actionableContext == nil &&
+                expired.actionableIdentity == nil,
+            "an expired legacy target should disable stale actions"
+        )
+    }
+
+    private static func panelContent(
+        rows: [SessionPresentationRow],
+        health: RuntimeHealthPresentation
+    ) -> NotchPanelContent {
+        return NotchPanelContent(
+            presentation: SessionPresentation(rows: rows, health: health),
+            events: [],
+            currentEvent: nil
+        )
+    }
+
+    private static func panelHealth(
+        id: String,
+        state: RuntimeHealthState,
+        recovery: String? = nil
+    ) -> RuntimeHealthPresentation {
+        return RuntimeHealthPresentation(
+            state: state,
+            capabilityID: id,
+            title: "\(id) health",
+            message: "\(id) message",
+            recovery: recovery,
+            additionalCount: 0
+        )
+    }
+
+    private static func panelSessionRow(
+        id: String,
+        status: SessionStatus,
+        evidenceAt: Date
+    ) throws -> SessionPresentationRow {
+        let identity = try panelRequire(
+            SessionIdentity(source: "copilot", sessionID: id),
+            "panel session identity should be valid"
+        )
+        return SessionPresentationRow(
+            identity: identity,
+            status: status,
+            sourceLabel: "Copilot CLI",
+            projectLabel: "Mews",
+            sessionLabel: id,
+            statusLabel: mewsStatusLabel(status.rawValue),
+            statusCode: status == .needsInput ? "ASK" : "RUN",
+            returnContext: nil,
+            evidenceAt: evidenceAt,
+            priority: status == .needsInput ? .needsInput : .running
         )
     }
 
