@@ -12,6 +12,7 @@ final class NotchPanelController: NSObject {
     private(set) var placement: OverlayPlacement?
 
     private let notificationCenter: NotificationCenter
+    private let screenChangeNotification: Notification.Name
     private let screenProvider: ScreenProvider
     private let onOpenContext: OpenContextHandler
     private let onCopyCommand: CopyCommandHandler
@@ -22,7 +23,10 @@ final class NotchPanelController: NSObject {
     private var interactionState = NotchInteractionState(
         presentationState: MewsPresentationState(event: nil)
     )
-    private var reduceMotion = false
+    private var accessibilityPreferences = NotchAccessibilityPreferences(
+        reduceMotion: false,
+        increaseContrast: false
+    )
 
     private lazy var hostingView = NotchHostingView(
         rootView: NotchShellView(
@@ -34,11 +38,14 @@ final class NotchPanelController: NSObject {
 
     init(
         notificationCenter: NotificationCenter = .default,
+        screenChangeNotification: Notification.Name? = nil,
         screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens,
         onOpenContext: @escaping OpenContextHandler = { _ in },
         onCopyCommand: @escaping CopyCommandHandler = { _ in }
     ) {
         self.notificationCenter = notificationCenter
+        self.screenChangeNotification =
+            screenChangeNotification ?? NSApplication.didChangeScreenParametersNotification
         self.screenProvider = screenProvider
         self.onOpenContext = onOpenContext
         self.onCopyCommand = onCopyCommand
@@ -55,7 +62,7 @@ final class NotchPanelController: NSObject {
         notificationCenter.addObserver(
             self,
             selector: #selector(screenParametersDidChange(_:)),
-            name: NSApplication.didChangeScreenParametersNotification,
+            name: self.screenChangeNotification,
             object: nil
         )
     }
@@ -63,7 +70,7 @@ final class NotchPanelController: NSObject {
     deinit {
         notificationCenter.removeObserver(
             self,
-            name: NSApplication.didChangeScreenParametersNotification,
+            name: screenChangeNotification,
             object: nil
         )
     }
@@ -86,10 +93,10 @@ final class NotchPanelController: NSObject {
 
     func update(
         interactionState: NotchInteractionState,
-        reduceMotion: Bool
+        accessibilityPreferences: NotchAccessibilityPreferences
     ) {
         self.interactionState = interactionState
-        self.reduceMotion = reduceMotion
+        self.accessibilityPreferences = accessibilityPreferences
         refreshShell()
         applyWindowPresentation()
     }
@@ -162,7 +169,10 @@ final class NotchPanelController: NSObject {
                 anchorSize: anchorSize,
                 presentationState: interactionState.presentationState,
                 content: content,
-                transitionStyle: .resolved(reduceMotion: reduceMotion)
+                transitionStyle: .resolved(
+                    reduceMotion: accessibilityPreferences.reduceMotion
+                ),
+                increaseContrast: accessibilityPreferences.increaseContrast
             )
         )
         panel.setAccessibilityLabel(

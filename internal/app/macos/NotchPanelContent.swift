@@ -20,14 +20,23 @@ struct NotchPanelContent: Equatable {
         fileManager: FileManager = .default
     ) {
         let primaryEvents = events.filter(\.affectsPrimaryStatus)
-        guard let currentEvent = primaryEvents.last else {
-            self = .empty
-            return
-        }
+        self.init(
+            primaryEvents: primaryEvents,
+            currentEvent: primaryEvents.last,
+            fileManager: fileManager
+        )
+    }
 
-        current = NotchEventSummary(event: currentEvent)
-        recent = primaryEvents.dropLast().suffix(3).reversed().map(NotchEventSummary.init)
-        actionableContext = currentEvent.cliContext?.actionable(fileManager: fileManager)
+    init(
+        events: [MewsEvent],
+        currentEvent: MewsEvent?,
+        fileManager: FileManager = .default
+    ) {
+        self.init(
+            primaryEvents: events.filter(\.affectsPrimaryStatus),
+            currentEvent: currentEvent,
+            fileManager: fileManager
+        )
     }
 
     private init(
@@ -38,6 +47,27 @@ struct NotchPanelContent: Equatable {
         self.current = current
         self.recent = recent
         self.actionableContext = actionableContext
+    }
+
+    private init(
+        primaryEvents: [MewsEvent],
+        currentEvent: MewsEvent?,
+        fileManager: FileManager
+    ) {
+        guard let currentEvent else {
+            current = nil
+            recent = primaryEvents.suffix(3).reversed().map(NotchEventSummary.init)
+            actionableContext = nil
+            return
+        }
+
+        current = NotchEventSummary(event: currentEvent)
+        var historyEvents = primaryEvents
+        if let currentIndex = historyEvents.lastIndex(where: { $0.id == currentEvent.id }) {
+            historyEvents.remove(at: currentIndex)
+        }
+        recent = historyEvents.suffix(3).reversed().map(NotchEventSummary.init)
+        actionableContext = currentEvent.cliContext?.actionable(fileManager: fileManager)
     }
 }
 

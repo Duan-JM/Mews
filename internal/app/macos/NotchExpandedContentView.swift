@@ -5,6 +5,10 @@ struct NotchExpandedContentView: View {
     let onReturnToCLI: (CLIContextPayload) -> Void
     let onCopyCommand: (String) -> Void
 
+    private var palette: NotchContrastPalette {
+        return .resolved(increaseContrast: snapshot.increaseContrast)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
@@ -28,12 +32,12 @@ struct NotchExpandedContentView: View {
             Text(currentStatusLabel.uppercased())
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .tracking(0.8)
-                .foregroundStyle(Color.white.opacity(0.78))
+                .foregroundStyle(Color.white.opacity(palette.badgeText))
                 .padding(.horizontal, 9)
                 .frame(height: 24)
                 .overlay(
                     RoundedRectangle(cornerRadius: 7)
-                        .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                        .stroke(Color.white.opacity(palette.border), lineWidth: 1)
                 )
         }
         .frame(height: 28)
@@ -49,15 +53,15 @@ struct NotchExpandedContentView: View {
                 if let metadata = snapshot.content.current?.metadataLine {
                     Text(metadata.uppercased())
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(0.5))
+                        .foregroundStyle(Color.white.opacity(palette.metadataText))
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
 
-            Text(snapshot.content.current?.message ?? "No agent events yet")
+            Text(snapshot.content.current?.message ?? "No current agent activity")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.white.opacity(0.92))
+                .foregroundStyle(Color.white.opacity(palette.primaryText))
                 .lineLimit(1)
         }
         .padding(.top, 9)
@@ -71,7 +75,7 @@ struct NotchExpandedContentView: View {
                     Text("NO EARLIER PRIMARY EVENTS")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .tracking(0.5)
-                        .foregroundStyle(Color.white.opacity(0.34))
+                        .foregroundStyle(Color.white.opacity(palette.mutedText))
                     Spacer()
                 }
                 .frame(height: 16)
@@ -92,7 +96,7 @@ struct NotchExpandedContentView: View {
                 .frame(width: 72, alignment: .leading)
             Text(event.message)
                 .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(Color.white.opacity(0.58))
+                .foregroundStyle(Color.white.opacity(palette.secondaryText))
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
@@ -110,7 +114,8 @@ struct NotchExpandedContentView: View {
             .buttonStyle(
                 NotchActionButtonStyle(
                     emphasis: true,
-                    transitionStyle: snapshot.transitionStyle
+                    transitionStyle: snapshot.transitionStyle,
+                    palette: palette
                 )
             )
             .disabled(snapshot.content.actionableContext == nil)
@@ -124,7 +129,8 @@ struct NotchExpandedContentView: View {
             .buttonStyle(
                 NotchActionButtonStyle(
                     emphasis: false,
-                    transitionStyle: snapshot.transitionStyle
+                    transitionStyle: snapshot.transitionStyle,
+                    palette: palette
                 )
             )
             .disabled(snapshot.content.returnCommand == nil)
@@ -134,7 +140,7 @@ struct NotchExpandedContentView: View {
 
     private var rule: some View {
         Rectangle()
-            .fill(Color.white.opacity(0.1))
+            .fill(Color.white.opacity(palette.separator))
             .frame(height: 1)
     }
 
@@ -147,22 +153,25 @@ struct NotchExpandedContentView: View {
     }
 
     private func statusOpacity(_ status: MewsPresentationStatus) -> Double {
+        let opacity: Double
         switch status {
         case .needsInput, .failed:
-            return 0.92
+            opacity = 0.92
         case .done:
-            return 0.76
+            opacity = 0.76
         case .running:
-            return 0.64
+            opacity = 0.64
         case .idle:
-            return 0.42
+            opacity = 0.42
         }
+        return max(opacity, palette.statusFloor)
     }
 }
 
 private struct NotchActionButtonStyle: ButtonStyle {
     let emphasis: Bool
     let transitionStyle: NotchShellTransitionStyle
+    let palette: NotchContrastPalette
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -188,23 +197,23 @@ private struct NotchActionButtonStyle: ButtonStyle {
 
     private var foregroundColor: Color {
         if !isEnabled {
-            return Color.white.opacity(0.34)
+            return Color.white.opacity(palette.disabledText)
         }
         return emphasis ? .black : .white
     }
 
     private var backgroundColor: Color {
         if !isEnabled {
-            return Color.white.opacity(0.06)
+            return Color.white.opacity(palette.disabledSurface)
         }
         return emphasis ? .white : Color.white.opacity(0.08)
     }
 
     private var borderColor: Color {
         if !isEnabled {
-            return Color.white.opacity(0.1)
+            return Color.white.opacity(palette.disabledBorder)
         }
-        return emphasis ? .white : Color.white.opacity(0.22)
+        return emphasis ? .white : Color.white.opacity(palette.border)
     }
 
     private var buttonAnimation: Animation? {

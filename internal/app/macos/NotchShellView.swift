@@ -9,6 +9,7 @@ struct NotchShellSnapshot: Equatable {
     let presentationState: MewsPresentationState
     let content: NotchPanelContent
     let transitionStyle: NotchShellTransitionStyle
+    let increaseContrast: Bool
 
     static let initial = NotchShellSnapshot(
         visibility: .closed,
@@ -17,7 +18,8 @@ struct NotchShellSnapshot: Equatable {
         anchorSize: .zero,
         presentationState: MewsPresentationState(event: nil),
         content: .empty,
-        transitionStyle: .spatial
+        transitionStyle: .spatial,
+        increaseContrast: false
     )
 }
 

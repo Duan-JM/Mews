@@ -77,6 +77,7 @@ swiftc \
   -parse-as-library \
   -target arm64-apple-macos13.0 \
   -framework AppKit \
+  -framework Network \
   -o "$BUILD_DIR/Mews-arm64" \
   "${APP_SOURCES[@]}"
 swiftc \
@@ -84,6 +85,7 @@ swiftc \
   -parse-as-library \
   -target x86_64-apple-macos13.0 \
   -framework AppKit \
+  -framework Network \
   -o "$BUILD_DIR/Mews-amd64" \
   "${APP_SOURCES[@]}"
 lipo -create "$BUILD_DIR/Mews-arm64" "$BUILD_DIR/Mews-amd64" \

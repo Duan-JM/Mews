@@ -96,9 +96,13 @@ Mews turns that hidden state into a small local signal.
 
 The current menu bar companion is intentionally thin. It starts the local IPC agent, reads local event history, and shows the latest state through a compact pixel logo. Left-clicking the logo opens a small shell aligned to a physical notch or the top center of another display; right-clicking or Control-clicking opens the existing recent-event, Refresh, and Quit menu.
 
+The shell follows display changes without keeping stale geometry. It prefers an available physical notch, falls back below the main display's menu bar in clamshell or external-display layouts, hides during a transient no-screen state, and repositions when a display returns. The panel joins all Spaces and full-screen auxiliary windows. Reduce Motion removes repeating logo and spatial shell animation, Increase Contrast strengthens secondary text and boundaries, and VoiceOver receives explicit status and panel labels.
+
+Presentation freshness is bounded without deleting history. `running` and `needs_input` remain current for up to 24 hours; `done` and `failed` remain current for 30 minutes. Older events return the logo and current summary to `idle`, stay available in recent history, and no longer enable current-context panel actions. A responsive agent that was started outside the app is reused rather than duplicated or terminated. If the bundled agent exits or is temporarily unavailable, restart attempts back off from 10 seconds to a five-minute cap instead of spinning on every two-second history refresh.
+
 The expanded shell shows the current primary source and status, project, a shortened session identifier, one bounded single-line message, and up to three earlier primary events. Prompt-derived task titles appear only after the existing explicit opt-in. Full session identifiers, working directories, subagent events, recoverable failures, and runner command text are not rendered. **Return to CLI** and **Copy Return Command** use the same validated local context and Mews-generated history command as notification actions; unavailable actions stay disabled.
 
-Later, **Mews for Mac** can add the notch cat: a small cat around the MacBook notch that walks while agents run, naps when idle, pounces when something finishes, and gets your attention when a prompt is waiting.
+The monochrome pixel mascot now sleeps while idle, works while an agent runs, signals when input is needed, and plays a short one-shot pose for completion or failure.
 
 ## What Mews Watches
 

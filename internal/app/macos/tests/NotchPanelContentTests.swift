@@ -6,6 +6,7 @@ extension MewsAppModelTests {
         try testPanelDisplaySafety()
         try testSensitiveCopyRedaction()
         try testPanelActionAvailability()
+        try testExpiredCurrentEvent()
     }
 
     private static func testPrimaryHistoryFiltering() throws {
@@ -136,6 +137,29 @@ extension MewsAppModelTests {
         try panelExpect(
             invalidContent.actionableContext == nil && invalidContent.returnCommand == nil,
             "invalid context should leave both panel actions disabled"
+        )
+    }
+
+    private static func testExpiredCurrentEvent() throws {
+        let stale = try panelEvent([
+            "id": "stale-done",
+            "session_id": "session-stale",
+            "status": "done",
+            "cwd": "/tmp"
+        ])
+        let content = NotchPanelContent(
+            events: [stale],
+            currentEvent: nil
+        )
+
+        try panelExpect(content.current == nil, "expired state should not remain the current summary")
+        try panelExpect(
+            content.recent.map(\.statusLabel) == ["Done"],
+            "expired state should remain available in bounded local history"
+        )
+        try panelExpect(
+            content.actionableContext == nil,
+            "expired state should not keep current-context actions enabled"
         )
     }
 

@@ -151,6 +151,40 @@ struct MewsPresentationState: Equatable {
     }
 }
 
+enum MewsPresentationFreshness {
+    static let activeLifetime: TimeInterval = 24 * 60 * 60
+    static let settledLifetime: TimeInterval = 30 * 60
+    static let futureTolerance: TimeInterval = 5 * 60
+
+    static func isCurrent(
+        event: MewsEvent,
+        now: Date
+    ) -> Bool {
+        let age = now.timeIntervalSince(event.timestamp)
+        guard age >= -futureTolerance else {
+            return false
+        }
+
+        switch MewsPresentationState(event: event).status {
+        case .running, .needsInput:
+            return age <= activeLifetime
+        case .idle, .done, .failed:
+            return age <= settledLifetime
+        }
+    }
+}
+
+func currentPrimaryEvent(
+    in events: [MewsEvent],
+    now: Date
+) -> MewsEvent? {
+    guard let event = latestPrimaryEvent(in: events),
+          MewsPresentationFreshness.isCurrent(event: event, now: now) else {
+        return nil
+    }
+    return event
+}
+
 func latestPresentationState(in events: [MewsEvent]) -> MewsPresentationState {
     return MewsPresentationState(event: latestPrimaryEvent(in: events))
 }

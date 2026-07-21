@@ -10,7 +10,7 @@ final class NotchInteractionCoordinator: NSObject {
     private let workspace: NSWorkspace
     private let log: (String) -> Void
     private var model: NotchInteractionModel
-    private var reduceMotion: Bool
+    private var accessibilityPreferences: NotchAccessibilityPreferences
     private var started = false
 
     private var localEventMonitor: Any?
@@ -32,7 +32,10 @@ final class NotchInteractionCoordinator: NSObject {
         self.workspace = workspace
         self.log = log
         model = NotchInteractionModel(presentationState: presentationState)
-        reduceMotion = workspace.accessibilityDisplayShouldReduceMotion
+        accessibilityPreferences = NotchAccessibilityPreferences(
+            reduceMotion: workspace.accessibilityDisplayShouldReduceMotion,
+            increaseContrast: workspace.accessibilityDisplayShouldIncreaseContrast
+        )
         super.init()
     }
 
@@ -170,7 +173,7 @@ final class NotchInteractionCoordinator: NSObject {
     private func render() {
         panelController.update(
             interactionState: model.state,
-            reduceMotion: reduceMotion
+            accessibilityPreferences: accessibilityPreferences
         )
     }
 
@@ -235,11 +238,14 @@ final class NotchInteractionCoordinator: NSObject {
     }
 
     @objc private func accessibilityDisplayOptionsDidChange(_ notification: Notification) {
-        let updatedReduceMotion = workspace.accessibilityDisplayShouldReduceMotion
-        guard reduceMotion != updatedReduceMotion else {
+        let updatedPreferences = NotchAccessibilityPreferences(
+            reduceMotion: workspace.accessibilityDisplayShouldReduceMotion,
+            increaseContrast: workspace.accessibilityDisplayShouldIncreaseContrast
+        )
+        guard accessibilityPreferences != updatedPreferences else {
             return
         }
-        reduceMotion = updatedReduceMotion
+        accessibilityPreferences = updatedPreferences
         render()
     }
 
