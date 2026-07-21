@@ -43,6 +43,20 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    private func startSettingsRefresh() {
+        guard settingsTimer == nil else {
+            return
+        }
+        let timer = Timer(
+            timeInterval: NotificationHealthTiming.refreshInterval,
+            repeats: true
+        ) { [weak self] _ in
+            self?.readNotificationSettings()
+        }
+        settingsTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
     func send(for candidate: SessionAttentionCandidate) {
         log("Notification queued for attention \(candidate.notificationIdentifier)")
 
