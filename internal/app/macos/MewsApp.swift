@@ -8,11 +8,16 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private var interactionCoordinator: NotchInteractionCoordinator?
     private var reloadTimer: Timer?
     private var agent: Process?
+    private var agentProcessCoordinator = AgentProcessCoordinator()
+    private var agentProbeInFlight = false
     private var events: [MewsEvent] = []
     private var started = false
     private let homeURL: URL
 
     private lazy var eventReader = EventLogReader(url: eventsURL)
+    private lazy var agentSocketProbe = AgentSocketProbe(
+        path: AgentSocketPath.resolve(homeURL: homeURL)
+    )
     private lazy var contextOpener = CLIContextOpener(configURL: configURL) { [weak self] message in
         self?.appendAppLog(message)
     }
@@ -42,7 +47,6 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         configureInteractionShell()
         notifications.configure()
-        startAgent()
         reloadEvents()
         let timer = Timer(
             timeInterval: 2.0,
@@ -67,23 +71,49 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     private func reloadEvents() {
-        ensureAgentRunning()
+        let now = Date()
+        ensureAgentRunning(at: ProcessInfo.processInfo.systemUptime)
         let reload = eventReader.reload()
         events = reload.events
         for event in reload.newEvents {
             notifications.send(for: event)
         }
-        updateStatusItem(newEvents: reload.newEvents)
+        updateStatusItem(newEvents: reload.newEvents, now: now)
     }
 
     @objc private func reloadTimerDidFire(_ timer: Timer) {
         reloadEvents()
     }
 
-    private func updateStatusItem(newEvents: [MewsEvent]) {
+    private func updateStatusItem(
+        newEvents: [MewsEvent],
+        now: Date
+    ) {
         let latest = latestPrimaryEvent(in: events)
-        let presentationState = MewsPresentationState(event: latest)
-        notchPanelController?.update(content: NotchPanelContent(events: events))
+        let current = currentPrimaryEvent(in: events, now: now)
+        let presentationState = MewsPresentationState(event: current)
+        notchPanelController?.update(
+            content: NotchPanelContent(
+                events: events,
+                currentEvent: current
+            )
+        )
+        let menu = buildMenu(latest: latest)
+        statusItemController?.update(
+            state: presentationState,
+            menu: menu
+        )
+        let announcesTransition = notchTransitionIsNew(
+            latestEvent: current,
+            newEvents: newEvents
+        )
+        interactionCoordinator?.update(
+            presentationState: presentationState,
+            announcesTransition: announcesTransition
+        )
+    }
+
+    private func buildMenu(latest: MewsEvent?) -> NSMenu {
         let menu = NSMenu()
         if let latest {
             menu.addItem(eventMenuItem(for: latest))
@@ -116,15 +146,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         )
         quit.target = self
         menu.addItem(quit)
-        statusItemController?.update(
-            state: presentationState,
-            menu: menu
-        )
-        let announcesTransition = notchTransitionIsNew(latestEvent: latest, newEvents: newEvents)
-        interactionCoordinator?.update(
-            presentationState: presentationState,
-            announcesTransition: announcesTransition
-        )
+        return menu
     }
 
     private func eventMenuItem(for event: MewsEvent) -> NSMenuItem {
@@ -174,60 +196,6 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
     @objc private func quitClicked() {
         NSApp.terminate(nil)
-    }
-
-    private func startAgent() {
-        guard agent == nil else {
-            return
-        }
-        guard let helper = helperPath() else {
-            appendAppLog("Could not find bundled mw helper")
-            return
-        }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: helper)
-        process.arguments = ["agent"]
-        let log = logFile()
-        process.standardOutput = log
-        process.standardError = log
-
-        do {
-            try process.run()
-            agent = process
-        } catch {
-            appendAppLog("Could not start mw agent: \(error)")
-        }
-    }
-
-    private func stopAgent() {
-        guard let agent else { return }
-        if agent.isRunning {
-            agent.terminate()
-        }
-        self.agent = nil
-    }
-
-    private func ensureAgentRunning() {
-        if let agent, agent.isRunning {
-            return
-        }
-        agent = nil
-        startAgent()
-    }
-
-    private func helperPath() -> String? {
-        if let helper = Bundle.main.path(forResource: "mw", ofType: nil) {
-            return helper
-        }
-        let executable = URL(fileURLWithPath: CommandLine.arguments[0])
-        let fallback = executable
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Resources")
-            .appendingPathComponent("mw")
-            .path
-        return FileManager.default.isExecutableFile(atPath: fallback) ? fallback : nil
     }
 
     private var eventsURL: URL {
@@ -284,6 +252,103 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 }
 
 private extension MewsApp {
+    func startAgent(at uptime: TimeInterval) {
+        guard agent == nil else {
+            return
+        }
+        guard let helper = helperPath() else {
+            appendAppLog("Could not find bundled mw helper")
+            agentProcessCoordinator.recordLaunchFailure(at: uptime)
+            return
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: helper)
+        process.arguments = ["agent"]
+        let log = logFile()
+        process.standardOutput = log
+        process.standardError = log
+
+        do {
+            try process.run()
+            agent = process
+            agentProcessCoordinator.recordStarted(at: uptime)
+        } catch {
+            appendAppLog("Could not start mw agent: \(error)")
+            agentProcessCoordinator.recordLaunchFailure(at: uptime)
+        }
+    }
+
+    func stopAgent() {
+        guard let agent else {
+            agentProcessCoordinator.reset()
+            return
+        }
+        if agent.isRunning {
+            agent.terminate()
+        }
+        self.agent = nil
+        agentProcessCoordinator.reset()
+    }
+
+    func ensureAgentRunning(at uptime: TimeInterval) {
+        let childIsRunning = agent?.isRunning == true
+        guard !childIsRunning else {
+            return
+        }
+        guard !agentProbeInFlight else {
+            return
+        }
+        let shouldProbe = agentProcessCoordinator.shouldProbeSocket(
+            childIsRunning: childIsRunning,
+            uptime: uptime
+        )
+        guard shouldProbe else {
+            return
+        }
+        agentProbeInFlight = true
+        agentSocketProbe.check { [weak self] socketResponsive in
+            DispatchQueue.main.async {
+                self?.agentProbeDidFinish(socketResponsive: socketResponsive)
+            }
+        }
+    }
+
+    func agentProbeDidFinish(socketResponsive: Bool) {
+        agentProbeInFlight = false
+        guard started else {
+            return
+        }
+        let uptime = ProcessInfo.processInfo.systemUptime
+        let childIsRunning = agent?.isRunning == true
+        if !childIsRunning {
+            agent = nil
+        }
+        let action = agentProcessCoordinator.action(
+            childIsRunning: childIsRunning,
+            socketResponsive: socketResponsive,
+            uptime: uptime
+        )
+        guard action == .launch else {
+            return
+        }
+        startAgent(at: uptime)
+    }
+
+    func helperPath() -> String? {
+        if let helper = Bundle.main.path(forResource: "mw", ofType: nil) {
+            return helper
+        }
+        let executable = URL(fileURLWithPath: CommandLine.arguments[0])
+        let fallback = executable
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Resources")
+            .appendingPathComponent("mw")
+            .path
+        return FileManager.default.isExecutableFile(atPath: fallback) ? fallback : nil
+    }
+
     func configureInteractionShell() {
         let panelController = NotchPanelController(
             onOpenContext: { [weak self] context in

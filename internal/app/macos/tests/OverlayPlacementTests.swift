@@ -11,6 +11,7 @@ enum OverlayPlacementTests {
         try testTopCenterPlacementBelowMenuBar()
         try testWidthCapping()
         try testPlacementHitTesting()
+        try testDisplayTopologyTransitions()
         try testNoScreens()
     }
 
@@ -225,6 +226,72 @@ enum OverlayPlacementTests {
             throw TestFailure(message: message)
         }
         return value
+    }
+}
+
+private extension OverlayPlacementTests {
+    static func testDisplayTopologyTransitions() throws {
+        let resolver = OverlayScreenResolver()
+        let calculator = OverlayPlacementCalculator()
+        let builtIn = screen(
+            id: "built-in",
+            frame: CGRect(x: 0, y: 0, width: 1512, height: 982),
+            safeTop: 32,
+            leftArea: CGRect(x: 0, y: 950, width: 730, height: 32),
+            rightArea: CGRect(x: 782, y: 950, width: 730, height: 32)
+        )
+        let external = screen(
+            id: "external",
+            frame: CGRect(x: 1512, y: 0, width: 1920, height: 1080),
+            visibleFrame: CGRect(x: 1512, y: 0, width: 1920, height: 1055),
+            isMain: true
+        )
+
+        let openLaptop = try require(
+            OverlayScreenResolver().resolve(screens: [external, builtIn]),
+            "open-laptop topology should resolve"
+        )
+        try expect(
+            openLaptop.screen.id == "built-in" && openLaptop.mode == .notch,
+            "an available physical notch should remain the preferred anchor"
+        )
+
+        let clamshell = try require(
+            resolver.resolve(screens: [external]),
+            "clamshell topology should resolve"
+        )
+        try expect(
+            clamshell.screen.id == "external" &&
+                clamshell.mode == .topCenter &&
+                calculator.placement(for: clamshell).frame.maxY == external.visibleFrame.maxY,
+            "clamshell mode should move the shell below the external display menu bar"
+        )
+
+        try testResizedExternalDisplay(
+            resolver: resolver,
+            calculator: calculator
+        )
+    }
+
+    static func testResizedExternalDisplay(
+        resolver: OverlayScreenResolver,
+        calculator: OverlayPlacementCalculator
+    ) throws {
+        let resizedExternal = screen(
+            id: "external",
+            frame: CGRect(x: -2560, y: -300, width: 2560, height: 1440),
+            visibleFrame: CGRect(x: -2560, y: -300, width: 2560, height: 1415),
+            isMain: true
+        )
+        let resized = try require(
+            resolver.resolve(screens: [resizedExternal]),
+            "resized topology should resolve"
+        )
+        try expect(
+            calculator.placement(for: resized).frame ==
+                CGRect(x: -1490, y: 895, width: 420, height: 220),
+            "resolution and coordinate changes should recalculate the top-center frame"
+        )
     }
 }
 

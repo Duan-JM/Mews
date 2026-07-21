@@ -314,6 +314,14 @@ extension MewsAppModelTests {
             NotchShellTransitionStyle.resolved(reduceMotion: true) == .opacityOnly,
             "Reduce Motion should select non-spatial shell transitions"
         )
+        let standardContrast = NotchContrastPalette.resolved(increaseContrast: false)
+        let increasedContrast = NotchContrastPalette.resolved(increaseContrast: true)
+        try notchExpect(
+            increasedContrast.metadataText > standardContrast.metadataText &&
+                increasedContrast.separator > standardContrast.separator &&
+                increasedContrast.disabledText > standardContrast.disabledText,
+            "Increase Contrast should strengthen secondary text, separators, and disabled controls"
+        )
         try notchExpect(
             !NotchPanelPresentationPolicy.isVisible(
                 visibility: .closed,

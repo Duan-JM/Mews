@@ -22,7 +22,10 @@ final class NotchPanelController: NSObject {
     private var interactionState = NotchInteractionState(
         presentationState: MewsPresentationState(event: nil)
     )
-    private var reduceMotion = false
+    private var accessibilityPreferences = NotchAccessibilityPreferences(
+        reduceMotion: false,
+        increaseContrast: false
+    )
 
     private lazy var hostingView = NotchHostingView(
         rootView: NotchShellView(
@@ -86,10 +89,10 @@ final class NotchPanelController: NSObject {
 
     func update(
         interactionState: NotchInteractionState,
-        reduceMotion: Bool
+        accessibilityPreferences: NotchAccessibilityPreferences
     ) {
         self.interactionState = interactionState
-        self.reduceMotion = reduceMotion
+        self.accessibilityPreferences = accessibilityPreferences
         refreshShell()
         applyWindowPresentation()
     }
@@ -162,7 +165,10 @@ final class NotchPanelController: NSObject {
                 anchorSize: anchorSize,
                 presentationState: interactionState.presentationState,
                 content: content,
-                transitionStyle: .resolved(reduceMotion: reduceMotion)
+                transitionStyle: .resolved(
+                    reduceMotion: accessibilityPreferences.reduceMotion
+                ),
+                increaseContrast: accessibilityPreferences.increaseContrast
             )
         )
         panel.setAccessibilityLabel(

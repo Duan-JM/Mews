@@ -1,6 +1,7 @@
 import Foundation
 
 @main
+@MainActor
 enum MewsAppModelTests {
     static func main() throws {
         try testSessionContext()
@@ -12,9 +13,12 @@ enum MewsAppModelTests {
         try testNotificationPolicy()
         try testPresentationStateMapping()
         try testPresentationPrimaryEventPolicy()
+        try testPresentationFreshness()
+        try testAgentRestartBackoff()
         try testPixelStatusLogoPlans()
         try testNotchInteractionPolicy()
         try testNotchPanelContent()
+        try testNotchPanelControllerTopology()
         testActionRouting()
     }
 

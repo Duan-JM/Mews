@@ -95,6 +95,8 @@ Mews first handles five states:
 | `failed` | Main task failed or a command exited unexpectedly | Clear notification and 4-second peek |
 | `idle` | No active task | Quiet idle state |
 
+UI freshness is separate from stored history. `running` and `needs_input` can drive the current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. After that, the current state becomes `idle`, current-context panel actions disable, and the event stays available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
+
 Events stay deliberately small:
 
 ```json
@@ -115,8 +117,18 @@ Events stay deliberately small:
 3. The pixel logo should open a compact shell without turning Mews into a dashboard. Keep one current summary, at most three earlier primary events, and only validated return actions.
 4. Integrations must be explicit. Mews should not secretly read terminal output.
 5. Missed notifications and silent subagent events should be recoverable from recent local history.
-6. Stale states should return to `idle` instead of getting stuck forever.
+6. Stale states return to `idle` on the fixed freshness schedule above instead of getting stuck forever.
 7. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
+
+## Display and Accessibility Behavior
+
+- Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
+- Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
+- Keep the panel available across Spaces and full-screen windows without activating the app.
+- Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
+- Increase Contrast strengthens secondary copy, separators, borders, status labels, and disabled controls.
+- VoiceOver should identify the status item and expanded panel, then read native summaries and action labels in visual order.
+- Idle uses a static pixel frame. The app reuses a responsive external agent, checks that ownership through its existing two-second local refresh, and never terminates an agent it did not launch. Failed child restarts back off from 10 seconds to a five-minute cap and reset after one healthy minute.
 
 ## Install and Distribution
 
