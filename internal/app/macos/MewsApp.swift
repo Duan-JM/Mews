@@ -83,6 +83,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private func updateStatusItem(newEvents: [MewsEvent]) {
         let latest = latestPrimaryEvent(in: events)
         let presentationState = MewsPresentationState(event: latest)
+        notchPanelController?.update(content: NotchPanelContent(events: events))
         let menu = NSMenu()
         if let latest {
             menu.addItem(eventMenuItem(for: latest))
@@ -284,7 +285,14 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
 private extension MewsApp {
     func configureInteractionShell() {
-        let panelController = NotchPanelController()
+        let panelController = NotchPanelController(
+            onOpenContext: { [weak self] context in
+                self?.contextOpener.open(context)
+            },
+            onCopyCommand: { [weak self] command in
+                self?.contextOpener.copy(command)
+            }
+        )
         notchPanelController = panelController
         let coordinator = NotchInteractionCoordinator(
             panelController: panelController,

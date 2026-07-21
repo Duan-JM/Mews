@@ -14,6 +14,7 @@ enum MewsAppModelTests {
         try testPresentationPrimaryEventPolicy()
         try testPixelStatusLogoPlans()
         try testNotchInteractionPolicy()
+        try testNotchPanelContent()
         testActionRouting()
     }
 

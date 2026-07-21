@@ -5,30 +5,43 @@ import SwiftUI
 @MainActor
 final class NotchPanelController: NSObject {
     typealias ScreenProvider = () -> [ScreenSnapshot]
+    typealias OpenContextHandler = (CLIContextPayload) -> Void
+    typealias CopyCommandHandler = (String) -> Void
 
     let panel: NSPanel
     private(set) var placement: OverlayPlacement?
 
     private let notificationCenter: NotificationCenter
     private let screenProvider: ScreenProvider
+    private let onOpenContext: OpenContextHandler
+    private let onCopyCommand: CopyCommandHandler
     private let resolver = OverlayScreenResolver()
     private let calculator = OverlayPlacementCalculator()
     private let shellModel = NotchShellViewModel()
+    private var content = NotchPanelContent.empty
     private var interactionState = NotchInteractionState(
         presentationState: MewsPresentationState(event: nil)
     )
     private var reduceMotion = false
 
-    private lazy var hostingView = NSHostingView(
-        rootView: NotchShellView(model: shellModel)
+    private lazy var hostingView = NotchHostingView(
+        rootView: NotchShellView(
+            model: shellModel,
+            onReturnToCLI: onOpenContext,
+            onCopyCommand: onCopyCommand
+        )
     )
 
     init(
         notificationCenter: NotificationCenter = .default,
-        screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens
+        screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens,
+        onOpenContext: @escaping OpenContextHandler = { _ in },
+        onCopyCommand: @escaping CopyCommandHandler = { _ in }
     ) {
         self.notificationCenter = notificationCenter
         self.screenProvider = screenProvider
+        self.onOpenContext = onOpenContext
+        self.onCopyCommand = onCopyCommand
         panel = NSPanel(
             contentRect: CGRect(origin: .zero, size: OverlayPlacementCalculator.maximumSize),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -79,6 +92,14 @@ final class NotchPanelController: NSObject {
         self.reduceMotion = reduceMotion
         refreshShell()
         applyWindowPresentation()
+    }
+
+    func update(content: NotchPanelContent) {
+        guard self.content != content else {
+            return
+        }
+        self.content = content
+        refreshShell()
     }
 
     func hide() {
@@ -140,6 +161,7 @@ final class NotchPanelController: NSObject {
                 panelSize: panelSize,
                 anchorSize: anchorSize,
                 presentationState: interactionState.presentationState,
+                content: content,
                 transitionStyle: .resolved(reduceMotion: reduceMotion)
             )
         )
@@ -169,6 +191,13 @@ final class NotchPanelController: NSObject {
             visibility: interactionState.visibility
         )
         panel.orderFrontRegardless()
+    }
+}
+
+final class NotchHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        // Custom SwiftUI button styles need explicit click-through on non-key panels on macOS 13-14.
+        return true
     }
 }
 

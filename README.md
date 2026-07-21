@@ -88,13 +88,15 @@ Mews turns that hidden state into a small local signal.
 
 - Native macOS notifications for primary-agent completion, failure, and input-needed events.
 - A local JSONL history so missed notifications are not gone forever.
-- A menu bar companion with a state-responsive pixel logo, recent events, and a compact notch/top-center shell.
+- A menu bar companion with a state-responsive pixel logo, bounded primary-event context, and a compact notch/top-center shell.
 - Clear doctor output for setup, all integrations, notification permission, LaunchAgent, socket, and the menu bar app.
 - Bounded local event history and an isolated package smoke test.
 
 ## Mac Companion
 
-The current menu bar companion is intentionally thin. It starts the local IPC agent, reads local event history, and shows the latest state through a compact pixel logo. Left-clicking the logo opens a small shell aligned to a physical notch or the top center of another display; right-clicking or Control-clicking opens the existing recent-event, Refresh, and Quit menu. The shell currently shows only compact status framing. Detailed status cards and panel-level Return to CLI controls remain future work.
+The current menu bar companion is intentionally thin. It starts the local IPC agent, reads local event history, and shows the latest state through a compact pixel logo. Left-clicking the logo opens a small shell aligned to a physical notch or the top center of another display; right-clicking or Control-clicking opens the existing recent-event, Refresh, and Quit menu.
+
+The expanded shell shows the current primary source and status, project, a shortened session identifier, one bounded single-line message, and up to three earlier primary events. Prompt-derived task titles appear only after the existing explicit opt-in. Full session identifiers, working directories, subagent events, recoverable failures, and runner command text are not rendered. **Return to CLI** and **Copy Return Command** use the same validated local context and Mews-generated history command as notification actions; unavailable actions stay disabled.
 
 Later, **Mews for Mac** can add the notch cat: a small cat around the MacBook notch that walks while agents run, naps when idle, pounces when something finishes, and gets your attention when a prompt is waiting.
 
