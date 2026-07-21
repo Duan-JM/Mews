@@ -10,6 +10,7 @@ enum OverlayPlacementTests {
         try testTopCenterPlacementFrame()
         try testTopCenterPlacementBelowMenuBar()
         try testWidthCapping()
+        try testPlacementHitTesting()
         try testNoScreens()
     }
 
@@ -136,6 +137,53 @@ enum OverlayPlacementTests {
             OverlayPlacementCalculator().placement(for: target).frame ==
                 CGRect(x: 510, y: 655, width: 420, height: 220),
             "top-center panel should stay below the menu bar"
+        )
+    }
+
+    private static func testPlacementHitTesting() throws {
+        let notched = screen(
+            id: "hit-test",
+            frame: CGRect(x: 100, y: 50, width: 1512, height: 982),
+            safeTop: 32,
+            leftArea: CGRect(x: 100, y: 1000, width: 730, height: 32),
+            rightArea: CGRect(x: 882, y: 1000, width: 730, height: 32)
+        )
+        let target = try require(
+            OverlayScreenResolver().resolve(screens: [notched]),
+            "notched hit-test target should resolve"
+        )
+        let placement = OverlayPlacementCalculator().placement(for: target)
+
+        try expect(
+            placement.anchorFrame == target.anchorFrame,
+            "placement should preserve the resolver's physical-notch anchor"
+        )
+        try expect(
+            placement.containsPhysicalNotch(CGPoint(x: 856, y: 1016)),
+            "physical-notch hit testing should use the resolved anchor"
+        )
+        try expect(
+            !placement.containsPhysicalNotch(CGPoint(x: 856, y: 900)),
+            "points below the anchor should not count as physical-notch clicks"
+        )
+        try expect(
+            placement.containsPanel(CGPoint(x: placement.frame.midX, y: placement.frame.midY)),
+            "panel hit testing should use the fixed resolved panel frame"
+        )
+        try expect(
+            placement.containsInteractiveSurface(CGPoint(x: placement.frame.midX, y: placement.frame.midY)),
+            "the fixed panel frame should define the expanded interactive surface"
+        )
+
+        let fallback = OverlayPlacementCalculator().placement(
+            for: try require(
+                OverlayScreenResolver().resolve(screens: [screen(id: "fallback", isMain: true)]),
+                "fallback hit-test target should resolve"
+            )
+        )
+        try expect(
+            !fallback.containsPhysicalNotch(fallback.anchorFrame.origin),
+            "top-center fallback should never expose a physical-notch hit region"
         )
     }
 

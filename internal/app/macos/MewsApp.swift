@@ -4,6 +4,8 @@ import Foundation
 @MainActor
 final class MewsApp: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
+    private var notchPanelController: NotchPanelController?
+    private var interactionCoordinator: NotchInteractionCoordinator?
     private var reloadTimer: Timer?
     private var agent: Process?
     private var events: [MewsEvent] = []
@@ -40,7 +42,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         }
         started = true
         NSApp.setActivationPolicy(.accessory)
-        statusItemController = StatusItemController()
+        configureInteractionShell()
         notifications.configure()
         startAgent()
         reloadEvents()
@@ -59,6 +61,9 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         started = false
         reloadTimer?.invalidate()
         reloadTimer = nil
+        interactionCoordinator?.stop()
+        interactionCoordinator = nil
+        notchPanelController = nil
         statusItemController = nil
         stopAgent()
     }
@@ -79,6 +84,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         let latest = latestPrimaryEvent(in: events)
+        let presentationState = MewsPresentationState(event: latest)
         let menu = NSMenu()
         if let latest {
             menu.addItem(eventMenuItem(for: latest))
@@ -112,9 +118,10 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         quit.target = self
         menu.addItem(quit)
         statusItemController?.update(
-            state: MewsPresentationState(event: latest),
+            state: presentationState,
             menu: menu
         )
+        interactionCoordinator?.update(presentationState: presentationState)
     }
 
     private func eventMenuItem(for event: MewsEvent) -> NSMenuItem {
@@ -272,6 +279,28 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         defer { try? handle.close() }
         handle.seekToEndOfFile()
         handle.write(Data("\(Date()) \(message)\n".utf8))
+    }
+}
+
+private extension MewsApp {
+    func configureInteractionShell() {
+        let panelController = NotchPanelController()
+        notchPanelController = panelController
+        let coordinator = NotchInteractionCoordinator(
+            panelController: panelController,
+            presentationState: MewsPresentationState(event: nil),
+            statusItemFrameProvider: { [weak self] in
+                self?.statusItemController?.buttonFrameOnScreen()
+            },
+            log: { [weak self] message in
+                self?.appendAppLog(message)
+            }
+        )
+        interactionCoordinator = coordinator
+        statusItemController = StatusItemController { [weak coordinator] in
+            coordinator?.logoPrimaryClicked()
+        }
+        coordinator.start()
     }
 }
 

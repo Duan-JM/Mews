@@ -118,7 +118,20 @@ struct OverlayScreenResolver {
 struct OverlayPlacement: Equatable {
     let screenID: String
     let mode: OverlayPlacementMode
+    let anchorFrame: CGRect
     let frame: CGRect
+
+    func containsPhysicalNotch(_ point: CGPoint) -> Bool {
+        return mode == .notch && anchorFrame.contains(point)
+    }
+
+    func containsPanel(_ point: CGPoint) -> Bool {
+        return frame.contains(point)
+    }
+
+    func containsInteractiveSurface(_ point: CGPoint) -> Bool {
+        return containsPhysicalNotch(point) || containsPanel(point)
+    }
 }
 
 struct OverlayPlacementCalculator {
@@ -141,6 +154,11 @@ struct OverlayPlacementCalculator {
             width: width,
             height: Self.maximumSize.height
         )
-        return OverlayPlacement(screenID: screen.id, mode: target.mode, frame: frame)
+        return OverlayPlacement(
+            screenID: screen.id,
+            mode: target.mode,
+            anchorFrame: target.anchorFrame,
+            frame: frame
+        )
     }
 }

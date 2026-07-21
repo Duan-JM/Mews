@@ -19,8 +19,11 @@ swiftc \
   "$ROOT/internal/app/macos/CLIContext.swift" \
   "$ROOT/internal/app/macos/MewsEvent.swift" \
   "$ROOT/internal/app/macos/MewsPresentationState.swift" \
+  "$ROOT/internal/app/macos/OverlayPlacement.swift" \
+  "$ROOT/internal/app/macos/NotchInteractionModel.swift" \
   "$ROOT/internal/app/macos/PixelStatusLogo.swift" \
   "$ROOT/internal/app/macos/tests/MewsAppModelTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchInteractionTests.swift" \
   "$ROOT/internal/app/macos/tests/PixelStatusLogoTests.swift" \
   -framework AppKit \
   -o "$temp_dir/mews-app-model-tests"

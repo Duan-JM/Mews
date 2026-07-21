@@ -43,6 +43,7 @@ Scope:
 
 - Receive local events from CLI commands, hooks, wrappers, or scripts.
 - Show the latest state in the macOS menu bar.
+- Open a compact physical-notch or top-center status shell from the pixel logo.
 - Keep a short recent-event history.
 - Support system notifications.
 - Provide integrations for Claude Code, Codex, and Copilot CLI when stable hooks are available.
@@ -72,7 +73,7 @@ Must have:
 5. `mw doctor` that reports setup, hook, store, and companion state honestly.
 6. `mw undo` for Mews-owned integrations.
 7. Clear privacy copy in the README.
-8. A thin menu bar companion launched by `mw start`.
+8. A thin menu bar companion with a compact notch/top-center status shell, launched by `mw start`.
 9. Versioned, checksummed packages and a credential-gated signed release path.
 
 Can wait:
@@ -89,9 +90,9 @@ Mews first handles five states:
 | State | Meaning | UI expression |
 |---|---|---|
 | `running` | Agent is working | Running state in the menu bar |
-| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Stronger attention signal |
-| `done` | Main task finished | Gentle notification |
-| `failed` | Main task failed or a command exited unexpectedly | Clear failure state |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Persistent compact peek |
+| `done` | Main task finished | Gentle notification and 2.5-second peek |
+| `failed` | Main task failed or a command exited unexpectedly | Clear notification and 4-second peek |
 | `idle` | No active task | Quiet idle state |
 
 Events stay deliberately small:
@@ -111,10 +112,11 @@ Events stay deliberately small:
 
 1. Quiet by default. Only primary-agent completion, non-recoverable failure, and user-needed states should interrupt.
 2. The menu bar should be reliable. Extra visuals are optional enhancements.
-3. Integrations must be explicit. Mews should not secretly read terminal output.
-4. Missed notifications and silent subagent events should be recoverable from recent local history.
-5. Stale states should return to `idle` instead of getting stuck forever.
-6. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
+3. The pixel logo should open a compact shell without turning Mews into a dashboard; detailed cards and panel actions can wait.
+4. Integrations must be explicit. Mews should not secretly read terminal output.
+5. Missed notifications and silent subagent events should be recoverable from recent local history.
+6. Stale states should return to `idle` instead of getting stuck forever.
+7. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
 
 ## Install and Distribution
 
