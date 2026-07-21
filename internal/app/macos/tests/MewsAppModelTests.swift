@@ -16,6 +16,7 @@ enum MewsAppModelTests {
         try testPresentationPrimaryEventPolicy()
         try testPresentationFreshness()
         try testRecoverableSessionState()
+        try testSemanticAttentionReconciliation()
         try testAgentRestartBackoff()
         try testNotificationStatusRecord()
         try testRuntimeHealthSnapshot()
@@ -26,7 +27,6 @@ enum MewsAppModelTests {
         try testNotchPanelControllerTopology()
         testActionRouting()
     }
-
     private static func testSessionContext() throws {
         let event = MewsEvent(
             id: "event-1",

@@ -3,9 +3,11 @@ import Foundation
 
 final class CLIContextBox: NSObject {
     let payload: CLIContextPayload
+    let identity: SessionIdentity?
 
-    init(_ payload: CLIContextPayload) {
+    init(_ payload: CLIContextPayload, identity: SessionIdentity? = nil) {
         self.payload = payload
+        self.identity = identity
     }
 }
 

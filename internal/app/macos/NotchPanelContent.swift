@@ -4,12 +4,14 @@ struct NotchPanelContent: Equatable {
     static let empty = NotchPanelContent(
         current: nil,
         recent: [],
-        actionableContext: nil
+        actionableContext: nil,
+        actionableIdentity: nil
     )
 
     let current: NotchEventSummary?
     let recent: [NotchEventSummary]
     let actionableContext: CLIContextPayload?
+    let actionableIdentity: SessionIdentity?
 
     var returnCommand: String? {
         return actionableContext?.returnCommand
@@ -42,11 +44,13 @@ struct NotchPanelContent: Equatable {
     private init(
         current: NotchEventSummary?,
         recent: [NotchEventSummary],
-        actionableContext: CLIContextPayload?
+        actionableContext: CLIContextPayload?,
+        actionableIdentity: SessionIdentity?
     ) {
         self.current = current
         self.recent = recent
         self.actionableContext = actionableContext
+        self.actionableIdentity = actionableIdentity
     }
 
     private init(
@@ -58,6 +62,7 @@ struct NotchPanelContent: Equatable {
             current = nil
             recent = primaryEvents.suffix(3).reversed().map(NotchEventSummary.init)
             actionableContext = nil
+            actionableIdentity = nil
             return
         }
 
@@ -68,6 +73,10 @@ struct NotchPanelContent: Equatable {
         }
         recent = historyEvents.suffix(3).reversed().map(NotchEventSummary.init)
         actionableContext = currentEvent.cliContext?.actionable(fileManager: fileManager)
+        actionableIdentity = SessionIdentity(
+            source: currentEvent.source,
+            sessionID: currentEvent.sessionID
+        )
     }
 }
 

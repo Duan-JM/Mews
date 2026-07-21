@@ -2,7 +2,7 @@ import SwiftUI
 
 struct NotchExpandedContentView: View {
     let snapshot: NotchShellSnapshot
-    let onReturnToCLI: (CLIContextPayload) -> Void
+    let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
 
     private var palette: NotchContrastPalette {
@@ -108,7 +108,7 @@ struct NotchExpandedContentView: View {
         HStack(spacing: 8) {
             Button("RETURN TO CLI") {
                 if let context = snapshot.content.actionableContext {
-                    onReturnToCLI(context)
+                    onReturnToCLI(context, snapshot.content.actionableIdentity)
                 }
             }
             .buttonStyle(
