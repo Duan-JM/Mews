@@ -144,12 +144,12 @@ final class NotchShellViewModel: ObservableObject {
 
 struct NotchShellView: View {
     @ObservedObject var model: NotchShellViewModel
-    let onReturnToCLI: (CLIContextPayload) -> Void
+    let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
 
     init(
         model: NotchShellViewModel,
-        onReturnToCLI: @escaping (CLIContextPayload) -> Void = { _ in },
+        onReturnToCLI: @escaping (CLIContextPayload, SessionIdentity?) -> Void = { _, _ in },
         onCopyCommand: @escaping (String) -> Void = { _ in }
     ) {
         self.model = model

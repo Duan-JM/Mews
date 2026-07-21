@@ -113,7 +113,7 @@ The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separat
 
 Display placement is recalculated on `NSApplication.didChangeScreenParametersNotification`. The resolver prefers any available physical notch, otherwise uses the main display's `visibleFrame` top center so the shell stays below the menu bar. This covers external-display, clamshell, resolution, coordinate, and main-screen changes. A transient empty screen list clears placement and orders the panel out; the next display notification restores it. The panel remains stationary, joins all Spaces, and participates as a full-screen auxiliary window.
 
-Alert routing reads that live placement for every new event. Only the current event that the physical notch will actually present suppresses its system notification; other new events keep Notification Center fallback so a two-second reload batch cannot silently drop an earlier completion. Without a physical notch, presentation state still updates the menu bar and top-center shell content, but the shell does not auto-open for the event.
+Alert routing reads that live placement for every newly alertable semantic session transition. Only the current transition that the physical notch will actually present suppresses its system notification; other transitions keep Notification Center fallback so a two-second reload batch cannot silently drop an earlier completion. Without a physical notch, presentation state still updates the menu bar and top-center shell content, but the shell does not auto-open for the transition.
 
 New presentation changes can show a bounded preview without collapsing an expanded shell. Startup history is synchronized silently, so relaunching Mews does not replay stale attention or completion peeks. `needs_input` and `failed` preview for 4 seconds, while `done` previews for 2.5 seconds. Each then returns to the compact `ASK`, `FAIL`, or `DONE` state until normal presentation freshness changes the status. Attention previews are deduplicated by the presentation transition identifier. `running` and `idle` stay compact and do not auto-preview.
 
@@ -121,7 +121,9 @@ Presentation selection uses an injected current time rather than mutating stored
 
 The same centralized freshness policy applies to the recoverable session index. Repository updates and explicit history recovery reject evidence beyond the five-minute future tolerance. A valid current event may replace an already persisted too-future record so clock-skewed evidence cannot block the session until its timestamp arrives. Expiry is derived at read time with an injected clock: it changes the reported status to `idle` without rewriting the accepted evidence, the session index, or `events.jsonl`.
 
-The expanded shell maps only primary, non-recoverable events into a display model. It shows the current source and status, a bounded project label, an eight-column session reference, a single-line message, and up to three earlier primary events. Prompt-derived task titles remain gated by the existing setup opt-in. The model never exposes the full session identifier or working directory, and runner events use lifecycle copy instead of command text. Panel actions receive the current `CLIContextPayload` only after the existing validation path marks it actionable. **Return to CLI** delegates to `CLIContextOpener.open`, while **Copy Command** delegates to `CLIContextOpener.copy`; no event-provided command is executed.
+A pure attention reconciler maps the current session collection into stable attention rounds. A round key contains the stable `source` plus `session_id` identity, semantic status, and `statusChangedAt`; it never uses a JSONL row, file offset, or random request identifier. Reconciliation returns newly alertable rounds, resolved rounds, the active count, and stable Notification Center identifiers. Delivered, acknowledged, and resolved state is persisted before routing, so duplicate hooks, replay, rotation, and restart do not redeliver a handled round. Returning to `running` or `idle`, expiry, or a later semantic round resolves the older attention and requests removal of matching pending and delivered notifications.
+
+The expanded shell maps only primary, non-recoverable events into a display model. It shows the current source and status, a bounded project label, an eight-column session reference, a single-line message, and up to three earlier primary events. Prompt-derived task titles remain gated by the existing setup opt-in. The model never exposes the full session identifier or working directory, and runner events use lifecycle copy instead of command text. Panel actions receive the current `CLIContextPayload` only after the existing validation path marks it actionable. **Return to CLI** delegates to `CLIContextOpener.open` and acknowledges that session's current attention, while **Copy Command** delegates to `CLIContextOpener.copy` without acknowledging; no event-provided command is executed.
 
 The status item uses a monochrome template image so system menu bar contrast remains authoritative. `NSWorkspace.accessibilityDisplayOptionsDidChangeNotification` refreshes panel rendering when Reduce Motion or Increase Contrast changes. Reduce Motion selects static logo poses and opacity-only shell transitions without changing layout. Increase Contrast raises secondary-copy, separator, border, status, and disabled-control contrast without changing geometry. The status item, panel window, shell container, summaries, and buttons expose accessibility labels or native text for VoiceOver; these adaptations do not add a Mews permission prompt.
 
@@ -155,6 +157,7 @@ Recommended paths:
   config.json
   events.jsonl
   sessions.json
+  attention.json
   integrations.json
   backups/
   copilot-hooks/
@@ -173,6 +176,7 @@ Storage format:
 - `config.json`: setup state, terminal preference, and notification rules.
 - `events.jsonl`: append-only recent event log, capped by size or age.
 - `sessions.json`: versioned recoverable current-session index derived from accepted events.
+- `attention.json`: minimal versioned delivery and acknowledgement state for the latest semantic round per session.
 - `integrations.json`: installed integration records and backup paths.
 - `backups/`: original config files before Mews modifies them.
 - `copilot-hooks/`: opaque hashes used to correlate Copilot subagent lifecycle events.
@@ -186,6 +190,8 @@ The session index uses `source` plus a non-empty `session_id` as its stable iden
 The fold is incremental and deterministic. Older evidence and duplicate event IDs are ignored; legacy events without IDs include their exact timestamp in the fallback evidence identity. Equal-time evidence uses a centralized precedence policy so explicit session end, idle, and runner process-exit evidence cannot be replaced by a less conclusive update merely because it arrived later. Persisted precedence must match that same policy for the stored identity, status, and hook. Main-agent, subagent, and recoverable rules remain the same as notification and primary presentation rules: subagent and recoverable events stay in history and do not replace current primary state.
 
 `sessions.json` is written through a private `0600` staging file followed by an atomic rename. Missing storage starts with an empty index. On every repository start, the first `EventLogReader` scan reconciles its full recovery event set into the persisted index, including events appended while the app was offline; sessions absent from the bounded scan remain intact. Invalid JSON, unsupported versions, duplicate identities, and invalid persisted records return explicit errors without deleting the damaged file. Persisted return metadata must round-trip exactly through `CLIContextPayload`; forbidden commands, unknown keys, or values that validation would drop make the record corrupt rather than silently reducing its context. Corrupt storage recovery is an explicit rebuild from validated `MewsEvent` values followed by another atomic write.
+
+`attention.json` stores only the latest round key and its delivered, acknowledged, or resolved disposition for each session. It uses the same private staging-file and atomic-rename pattern. Missing state starts empty; invalid JSON, unsupported versions, unknown schema keys, duplicate identities, and inconsistent round identities fail explicitly without deleting or silently rebuilding the file. The app logs the failure, leaves attention routing disabled, and retries the unchanged file on each refresh so a corrected store recovers without restarting Mews.
 
 ## Data Flow
 
@@ -431,12 +437,12 @@ Notifications are delivered by the app bundle, which declares the Mews icon so N
 
 Action behavior:
 
-- **Return to CLI**: copy the local session history command, then restore a validated source terminal, attach a new kitty window to a detached tmux target, or open the configured terminal at the event directory.
-- **Copy Return Command**: copy only the Mews-generated session history command.
-- Default notification clicks use the same open action.
+- **Return to CLI**: acknowledge only the owning session's current attention, copy the local session history command, then restore a validated source terminal, attach a new kitty window to a detached tmux target, or open the configured terminal at the event directory.
+- **Copy Return Command**: copy only the Mews-generated session history command without acknowledging attention.
+- Default notification clicks use the same session-scoped acknowledgement and open action.
 - Relative, missing, and non-directory paths are never opened.
 
-Semantic replay suppression, runtime thresholds, and configurable quiet mode remain post-MVP notification policy work.
+Runtime thresholds and configurable quiet mode remain post-MVP notification policy work.
 
 ## Security and Privacy
 
@@ -680,6 +686,7 @@ Automated tests:
 
 - Event validation.
 - Primary-agent and subagent notification policy.
+- Semantic attention reconciliation, replay suppression, session-scoped acknowledgement, and atomic state recovery.
 - Physical-notch versus system-notification routing, including topology changes and batched events.
 - Notification action routing, terminal metadata validation, and CLI-context path validation.
 - Closed, peek, and expanded shell policy, compact status copy, notification-peek timing, deduplication, rendered-shell hit testing, and physical-notch occlusion geometry.

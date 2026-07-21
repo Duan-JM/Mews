@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class NotchPanelController: NSObject {
     typealias ScreenProvider = () -> [ScreenSnapshot]
-    typealias OpenContextHandler = (CLIContextPayload) -> Void
+    typealias OpenContextHandler = (CLIContextPayload, SessionIdentity?) -> Void
     typealias CopyCommandHandler = (String) -> Void
 
     let panel: NSPanel
@@ -43,7 +43,7 @@ final class NotchPanelController: NSObject {
         notificationCenter: NotificationCenter = .default,
         screenChangeNotification: Notification.Name? = nil,
         screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens,
-        onOpenContext: @escaping OpenContextHandler = { _ in },
+        onOpenContext: @escaping OpenContextHandler = { _, _ in },
         onCopyCommand: @escaping CopyCommandHandler = { _ in }
     ) {
         self.notificationCenter = notificationCenter

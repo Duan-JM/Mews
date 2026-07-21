@@ -218,6 +218,10 @@ enum CLIContextIntent: Equatable {
         }
         return .none
     }
+
+    var acknowledgesAttention: Bool {
+        return self == .open
+    }
 }
 
 func normalizedText(_ value: String?) -> String? {

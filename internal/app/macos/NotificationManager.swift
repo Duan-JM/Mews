@@ -8,6 +8,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private let center: UNUserNotificationCenter
     private let statusURL: URL
     private let contextOpener: CLIContextOpener
+    private let onAcknowledge: (SessionIdentity, String?) -> Void
     private let log: (String) -> Void
     private var settingsTimer: Timer?
 
@@ -15,11 +16,13 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         center: UNUserNotificationCenter = .current(),
         statusURL: URL,
         contextOpener: CLIContextOpener,
+        onAcknowledge: @escaping (SessionIdentity, String?) -> Void,
         log: @escaping (String) -> Void
     ) {
         self.center = center
         self.statusURL = statusURL
         self.contextOpener = contextOpener
+        self.onAcknowledge = onAcknowledge
         self.log = log
     }
 
@@ -54,19 +57,16 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         RunLoop.main.add(timer, forMode: .common)
     }
 
-    func send(for event: MewsEvent) {
-        guard event.shouldNotify else {
-            return
-        }
-        log("Notification queued for event \(event.id ?? "unknown")")
+    func send(for candidate: SessionAttentionCandidate) {
+        log("Notification queued for attention \(candidate.notificationIdentifier)")
 
         let content = UNMutableNotificationContent()
-        content.title = event.notificationTitle
-        content.subtitle = event.notificationSubtitle
-        content.body = event.notificationBody
+        content.title = candidate.notificationTitle
+        content.subtitle = candidate.notificationSubtitle
+        content.body = candidate.notificationBody
         content.sound = .default
-        let context = event.cliContext?.actionable()
-        content.userInfo = event.notificationUserInfo(including: context)
+        let context = candidate.returnContext?.actionable()
+        content.userInfo = candidate.notificationUserInfo
         if let context {
             content.categoryIdentifier = context.returnCommand == nil
                 ? Self.directoryCategoryIdentifier
@@ -74,7 +74,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         }
 
         let request = UNNotificationRequest(
-            identifier: event.id ?? UUID().uuidString,
+            identifier: candidate.notificationIdentifier,
             content: content,
             trigger: nil
         )
@@ -83,6 +83,14 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
                 self?.log("Could not deliver notification: \(error)")
             }
         }
+    }
+
+    func remove(identifiers: [String]) {
+        guard !identifiers.isEmpty else {
+            return
+        }
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 
     func userNotificationCenter(
@@ -99,6 +107,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         )
         switch intent {
         case .open:
+            acknowledge(response.notification.request.content.userInfo)
             if let context {
                 contextOpener.open(context)
             }
@@ -109,6 +118,16 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         case .none:
             break
         }
+    }
+
+    private func acknowledge(_ userInfo: [AnyHashable: Any]) {
+        guard let source = userInfo["source"] as? String,
+              let sessionID = userInfo["session_id"] as? String,
+              let identity = SessionIdentity(source: source, sessionID: sessionID) else {
+            log("Notification response did not contain a valid session identity")
+            return
+        }
+        onAcknowledge(identity, userInfo["attention_id"] as? String)
     }
 
     private func notificationCategories() -> Set<UNNotificationCategory> {

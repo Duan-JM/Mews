@@ -56,7 +56,7 @@ mw config terminal kitty
 
 可选项包括 `auto`、`terminal`、`kitty`、`iterm2`、`wezterm`、`ghostty` 和 `alacritty`。`mw status` 与 `mw config terminal` 会显示当前设置。
 
-主 agent 完成、失败或需要输入时，Mews.app 只选择一个提醒通道。有可用实体刘海时，由刘海状态层展示事件，不再同时发送 macOS 通知；合盖、无刘海屏幕或暂时没有可用屏幕时，Notification Center 继续作为降级通道。Subagent 完成和可恢复错误只进入本地历史，不会替换主状态或打断用户。降级通知的标题会标明 agent 和状态，并在工具提供相关信息时显示项目名和缩短后的 session id。正文会描述生命周期动作，但不会展示完整工作目录、完整 session id、prompt 或终端输出。如果希望正文带一个简短任务标题，需要显式开启：
+主 session 每次进入完成、失败或需要输入状态时，Mews.app 只选择一个提醒通道。同一轮状态的重复 hook、日志重放或轮转、App 重启不会再次提醒；session 回到 `running` 或 `idle` 后，后续的新一轮状态仍会提醒。有可用实体刘海时，由刘海状态层展示状态变化，不再同时发送 macOS 通知；合盖、无刘海屏幕或暂时没有可用屏幕时，Notification Center 继续作为降级通道。Subagent 完成和可恢复错误只进入本地历史，不会替换主状态或打断用户。降级通知的标题会标明 agent 和状态，并在工具提供相关信息时显示项目名和缩短后的 session id。正文会描述生命周期动作，但不会展示完整工作目录、完整 session id、prompt 或终端输出。如果希望正文带一个简短任务标题，需要显式开启：
 
 ```bash
 mw setup --yes --include-task-title
@@ -64,7 +64,7 @@ mw setup --yes --include-task-title
 
 这个选项最多保存 80 个来自 hook payload 的本地字符。Mews 仍然不会上传 prompt、transcript 或终端输出。
 
-App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生降级通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Return to CLI** 和 **Copy Return Command**。返回时会先复制 Mews 生成的 `mw history --session 'abc123'`，再优先激活原终端；有 tmux 上下文时会把记录的 client 切回原 session、window 和 pane。如果原 client 已 detached，但 tmux server 和 pane 仍存在，Mews 会新开 kitty 窗口并直接 attach 到记录的 pane。kitty 已配置本地 Unix remote-control socket 时还会尝试聚焦原窗口。无法恢复原 kitty 或 detached tmux 上下文时，即使 kitty 已经在运行，Mews 也会在经过校验的工作目录打开并激活一个新窗口。其他终端的原上下文不可用时，会用选定终端打开该目录。Mews 不修改 kitty 配置，不执行事件传入的命令，也不读取 terminal scrollback。
+App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生降级通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Return to CLI** 和 **Copy Return Command**。通过通知、状态层或 session 菜单返回时，只确认该 session 当前的注意力；复制返回命令不会确认。返回时会先复制 Mews 生成的 `mw history --session 'abc123'`，再优先激活原终端；有 tmux 上下文时会把记录的 client 切回原 session、window 和 pane。如果原 client 已 detached，但 tmux server 和 pane 仍存在，Mews 会新开 kitty 窗口并直接 attach 到记录的 pane。kitty 已配置本地 Unix remote-control socket 时还会尝试聚焦原窗口。无法恢复原 kitty 或 detached tmux 上下文时，即使 kitty 已经在运行，Mews 也会在经过校验的工作目录打开并激活一个新窗口。其他终端的原上下文不可用时，会用选定终端打开该目录。Mews 不修改 kitty 配置，不执行事件传入的命令，也不读取 terminal scrollback。
 
 Setup 会安装：
 
@@ -98,7 +98,7 @@ Mews 把这些隐藏状态变成本地、低打扰的提醒。
 
 状态层会跟随屏幕拓扑变化，不会沿用过期坐标。有实体刘海时，顶部窄颈贴合硬件，刘海下方固定显示像素小猫与 `IDLE`、`RUN`、`ASK`、`DONE` 或 `FAIL`。需要输入、完成和失败事件会短暂加宽状态条并显示直白说明，随后收回紧凑形态；点击可见区域会从同一锚点展开现有面板。合盖模式或只连接外接屏时，状态层会落在主屏菜单栏下方；短暂没有可用屏幕时先隐藏，屏幕恢复后重新定位。提醒通道也使用当前拓扑：实体刘海可用时由刘海状态层提示，其他布局使用 Notification Center，不会自动展开顶部居中面板。面板可跨 Space，并能显示在全屏辅助层。开启“减弱动态效果”后，尺寸变化改为静态切换和短淡入淡出；开启“增强对比度”后，次要文字与边界会更清楚；VoiceOver 可以读出明确的状态和面板标签。
 
-当前状态有固定时效，但本地历史不会被删除。`running` 与 `needs_input` 最多保留 24 小时，`done` 与 `failed` 保留 30 分钟。超过时限后，Logo 和当前摘要回到 `idle`，旧事件仍会留在最近历史中，面板里的当前上下文动作会停用。App 会复用已经在运行的本地 agent，不会重复启动，也不会在退出时终止外部进程。内置 agent 退出或暂时不可用时，重试间隔会从 10 秒逐步增加，最长 5 分钟，不会跟着两秒一次的历史刷新持续拉起进程。
+当前状态有固定时效，但本地历史不会被删除。`running` 与 `needs_input` 最多保留 24 小时，`done` 与 `failed` 保留 30 分钟。注意力过期后会解除，并在 Notification Center 允许时移除对应通知。超过时限后，Logo 和当前摘要回到 `idle`，旧事件仍会留在最近历史中，面板里的当前上下文动作会停用。App 会复用已经在运行的本地 agent，不会重复启动，也不会在退出时终止外部进程。内置 agent 退出或暂时不可用时，重试间隔会从 10 秒逐步增加，最长 5 分钟，不会跟着两秒一次的历史刷新持续拉起进程。
 
 展开后的状态层会显示当前主事件的来源与状态、项目名、缩短后的 session id、一行受限消息，以及最多三条更早的主事件。只有显式开启现有选项后，面板才会显示来自 prompt 的任务标题。完整 session id、工作目录、subagent 事件、可恢复失败和 `mw run` 的命令文本不会出现在面板里。**Return to CLI** 与 **Copy Return Command** 复用通知动作已经校验过的本地上下文和 Mews 生成的历史命令；上下文不可用时按钮保持禁用。
 

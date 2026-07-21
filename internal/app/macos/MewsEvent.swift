@@ -85,54 +85,20 @@ struct MewsEvent: Decodable {
     }
 
     var notificationTitle: String {
-        return "\(sourceLabel): \(statusLabel)"
+        return mewsNotificationTitle(source: source, status: status)
     }
 
     var notificationSubtitle: String {
-        var parts: [String] = []
-        let project = normalizedText(project)
-        if let project {
-            parts.append(project)
-        }
-        if let session = normalizedText(sessionID), session != project {
-            parts.append("Session \(shortLabel(session, maximum: 8))")
-        }
-        return parts.joined(separator: " | ")
+        return mewsNotificationSubtitle(project: project, sessionID: sessionID)
     }
 
     var notificationBody: String {
-        if let taskTitle = normalizedText(taskTitle) {
-            return taskTitle
-        }
-        switch hookEvent {
-        case "PermissionRequest":
-            return "Waiting for permission"
-        case "Stop":
-            return "Agent finished"
-        case "StopFailure":
-            return "Agent failed"
-        case "agentStop":
-            return "Agent stopped"
-        case "errorOccurred":
-            return "Agent reported an error"
-        case "agent-turn-complete":
-            return "Agent turn completed"
-        default:
-            break
-        }
-        if let message = normalizedText(message) {
-            return message
-        }
-        switch status {
-        case "needs_input":
-            return "Waiting for input"
-        case "done":
-            return "Agent finished"
-        case "failed":
-            return "Agent failed"
-        default:
-            return "Agent status: \(status)"
-        }
+        return mewsNotificationBody(
+            status: status,
+            hookEvent: hookEvent,
+            taskTitle: taskTitle,
+            message: message
+        )
     }
 
     var summary: String {
@@ -146,35 +112,99 @@ struct MewsEvent: Decodable {
     }
 
     var sourceLabel: String {
-        switch source {
-        case "claude-code":
-            return "Claude Code"
-        case "codex":
-            return "Codex"
-        case "copilot":
-            return "Copilot CLI"
-        case "runner":
-            return "Command"
-        default:
-            return source.isEmpty ? "Agent" : source
-        }
+        return mewsSourceLabel(source)
     }
 
     var statusLabel: String {
-        switch status {
-        case "needs_input":
-            return "Needs Input"
-        case "done":
-            return "Done"
-        case "failed":
-            return "Failed"
-        case "running":
-            return "Running"
-        case "idle":
-            return "Idle"
-        default:
-            return status
-        }
+        return mewsStatusLabel(status)
+    }
+}
+
+func mewsNotificationTitle(source: String, status: String) -> String {
+    return "\(mewsSourceLabel(source)): \(mewsStatusLabel(status))"
+}
+
+func mewsNotificationSubtitle(project: String?, sessionID: String?) -> String {
+    var parts: [String] = []
+    let project = normalizedText(project)
+    if let project {
+        parts.append(project)
+    }
+    if let session = normalizedText(sessionID), session != project {
+        parts.append("Session \(shortLabel(session, maximum: 8))")
+    }
+    return parts.joined(separator: " | ")
+}
+
+func mewsNotificationBody(
+    status: String,
+    hookEvent: String?,
+    taskTitle: String?,
+    message: String?
+) -> String {
+    if let taskTitle = normalizedText(taskTitle) {
+        return taskTitle
+    }
+    switch hookEvent {
+    case "PermissionRequest":
+        return "Waiting for permission"
+    case "Stop":
+        return "Agent finished"
+    case "StopFailure":
+        return "Agent failed"
+    case "agentStop":
+        return "Agent stopped"
+    case "errorOccurred":
+        return "Agent reported an error"
+    case "agent-turn-complete":
+        return "Agent turn completed"
+    default:
+        break
+    }
+    if let message = normalizedText(message) {
+        return message
+    }
+    switch status {
+    case "needs_input":
+        return "Waiting for input"
+    case "done":
+        return "Agent finished"
+    case "failed":
+        return "Agent failed"
+    default:
+        return "Agent status: \(status)"
+    }
+}
+
+func mewsSourceLabel(_ source: String) -> String {
+    switch source {
+    case "claude-code":
+        return "Claude Code"
+    case "codex":
+        return "Codex"
+    case "copilot":
+        return "Copilot CLI"
+    case "runner":
+        return "Command"
+    default:
+        return source.isEmpty ? "Agent" : source
+    }
+}
+
+func mewsStatusLabel(_ status: String) -> String {
+    switch status {
+    case "needs_input":
+        return "Needs Input"
+    case "done":
+        return "Done"
+    case "failed":
+        return "Failed"
+    case "running":
+        return "Running"
+    case "idle":
+        return "Idle"
+    default:
+        return status
     }
 }
 

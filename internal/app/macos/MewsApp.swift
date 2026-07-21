@@ -12,6 +12,8 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private var agentProbeInFlight = false
     private var events: [MewsEvent] = []
     private var started = false
+    var attentionController: AttentionController?
+    var attentionErrorMessage: String?
     private let homeURL: URL
 
     private lazy var eventReader = EventLogReader(url: eventsURL)
@@ -21,12 +23,19 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private lazy var contextOpener = CLIContextOpener(configURL: configURL) { [weak self] message in
         self?.appendAppLog(message)
     }
-    private lazy var notifications = NotificationManager(
+    lazy var notifications = NotificationManager(
         statusURL: notificationStatusURL,
-        contextOpener: contextOpener
-    ) { [weak self] message in
-        self?.appendAppLog(message)
-    }
+        contextOpener: contextOpener,
+        onAcknowledge: { [weak self] identity, notificationIdentifier in
+            self?.acknowledgeAttention(
+                identity: identity,
+                notificationIdentifier: notificationIdentifier
+            )
+        },
+        log: { [weak self] message in
+            self?.appendAppLog(message)
+        }
+    )
 
     override init() {
         if let home = ProcessInfo.processInfo.environment["HOME"], !home.isEmpty {
@@ -46,6 +55,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         started = true
         NSApp.setActivationPolicy(.accessory)
         configureInteractionShell()
+        configureAttention()
         notifications.configure()
         reloadEvents()
         let timer = Timer(
@@ -77,11 +87,15 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         events = reload.events
         let current = currentPrimaryEvent(in: events, now: now)
         let physicalNotchAvailable = notchPanelController?.canPresentNotchAlert == true
+        let attentionUpdate = reconcileAttention(reload)
+        let notchSession = attentionUpdate.flatMap {
+            currentSession(for: current, in: $0.sessions)
+        }
         var announcesNotchTransition = false
-        for event in reload.newEvents {
-            switch EventAlertRoutingPolicy.channel(
-                for: event,
-                notchEvent: current,
+        for candidate in attentionUpdate?.reconciliation.newlyAlertable ?? [] {
+            switch AttentionAlertRoutingPolicy.channel(
+                for: candidate,
+                notchSession: notchSession,
                 physicalNotchAvailable: physicalNotchAvailable
             ) {
             case .none:
@@ -89,11 +103,13 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             case .notch:
                 announcesNotchTransition = true
             case .systemNotification:
-                notifications.send(for: event)
+                notifications.send(for: candidate)
             }
         }
+        notifications.remove(
+            identifiers: attentionUpdate?.reconciliation.resolvedNotificationIdentifiers ?? []
+        )
         updateStatusItem(
-            newEvents: reload.newEvents,
             now: now,
             announcesNotchTransition: announcesNotchTransition
         )
@@ -104,7 +120,6 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusItem(
-        newEvents: [MewsEvent],
         now: Date,
         announcesNotchTransition: Bool
     ) {
@@ -122,11 +137,9 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             state: presentationState,
             menu: menu
         )
-        let announcesTransition = announcesNotchTransition &&
-            notchTransitionIsNew(latestEvent: current, newEvents: newEvents)
         interactionCoordinator?.update(
             presentationState: presentationState,
-            announcesTransition: announcesTransition
+            announcesTransition: announcesNotchTransition
         )
     }
 
@@ -176,7 +189,10 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         item.target = self
-        item.representedObject = CLIContextBox(context)
+        item.representedObject = CLIContextBox(
+            context,
+            identity: SessionIdentity(source: event.source, sessionID: event.sessionID)
+        )
         return item
     }
 
@@ -196,11 +212,12 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openCLIContextClicked(_ sender: NSMenuItem) {
-        guard let context = (sender.representedObject as? CLIContextBox)?.payload else {
+        guard let box = sender.representedObject as? CLIContextBox else {
             appendAppLog("Menu item did not contain CLI context")
             return
         }
-        contextOpener.open(context)
+        acknowledgeAttention(identity: box.identity)
+        contextOpener.open(box.payload)
     }
 
     @objc private func copyReturnCommandClicked(_ sender: NSMenuItem) {
@@ -229,47 +246,27 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             .appendingPathComponent("notification-status.json")
     }
 
+    var storeDirectoryURL: URL {
+        return eventsURL.deletingLastPathComponent()
+    }
+
     private var configURL: URL {
         return eventsURL
             .deletingLastPathComponent()
             .appendingPathComponent("config.json")
     }
 
-    private var logsURL: URL {
+    var logsURL: URL {
         return homeURL
             .appendingPathComponent("Library")
             .appendingPathComponent("Logs")
             .appendingPathComponent("Mews")
     }
 
-    private func logFile() -> FileHandle? {
-        do {
-            try FileManager.default.createDirectory(at: logsURL, withIntermediateDirectories: true)
-        } catch {
-            return nil
-        }
-        let path = logsURL.appendingPathComponent("agent.log").path
-        if !FileManager.default.fileExists(atPath: path),
-           !FileManager.default.createFile(atPath: path, contents: nil) {
-            return nil
-        }
-        let handle = FileHandle(forWritingAtPath: path)
-        handle?.seekToEndOfFile()
-        return handle
-    }
-
-    private func appendAppLog(_ message: String) {
-        guard let handle = logFile() else {
-            return
-        }
-        defer { try? handle.close() }
-        handle.seekToEndOfFile()
-        handle.write(Data("\(Date()) \(message)\n".utf8))
-    }
 }
 
-private extension MewsApp {
-    func startAgent(at uptime: TimeInterval) {
+extension MewsApp {
+    private func startAgent(at uptime: TimeInterval) {
         guard agent == nil else {
             return
         }
@@ -300,7 +297,7 @@ private extension MewsApp {
         }
     }
 
-    func stopAgent() {
+    private func stopAgent() {
         guard let agent else {
             agentProcessCoordinator.reset()
             return
@@ -312,7 +309,7 @@ private extension MewsApp {
         agentProcessCoordinator.reset()
     }
 
-    func ensureAgentRunning(at uptime: TimeInterval) {
+    private func ensureAgentRunning(at uptime: TimeInterval) {
         let childIsRunning = agent?.isRunning == true
         guard !childIsRunning else {
             return
@@ -335,7 +332,7 @@ private extension MewsApp {
         }
     }
 
-    func agentProbeDidFinish(socketResponsive: Bool) {
+    private func agentProbeDidFinish(socketResponsive: Bool) {
         agentProbeInFlight = false
         guard started else {
             return
@@ -370,9 +367,10 @@ private extension MewsApp {
         return FileManager.default.isExecutableFile(atPath: fallback) ? fallback : nil
     }
 
-    func configureInteractionShell() {
+    private func configureInteractionShell() {
         let panelController = NotchPanelController(
-            onOpenContext: { [weak self] context in
+            onOpenContext: { [weak self] context, identity in
+                self?.acknowledgeAttention(identity: identity)
                 self?.contextOpener.open(context)
             },
             onCopyCommand: { [weak self] command in
