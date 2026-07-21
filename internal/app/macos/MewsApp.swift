@@ -75,10 +75,28 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         ensureAgentRunning(at: ProcessInfo.processInfo.systemUptime)
         let reload = eventReader.reload()
         events = reload.events
+        let current = currentPrimaryEvent(in: events, now: now)
+        let physicalNotchAvailable = notchPanelController?.canPresentNotchAlert == true
+        var announcesNotchTransition = false
         for event in reload.newEvents {
-            notifications.send(for: event)
+            switch EventAlertRoutingPolicy.channel(
+                for: event,
+                notchEvent: current,
+                physicalNotchAvailable: physicalNotchAvailable
+            ) {
+            case .none:
+                break
+            case .notch:
+                announcesNotchTransition = true
+            case .systemNotification:
+                notifications.send(for: event)
+            }
         }
-        updateStatusItem(newEvents: reload.newEvents, now: now)
+        updateStatusItem(
+            newEvents: reload.newEvents,
+            now: now,
+            announcesNotchTransition: announcesNotchTransition
+        )
     }
 
     @objc private func reloadTimerDidFire(_ timer: Timer) {
@@ -87,7 +105,8 @@ final class MewsApp: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem(
         newEvents: [MewsEvent],
-        now: Date
+        now: Date,
+        announcesNotchTransition: Bool
     ) {
         let latest = latestPrimaryEvent(in: events)
         let current = currentPrimaryEvent(in: events, now: now)
@@ -103,10 +122,8 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             state: presentationState,
             menu: menu
         )
-        let announcesTransition = notchTransitionIsNew(
-            latestEvent: current,
-            newEvents: newEvents
-        )
+        let announcesTransition = announcesNotchTransition &&
+            notchTransitionIsNew(latestEvent: current, newEvents: newEvents)
         interactionCoordinator?.update(
             presentationState: presentationState,
             announcesTransition: announcesTransition

@@ -178,6 +178,50 @@ struct MewsEvent: Decodable {
     }
 }
 
+enum EventAlertChannel: Equatable {
+    case none
+    case notch
+    case systemNotification
+}
+
+struct EventAlertRoutingPolicy {
+    static func channel(
+        for event: MewsEvent,
+        notchEvent: MewsEvent?,
+        physicalNotchAvailable: Bool
+    ) -> EventAlertChannel {
+        guard event.shouldNotify else {
+            return .none
+        }
+        guard physicalNotchAvailable,
+              let notchEvent,
+              representsSameEvent(event, notchEvent) else {
+            return .systemNotification
+        }
+        return .notch
+    }
+
+    private static func representsSameEvent(
+        _ event: MewsEvent,
+        _ candidate: MewsEvent
+    ) -> Bool {
+        let eventID = normalizedText(event.id)
+        let candidateID = normalizedText(candidate.id)
+        if let eventID, let candidateID {
+            return eventID == candidateID
+        }
+        guard eventID == nil, candidateID == nil else {
+            return false
+        }
+        return event.source == candidate.source &&
+            event.status == candidate.status &&
+            event.hookEvent == candidate.hookEvent &&
+            event.agentScope == candidate.agentScope &&
+            event.sessionID == candidate.sessionID &&
+            event.timestamp == candidate.timestamp
+    }
+}
+
 func latestPrimaryEvent(in events: [MewsEvent]) -> MewsEvent? {
     return events.last { $0.affectsPrimaryStatus }
 }

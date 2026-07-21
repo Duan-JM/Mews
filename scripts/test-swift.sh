@@ -31,6 +31,7 @@ swiftc \
   "$ROOT/internal/app/macos/NotchShellView.swift" \
   "$ROOT/internal/app/macos/NotchPanelController.swift" \
   "$ROOT/internal/app/macos/tests/MewsAppModelTests.swift" \
+  "$ROOT/internal/app/macos/tests/EventAlertRoutingTests.swift" \
   "$ROOT/internal/app/macos/tests/MewsRuntimeHardeningTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchInteractionTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \

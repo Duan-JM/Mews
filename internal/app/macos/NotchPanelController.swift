@@ -10,6 +10,9 @@ final class NotchPanelController: NSObject {
 
     let panel: NSPanel
     private(set) var placement: OverlayPlacement?
+    var canPresentNotchAlert: Bool {
+        placement?.mode == .notch
+    }
 
     private let notificationCenter: NotificationCenter
     private let screenChangeNotification: Notification.Name

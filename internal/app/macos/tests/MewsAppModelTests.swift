@@ -11,6 +11,7 @@ enum MewsAppModelTests {
         try testTerminalMetadataValidation()
         try testDetachedTmuxMetadataValidation()
         try testNotificationPolicy()
+        try testAlertRoutingPolicy()
         try testPresentationStateMapping()
         try testPresentationPrimaryEventPolicy()
         try testPresentationFreshness()
@@ -285,11 +286,15 @@ private extension MewsAppModelTests {
         )
 
         let needsInput = MewsPresentationState(
-            event: try decodeEvent(agentScope: "main", status: "needs_input")
+            event: try decodeEvent(id: "event-input", agentScope: "main", status: "needs_input")
         )
         try expect(needsInput.pose == .attention, "needs_input should use the attention pose")
         try expect(needsInput.attention == .urgent, "needs_input should be urgent")
         try expect(needsInput.motion == .attentionLoop, "needs_input should keep signaling attention")
+        try expect(
+            needsInput.transitionIdentifier == "event-input",
+            "distinct needs_input events should retain their transition identity"
+        )
 
         let done = MewsPresentationState(
             event: try decodeEvent(id: "event-done", agentScope: "main", status: "done")

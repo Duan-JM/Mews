@@ -16,7 +16,7 @@ extension MewsAppModelTests {
         )
 
         try controllerExpect(
-            controller.placement?.screenID == "built-in",
+            controllerShowsNotch(controller),
             "controller should start on the available notched display"
         )
         try controllerExpect(
@@ -32,9 +32,7 @@ extension MewsAppModelTests {
             object: nil
         )
         try controllerExpect(
-            controller.placement?.screenID == "external" &&
-                controller.placement?.mode == .topCenter &&
-                controller.panel.frame == CGRect(x: 2262, y: 835, width: 420, height: 220),
+            controllerUsesExternalFallback(controller),
             "clamshell transition should reposition below the external menu bar"
         )
 
@@ -44,7 +42,7 @@ extension MewsAppModelTests {
             object: nil
         )
         try controllerExpect(
-            controller.placement == nil && !controller.panel.isVisible,
+            controllerHasNoScreen(controller),
             "a temporary no-screen transition should hide the panel without crashing"
         )
 
@@ -54,9 +52,33 @@ extension MewsAppModelTests {
             object: nil
         )
         try controllerExpect(
-            controller.placement?.screenID == "built-in",
+            controllerShowsNotch(controller),
             "reconnecting the laptop display should restore notch placement"
         )
+    }
+
+    private static func controllerShowsNotch(
+        _ controller: NotchPanelController
+    ) -> Bool {
+        controller.placement?.screenID == "built-in" &&
+            controller.canPresentNotchAlert
+    }
+
+    private static func controllerUsesExternalFallback(
+        _ controller: NotchPanelController
+    ) -> Bool {
+        controller.placement?.screenID == "external" &&
+            controller.placement?.mode == .topCenter &&
+            !controller.canPresentNotchAlert &&
+            controller.panel.frame == CGRect(x: 2262, y: 835, width: 420, height: 220)
+    }
+
+    private static func controllerHasNoScreen(
+        _ controller: NotchPanelController
+    ) -> Bool {
+        controller.placement == nil &&
+            !controller.canPresentNotchAlert &&
+            !controller.panel.isVisible
     }
 
     private static func controllerNotchedScreen() -> ScreenSnapshot {
