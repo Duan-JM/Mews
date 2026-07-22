@@ -100,7 +100,7 @@ Mews turns that hidden state into a small local signal.
 
 The current menu bar companion is intentionally thin. It starts the local IPC agent, reads local event history and recoverable session state, and shows the latest state through a compact pixel logo. Left-clicking the logo opens a small shell aligned to a physical notch or the top center of another display; right-clicking or Control-clicking opens the prioritized session, history-only event, Refresh, and Quit menu.
 
-The shell follows display changes without keeping stale geometry. It prefers an available physical notch, falls back below the main display's menu bar in clamshell or external-display layouts, hides during a transient no-screen state, and repositions when a display returns. On a notched display, a narrow neck matches the hardware while a visible strip below it shows the pixel mascot and `IDLE`, `RUN`, `ASK`, `DONE`, or `FAIL`. Input-needed, completion, and failure events briefly widen that strip with a plain-language status, then return to the compact state; clicking the visible shell expands the existing panel from the same anchor. The same live topology selects the attention channel: a physical-notch event uses the shell, while other layouts use Notification Center without auto-opening the top-center panel. The panel joins all Spaces and full-screen auxiliary windows. Reduce Motion keeps the size changes static and uses a short fade, Increase Contrast strengthens secondary text and boundaries, and VoiceOver receives explicit status and panel labels.
+The shell follows display changes without keeping stale geometry. It prefers an available physical notch, falls back to a detached material panel below the main display's menu bar in clamshell or external-display layouts, hides during a transient no-screen state, and repositions when a display returns. On a notched display, a narrow neck matches the hardware while a visible strip below it shows the pixel mascot and `IDLE`, `RUN`, `ASK`, `DONE`, or `FAIL`. Input-needed, completion, and failure events briefly widen that strip with a plain-language status, then return to the compact state; clicking the visible shell expands the existing panel from the same anchor. The same live topology selects the attention channel: a physical-notch event uses the shell, while other layouts use Notification Center without auto-opening the top-center panel. The panel joins all Spaces and full-screen auxiliary windows. Reduce Motion keeps the size changes static and uses a short fade, Reduce Transparency and Increase Contrast select an opaque high-contrast top-center surface, and VoiceOver receives explicit status and panel labels.
 
 Presentation freshness is bounded without deleting history. `running` and `needs_input` remain current for up to 24 hours; `done` and `failed` remain current for 30 minutes. Expired session attention resolves and matching delivered notifications are removed where Notification Center permits it. Older events return the logo and current summary to `idle`, while recoverable sessions with evidence from the last 24 hours remain available in the prioritized session list. A responsive agent that was started outside the app is reused rather than duplicated or terminated. If the bundled agent exits or is temporarily unavailable, restart attempts back off from 10 seconds to a five-minute cap instead of spinning on every two-second history refresh.
 
@@ -110,17 +110,17 @@ The monochrome pixel mascot now sleeps while idle, works while an agent runs, si
 
 ### Synthetic interface previews
 
-The compact synthetic preview shows the pixel mascot with the `IDLE`, `RUN`, `ASK`, `DONE`, and `FAIL` notch states.
+The compact synthetic preview shows the solid-black physical-notch treatment in light and dark appearance with the pixel mascot and the `IDLE`, `RUN`, `ASK`, `DONE`, and `FAIL` states.
 
-![Synthetic Mews compact notch states with the pixel mascot and IDLE, RUN, ASK, DONE, and FAIL labels](assets/screenshots/mews-status-states.png)
+![Synthetic Mews physical-notch states in light and dark appearance with the pixel mascot and IDLE, RUN, ASK, DONE, and FAIL labels](assets/screenshots/mews-status-states.png)
 
-The multi-session synthetic panel shows `needs_input`, `failed`, and `done` sessions. Its safe local contexts enable **Return** and **Copy**, while unavailable contexts leave both controls visibly disabled.
+The light-appearance top-center material panel shows `needs_input`, `failed`, and `done` sessions. Its safe local contexts enable **Return** and **Copy**, while unavailable contexts leave both controls visibly disabled.
 
-![Synthetic expanded Mews panel with needs-input, failed, and done sessions, enabled Return and Copy controls, and disabled Return and Copy controls](assets/screenshots/mews-multi-session.png)
+![Synthetic light-appearance top-center material panel with needs-input, failed, and done sessions, enabled Return and Copy controls, and disabled Return and Copy controls](assets/screenshots/mews-multi-session.png)
 
-The degraded-health synthetic panel shows an event-delivery warning with **Copy Fix**, an actionable running session, and an idle session with disabled controls.
+The dark-appearance top-center material panel shows an event-delivery warning with **Copy Fix**, an actionable running session, and an idle session with disabled controls.
 
-![Synthetic expanded Mews panel with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled idle session](assets/screenshots/mews-degraded-health.png)
+![Synthetic dark-appearance top-center material panel with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled idle session](assets/screenshots/mews-degraded-health.png)
 
 Contributors regenerate all three fixed-size images with `make screenshots`. The development-only fixtures render no local event history, prompts, terminal output, usernames, home paths, or real or long session identifiers.
 

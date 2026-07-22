@@ -34,6 +34,7 @@ final class NotchInteractionCoordinator: NSObject {
         model = NotchInteractionModel(presentationState: presentationState)
         accessibilityPreferences = NotchAccessibilityPreferences(
             reduceMotion: workspace.accessibilityDisplayShouldReduceMotion,
+            reduceTransparency: workspace.accessibilityDisplayShouldReduceTransparency,
             increaseContrast: workspace.accessibilityDisplayShouldIncreaseContrast
         )
         super.init()
@@ -240,6 +241,7 @@ final class NotchInteractionCoordinator: NSObject {
     @objc private func accessibilityDisplayOptionsDidChange(_ notification: Notification) {
         let updatedPreferences = NotchAccessibilityPreferences(
             reduceMotion: workspace.accessibilityDisplayShouldReduceMotion,
+            reduceTransparency: workspace.accessibilityDisplayShouldReduceTransparency,
             increaseContrast: workspace.accessibilityDisplayShouldIncreaseContrast
         )
         guard accessibilityPreferences != updatedPreferences else {

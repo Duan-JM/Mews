@@ -5,6 +5,7 @@ extension MewsAppModelTests {
         let snapshot = notchShellSnapshot()
         try testNotchShellLayout(snapshot: snapshot)
         try testNotchShellHitGeometry(snapshot: snapshot)
+        try testTopCenterShellGeometry()
         try testNotchStatusCopies()
         try testNotchAccessibilityPreferences()
         try testNotchPresentationPolicy()
@@ -19,7 +20,29 @@ extension MewsAppModelTests {
             presentationState: MewsPresentationState(event: nil),
             content: .empty,
             transitionStyle: .spatial,
+            reduceTransparency: false,
             increaseContrast: false
+        )
+    }
+
+    private static func testTopCenterShellGeometry() throws {
+        let snapshot = NotchShellSnapshot(
+            visibility: .expanded,
+            placementMode: .topCenter,
+            panelSize: CGSize(width: 420, height: 220),
+            anchorSize: .zero,
+            presentationState: MewsPresentationState(event: nil),
+            content: .empty,
+            transitionStyle: .spatial,
+            reduceTransparency: false,
+            increaseContrast: false
+        )
+        let geometry = NotchShellGeometry.resolved(snapshot: snapshot)
+        let rect = CGRect(origin: .zero, size: snapshot.panelSize)
+        try shellExpect(
+            geometry.layout.cornerRadius == 16 &&
+                !geometry.shape.path(in: rect).contains(CGPoint(x: 1, y: 1)),
+            "top-center mode should use detached popover corner geometry"
         )
     }
 
@@ -136,6 +159,32 @@ extension MewsAppModelTests {
                 increased.disabledText > standard.disabledText,
             "Increase Contrast should strengthen secondary and disabled UI"
         )
+        try shellExpect(
+            NotchSurfaceTreatment.resolved(
+                placementMode: .notch,
+                reduceTransparency: true,
+                increaseContrast: true
+            ) == .solidBlack,
+            "physical-notch mode should preserve its solid black treatment"
+        )
+        try shellExpect(
+            NotchSurfaceTreatment.resolved(
+                placementMode: .topCenter,
+                reduceTransparency: false,
+                increaseContrast: false
+            ) == .adaptiveMaterial,
+            "top-center mode should use adaptive material by default"
+        )
+        for preferences in [(true, false), (false, true)] {
+            try shellExpect(
+                NotchSurfaceTreatment.resolved(
+                    placementMode: .topCenter,
+                    reduceTransparency: preferences.0,
+                    increaseContrast: preferences.1
+                ) == .opaqueFallback,
+                "accessibility contrast preferences should select an opaque fallback"
+            )
+        }
     }
 
     private static func testNotchPresentationPolicy() throws {

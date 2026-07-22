@@ -137,6 +137,7 @@ struct OverlayPlacement: Equatable {
 struct OverlayPlacementCalculator {
     static let maximumSize = CGSize(width: 420, height: 220)
     static let horizontalMargin: CGFloat = 24
+    static let topCenterGap: CGFloat = 6
 
     func placement(for target: OverlayTarget) -> OverlayPlacement {
         let screen = target.screen
@@ -148,9 +149,10 @@ struct OverlayPlacementCalculator {
         let centeredX = target.anchorFrame.midX - (width / 2)
         let maximumX = horizontalBounds.maxX - width
         let originX = min(max(centeredX, horizontalBounds.minX), maximumX)
+        let verticalGap = target.mode == .topCenter ? Self.topCenterGap : 0
         let frame = CGRect(
             x: originX,
-            y: target.anchorFrame.maxY - Self.maximumSize.height,
+            y: target.anchorFrame.maxY - Self.maximumSize.height - verticalGap,
             width: width,
             height: Self.maximumSize.height
         )

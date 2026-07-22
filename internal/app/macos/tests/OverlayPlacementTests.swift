@@ -97,8 +97,8 @@ enum OverlayPlacementTests {
         )
         try expect(
             OverlayPlacementCalculator().placement(for: target).frame ==
-                CGRect(x: -1170, y: 860, width: 420, height: 220),
-            "fallback placement should use a fixed top-center frame"
+                CGRect(x: -1170, y: 854, width: 420, height: 220),
+            "fallback placement should leave a restrained gap below the menu bar"
         )
     }
 
@@ -114,7 +114,7 @@ enum OverlayPlacementTests {
         let placement = OverlayPlacementCalculator().placement(for: target)
 
         try expect(
-            placement.frame == CGRect(x: 24, y: 580, width: 352, height: 220),
+            placement.frame == CGRect(x: 24, y: 574, width: 352, height: 220),
             "panel width should leave a 24-point margin on each side"
         )
     }
@@ -136,8 +136,8 @@ enum OverlayPlacementTests {
         )
         try expect(
             OverlayPlacementCalculator().placement(for: target).frame ==
-                CGRect(x: 510, y: 655, width: 420, height: 220),
-            "top-center panel should stay below the menu bar"
+                CGRect(x: 510, y: 649, width: 420, height: 220),
+            "top-center panel should stay detached below the menu bar"
         )
     }
 
@@ -263,7 +263,8 @@ private extension OverlayPlacementTests {
         try expect(
             clamshell.screen.id == "external" &&
                 clamshell.mode == .topCenter &&
-                calculator.placement(for: clamshell).frame.maxY == external.visibleFrame.maxY,
+                calculator.placement(for: clamshell).frame.maxY ==
+                    external.visibleFrame.maxY - OverlayPlacementCalculator.topCenterGap,
             "clamshell mode should move the shell below the external display menu bar"
         )
 
@@ -289,7 +290,7 @@ private extension OverlayPlacementTests {
         )
         try expect(
             calculator.placement(for: resized).frame ==
-                CGRect(x: -1490, y: 895, width: 420, height: 220),
+                CGRect(x: -1490, y: 889, width: 420, height: 220),
             "resolution and coordinate changes should recalculate the top-center frame"
         )
     }
