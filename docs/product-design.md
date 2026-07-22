@@ -131,7 +131,9 @@ Events stay deliberately small:
 - Keep a hardware-width neck over the physical notch and place recognizable compact status below the occluded area. Preview and expanded hit regions must follow the rendered shell rather than the transparent panel bounds.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
+- Keep the physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
+- Reduce Transparency and Increase Contrast replace top-center material with an opaque high-contrast surface.
 - Increase Contrast strengthens secondary copy, separators, borders, status labels, and disabled controls.
 - VoiceOver should identify the status item and expanded panel, then read native summaries and action labels in visual order.
 - Session rows should expose agent, bounded project, shortened session reference, status, and Return availability without reading full local identifiers or paths.

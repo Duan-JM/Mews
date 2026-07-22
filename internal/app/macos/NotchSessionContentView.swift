@@ -3,6 +3,7 @@ import SwiftUI
 struct NotchSessionContentView: View {
     let snapshot: NotchShellSnapshot
     let palette: NotchContrastPalette
+    let surface: NotchSurfacePalette
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
 
@@ -26,7 +27,7 @@ struct NotchSessionContentView: View {
             Text(row.statusCode)
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.3)
-                .foregroundStyle(Color.white.opacity(statusOpacity(row.status)))
+                .foregroundStyle(surface.foreground.opacity(statusOpacity(row.status)))
                 .frame(width: 34, alignment: .leading)
             sessionIdentity(row)
             returnButton(row)
@@ -40,12 +41,12 @@ struct NotchSessionContentView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(row.primaryLabel)
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(palette.primaryText))
+                .foregroundStyle(surface.foreground.opacity(palette.primaryText))
                 .lineLimit(1)
             Text("SESSION \(row.sessionLabel)  ·  \(row.statusLabel.uppercased())")
                 .font(.system(size: 8, weight: .medium, design: .monospaced))
                 .tracking(0.35)
-                .foregroundStyle(Color.white.opacity(palette.metadataText))
+                .foregroundStyle(surface.foreground.opacity(palette.metadataText))
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -61,7 +62,8 @@ struct NotchSessionContentView: View {
             NotchRowActionButtonStyle(
                 emphasis: true,
                 transitionStyle: snapshot.transitionStyle,
-                palette: palette
+                palette: palette,
+                surface: surface
             )
         )
         .frame(width: 62)
@@ -80,7 +82,8 @@ struct NotchSessionContentView: View {
             NotchRowActionButtonStyle(
                 emphasis: false,
                 transitionStyle: snapshot.transitionStyle,
-                palette: palette
+                palette: palette,
+                surface: surface
             )
         )
         .frame(width: 44)
@@ -95,11 +98,13 @@ struct NotchSessionContentView: View {
             Text(event.statusLabel.uppercased())
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
                 .tracking(0.4)
-                .foregroundStyle(Color.white.opacity(statusOpacity(event.presentationStatus)))
+                .foregroundStyle(
+                    surface.foreground.opacity(statusOpacity(event.presentationStatus))
+                )
                 .frame(width: 72, alignment: .leading)
             Text(event.message)
                 .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(Color.white.opacity(palette.secondaryText))
+                .foregroundStyle(surface.foreground.opacity(palette.secondaryText))
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
@@ -109,7 +114,7 @@ struct NotchSessionContentView: View {
 
     private var rule: some View {
         Rectangle()
-            .fill(Color.white.opacity(palette.separator))
+            .fill(surface.foreground.opacity(palette.separator))
             .frame(height: 1)
     }
 
@@ -144,6 +149,7 @@ struct NotchHealthRowView: View {
     let health: RuntimeHealthPresentation
     let transitionStyle: NotchShellTransitionStyle
     let palette: NotchContrastPalette
+    let surface: NotchSurfacePalette
     let onCopyCommand: (String) -> Void
 
     var body: some View {
@@ -151,7 +157,7 @@ struct NotchHealthRowView: View {
             Text(health.statusCode)
                 .font(.system(size: 8, weight: .bold, design: .monospaced))
                 .tracking(0.25)
-                .foregroundStyle(Color.white.opacity(0.9))
+                .foregroundStyle(surface.foreground.opacity(0.9))
                 .frame(width: 56, alignment: .leading)
             healthCopy
             if let recovery = health.recovery {
@@ -162,7 +168,8 @@ struct NotchHealthRowView: View {
                     NotchRowActionButtonStyle(
                         emphasis: false,
                         transitionStyle: transitionStyle,
-                        palette: palette
+                        palette: palette,
+                        surface: surface
                     )
                 )
                 .frame(width: 66)
@@ -171,10 +178,10 @@ struct NotchHealthRowView: View {
         }
         .frame(height: 31)
         .padding(.horizontal, 7)
-        .background(Color.white.opacity(0.055))
+        .background(surface.foreground.opacity(0.055))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color.white.opacity(palette.border), lineWidth: 1)
+                .stroke(surface.foreground.opacity(palette.border), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
         .accessibilityLabel(health.accessibilityLabel)
@@ -184,11 +191,11 @@ struct NotchHealthRowView: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(healthTitle)
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(palette.primaryText))
+                .foregroundStyle(surface.foreground.opacity(palette.primaryText))
                 .lineLimit(1)
             Text(health.message)
                 .font(.system(size: 9, weight: .regular))
-                .foregroundStyle(Color.white.opacity(palette.secondaryText))
+                .foregroundStyle(surface.foreground.opacity(palette.secondaryText))
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -206,6 +213,7 @@ struct NotchRowActionButtonStyle: ButtonStyle {
     let emphasis: Bool
     let transitionStyle: NotchShellTransitionStyle
     let palette: NotchContrastPalette
+    let surface: NotchSurfacePalette
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -231,23 +239,25 @@ struct NotchRowActionButtonStyle: ButtonStyle {
 
     private var foregroundColor: Color {
         if !isEnabled {
-            return Color.white.opacity(palette.disabledText)
+            return surface.foreground.opacity(palette.disabledText)
         }
-        return emphasis ? .black : .white
+        return emphasis ? surface.inverseForeground : surface.foreground
     }
 
     private var backgroundColor: Color {
         if !isEnabled {
-            return Color.white.opacity(palette.disabledSurface)
+            return surface.foreground.opacity(palette.disabledSurface)
         }
-        return emphasis ? .white : Color.white.opacity(0.08)
+        return emphasis ? surface.foreground : surface.foreground.opacity(0.08)
     }
 
     private var borderColor: Color {
         if !isEnabled {
-            return Color.white.opacity(palette.disabledBorder)
+            return surface.foreground.opacity(palette.disabledBorder)
         }
-        return emphasis ? .white : Color.white.opacity(palette.border)
+        return emphasis
+            ? surface.foreground
+            : surface.foreground.opacity(palette.border)
     }
 
     private var buttonAnimation: Animation? {

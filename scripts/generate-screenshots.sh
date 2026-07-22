@@ -53,6 +53,10 @@ validate_manifest() {
     grep -Fq "\"$value\"" "$manifest" ||
       fail "fixture manifest is missing state $value"
   done
+  for value in '"dark"' '"light"' '"notch"' '"top_center"'; do
+    grep -Fq "$value" "$manifest" ||
+      fail "fixture manifest is missing surface coverage $value"
+  done
   for value in "${EXPECTED_FILES[@]}"; do
     grep -Fq "\"$value\"" "$manifest" ||
       fail "fixture manifest is missing file $value"
@@ -178,10 +182,12 @@ SOURCES=(
   "$ROOT/internal/app/macos/NotchInteractionModel.swift"
   "$ROOT/internal/app/macos/NotchPanelContent.swift"
   "$ROOT/internal/app/macos/PixelStatusLogo.swift"
+  "$ROOT/internal/app/macos/NotchShellGeometry.swift"
   "$ROOT/internal/app/macos/NotchExpandedContentView.swift"
   "$ROOT/internal/app/macos/NotchSessionContentView.swift"
   "$ROOT/internal/app/macos/NotchShellView.swift"
   "$ROOT/scripts/screenshot-fixtures.swift"
+  "$ROOT/scripts/screenshot-fixture-data.swift"
   "$ROOT/scripts/render-screenshots.swift"
 )
 

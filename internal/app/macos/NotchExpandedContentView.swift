@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NotchExpandedContentView: View {
     let snapshot: NotchShellSnapshot
+    let surface: NotchSurfacePalette
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
 
@@ -17,6 +18,7 @@ struct NotchExpandedContentView: View {
                     health: health,
                     transitionStyle: snapshot.transitionStyle,
                     palette: palette,
+                    surface: surface,
                     onCopyCommand: onCopyCommand
                 )
                     .padding(.top, 5)
@@ -27,28 +29,36 @@ struct NotchExpandedContentView: View {
                 NotchSessionContentView(
                     snapshot: snapshot,
                     palette: palette,
+                    surface: surface,
                     onReturnToCLI: onReturnToCLI,
                     onCopyCommand: onCopyCommand
                 )
             }
         }
         .padding(.horizontal, 18)
-        .foregroundStyle(Color.white)
+        .foregroundStyle(surface.foreground)
     }
 
     private var topBar: some View {
         HStack(spacing: 10) {
-            PixelStatusView(state: snapshot.presentationState, size: 28)
+            PixelStatusView(
+                state: snapshot.presentationState,
+                size: 28,
+                color: surface.foreground
+            )
             Spacer()
             Text(topBarLabel)
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .tracking(0.8)
-                .foregroundStyle(Color.white.opacity(palette.badgeText))
+                .foregroundStyle(surface.foreground.opacity(palette.badgeText))
                 .padding(.horizontal, 9)
                 .frame(height: 24)
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color.white.opacity(palette.border), lineWidth: 1)
+                        .stroke(
+                            surface.foreground.opacity(palette.border),
+                            lineWidth: 1
+                        )
                 )
         }
         .frame(height: 28)
@@ -77,7 +87,9 @@ struct NotchExpandedContentView: View {
                 if let metadata = snapshot.content.current?.metadataLine {
                     Text(metadata.uppercased())
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color.white.opacity(palette.metadataText))
+                        .foregroundStyle(
+                            surface.foreground.opacity(palette.metadataText)
+                        )
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
@@ -85,7 +97,7 @@ struct NotchExpandedContentView: View {
 
             Text(snapshot.content.current?.message ?? "No current agent activity")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.white.opacity(palette.primaryText))
+                .foregroundStyle(surface.foreground.opacity(palette.primaryText))
                 .lineLimit(1)
         }
         .padding(.top, 9)
@@ -99,7 +111,7 @@ struct NotchExpandedContentView: View {
                     Text("NO EARLIER PRIMARY EVENTS")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .tracking(0.5)
-                        .foregroundStyle(Color.white.opacity(palette.mutedText))
+                        .foregroundStyle(surface.foreground.opacity(palette.mutedText))
                     Spacer()
                 }
                 .frame(height: 16)
@@ -119,11 +131,13 @@ struct NotchExpandedContentView: View {
             Text(event.statusLabel.uppercased())
                 .font(.system(size: 9, weight: .semibold, design: .monospaced))
                 .tracking(0.4)
-                .foregroundStyle(Color.white.opacity(statusOpacity(event.presentationStatus)))
+                .foregroundStyle(
+                    surface.foreground.opacity(statusOpacity(event.presentationStatus))
+                )
                 .frame(width: 72, alignment: .leading)
             Text(event.message)
                 .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(Color.white.opacity(palette.secondaryText))
+                .foregroundStyle(surface.foreground.opacity(palette.secondaryText))
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
@@ -142,7 +156,8 @@ struct NotchExpandedContentView: View {
                 NotchRowActionButtonStyle(
                     emphasis: true,
                     transitionStyle: snapshot.transitionStyle,
-                    palette: palette
+                    palette: palette,
+                    surface: surface
                 )
             )
             .disabled(snapshot.content.actionableContext == nil)
@@ -157,7 +172,8 @@ struct NotchExpandedContentView: View {
                 NotchRowActionButtonStyle(
                     emphasis: false,
                     transitionStyle: snapshot.transitionStyle,
-                    palette: palette
+                    palette: palette,
+                    surface: surface
                 )
             )
             .disabled(snapshot.content.returnCommand == nil)
@@ -167,7 +183,7 @@ struct NotchExpandedContentView: View {
 
     private var rule: some View {
         Rectangle()
-            .fill(Color.white.opacity(palette.separator))
+            .fill(surface.foreground.opacity(palette.separator))
             .frame(height: 1)
     }
 

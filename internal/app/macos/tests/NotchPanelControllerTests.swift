@@ -80,6 +80,10 @@ extension MewsAppModelTests {
                 controller.panel.collectionBehavior.contains(.stationary),
             "panel should remain available across Spaces and full-screen transitions"
         )
+        try controllerExpect(
+            !controller.panel.hasShadow,
+            "the physical-notch shell should not add a detached window shadow"
+        )
     }
 
     private static func controllerShowsNotch(
@@ -95,7 +99,8 @@ extension MewsAppModelTests {
         controller.placement?.screenID == "external" &&
             controller.placement?.mode == .topCenter &&
             !controller.canPresentNotchAlert &&
-            controller.panel.frame == CGRect(x: 2262, y: 835, width: 420, height: 220)
+        controller.panel.hasShadow &&
+        controller.panel.frame == CGRect(x: 2262, y: 829, width: 420, height: 220)
     }
 
     private static func controllerHasNoScreen(
@@ -103,6 +108,7 @@ extension MewsAppModelTests {
     ) -> Bool {
         controller.placement == nil &&
             !controller.canPresentNotchAlert &&
+            !controller.panel.hasShadow &&
             !controller.panel.isVisible
     }
 

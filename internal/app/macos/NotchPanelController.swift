@@ -29,6 +29,7 @@ final class NotchPanelController: NSObject {
     )
     private var accessibilityPreferences = NotchAccessibilityPreferences(
         reduceMotion: false,
+        reduceTransparency: false,
         increaseContrast: false
     )
 
@@ -83,6 +84,7 @@ final class NotchPanelController: NSObject {
     func reposition() -> OverlayPlacement? {
         guard let target = resolver.resolve(screens: screenProvider()) else {
             placement = nil
+            panel.hasShadow = false
             panel.orderOut(nil)
             refreshShell()
             return nil
@@ -211,6 +213,7 @@ final class NotchPanelController: NSObject {
                 transitionStyle: .resolved(
                     reduceMotion: accessibilityPreferences.reduceMotion
                 ),
+                reduceTransparency: accessibilityPreferences.reduceTransparency,
                 increaseContrast: accessibilityPreferences.increaseContrast
             )
         )
@@ -222,10 +225,12 @@ final class NotchPanelController: NSObject {
 
     private func applyWindowPresentation() {
         guard let placement else {
+            panel.hasShadow = false
             panel.ignoresMouseEvents = true
             panel.orderOut(nil)
             return
         }
+        panel.hasShadow = placement.mode == .topCenter
         let isVisible = NotchPanelPresentationPolicy.isVisible(
             visibility: interactionState.visibility,
             placementMode: placement.mode
