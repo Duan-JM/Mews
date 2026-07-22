@@ -132,6 +132,39 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 	}
 }
 
+func TestInstallClaudeAddsActiveSessionHooks(t *testing.T) {
+	settings := map[string]any{}
+	managed := installClaudeHooks(settings, "/opt/mews/bin/mw", nil)
+	if len(managed) != 6 {
+		t.Fatalf("managed Claude commands = %d, want 6", len(managed))
+	}
+
+	hooks, ok := settings["hooks"].(map[string]any)
+	if !ok {
+		t.Fatal("Claude hooks were not installed")
+	}
+	for _, event := range []string{
+		"SessionStart",
+		"UserPromptSubmit",
+		"PermissionRequest",
+		"Stop",
+		"StopFailure",
+		"SessionEnd",
+	} {
+		groups, ok := hooks[event].([]any)
+		if !ok || len(groups) != 1 {
+			t.Fatalf("Claude hook %s groups = %#v, want one Mews group", event, hooks[event])
+		}
+	}
+
+	commands := strings.Join(managed, "\n")
+	if !strings.Contains(commands, "UserPromptSubmit") ||
+		!strings.Contains(commands, "running") ||
+		!strings.Contains(commands, "SessionStart") {
+		t.Fatalf("Claude active-session commands are incomplete: %s", commands)
+	}
+}
+
 func TestInstallAllRollsBackWhenClaudeSettingsAreMalformed(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

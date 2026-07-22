@@ -5,7 +5,6 @@ extension MewsAppModelTests {
         try testActionableSessionOrdering()
         try testAcknowledgementOnlyReordersOwningSession()
         try testStaleAttentionDoesNotDemoteCompletion()
-        try testSessionPresentationLimitsAndContexts()
         try testConfirmedHealthPresentation()
         try testExpandedSessionOrderStability()
         try testSessionAccessibilityCopy()
@@ -34,9 +33,8 @@ extension MewsAppModelTests {
             presentation.rows.map(\.identity.sessionID) == [
                 "needs-input",
                 "failed",
-                "done-new",
                 "running",
-                "idle",
+                "done-new",
                 "done-ack"
             ],
             "sessions should sort by actionability before recency"
@@ -48,9 +46,10 @@ extension MewsAppModelTests {
     ) throws -> [CurrentSessionState] {
         return [
             try presentationSession(
-                id: "idle",
+                id: "closed",
                 status: .idle,
-                evidenceAt: now
+                evidenceAt: now,
+                hookEvent: "sessionEnd"
             ),
             try presentationSession(
                 id: "running",
@@ -147,60 +146,6 @@ extension MewsAppModelTests {
         )
     }
 
-    private static func testSessionPresentationLimitsAndContexts() throws {
-        let now = Date(timeIntervalSince1970: 1_900_000_300)
-        let sessions = try (0..<6).map { index in
-            try presentationSession(
-                id: "session-\(index)",
-                status: .running,
-                evidenceAt: now.addingTimeInterval(TimeInterval(index))
-            )
-        }
-        let presentation = SessionPresentationPolicy.resolve(
-            sessions: sessions,
-            attentionRecords: [],
-            healthSnapshot: nil,
-            now: now
-        )
-        let unavailable = try presentationSession(
-            id: "unavailable",
-            status: .needsInput,
-            evidenceAt: now,
-            actionable: false
-        )
-        let unavailablePresentation = SessionPresentationPolicy.resolve(
-            sessions: [unavailable],
-            attentionRecords: [],
-            healthSnapshot: nil,
-            now: now
-        )
-        let expiredPresentation = SessionPresentationPolicy.resolve(
-            sessions: [
-                try presentationSession(
-                    id: "expired",
-                    status: .idle,
-                    evidenceAt: now.addingTimeInterval(-(24 * 60 * 60 + 1))
-                )
-            ],
-            attentionRecords: [],
-            healthSnapshot: nil,
-            now: now
-        )
-
-        try presentationExpect(
-            presentation.panelRows.count == 3 && presentation.menuRows.count == 5,
-            "the panel and menu should remain explicitly bounded"
-        )
-        try presentationExpect(
-            unavailablePresentation.rows.first?.returnContext == nil,
-            "invalid return metadata should keep the session action disabled"
-        )
-        try presentationExpect(
-            expiredPresentation.rows.isEmpty,
-            "the recent-session surface should not retain evidence older than 24 hours"
-        )
-    }
-
     private static func testConfirmedHealthPresentation() throws {
         let now = Date(timeIntervalSince1970: 1_900_000_400)
         let snapshot = RuntimeHealthSnapshot(
@@ -280,11 +225,11 @@ extension MewsAppModelTests {
         )
         let stabilized = SessionPresentationPolicy.stabilizedRows(
             canonical: canonical.rows,
-            previous: previous.panelRows
+            previous: previous.rows
         )
         let removed = SessionPresentationPolicy.stabilizedRows(
             canonical: [],
-            previous: previous.panelRows
+            previous: previous.rows
         )
 
         try presentationExpect(
@@ -292,8 +237,8 @@ extension MewsAppModelTests {
             "expanded content should retain visible row order until collapse"
         )
         try presentationExpect(
-            removed.allSatisfy { $0.returnContext == nil },
-            "a removed session may retain its slot but must not retain stale actions"
+            removed.isEmpty,
+            "an explicitly removed session should leave the expanded list immediately"
         )
     }
 
@@ -330,13 +275,17 @@ extension MewsAppModelTests {
 
     private static func presentationSession(
         id: String,
+        source: String = "copilot",
         status: SessionStatus,
+        evidenceStatus: SessionStatus? = nil,
         evidenceAt: Date,
         project: String? = "Mews",
-        actionable: Bool = true
+        actionable: Bool = true,
+        hookEvent: String? = "testLifecycle",
+        isFresh: Bool = true
     ) throws -> CurrentSessionState {
         let identity = try presentationRequire(
-            SessionIdentity(source: "copilot", sessionID: id),
+            SessionIdentity(source: source, sessionID: id),
             "session identity should be valid"
         )
         let returnContext = actionable
@@ -348,13 +297,13 @@ extension MewsAppModelTests {
         return CurrentSessionState(
             identity: identity,
             status: status,
-            evidenceStatus: status,
+            evidenceStatus: evidenceStatus ?? status,
             statusChangedAt: evidenceAt,
             evidenceAt: evidenceAt,
             project: project,
-            hookEvent: nil,
+            hookEvent: hookEvent,
             returnContext: returnContext,
-            isFresh: true
+            isFresh: isFresh
         )
     }
 
@@ -365,7 +314,7 @@ extension MewsAppModelTests {
         let key = try presentationRequire(
             AttentionKey(
                 identity: session.identity,
-                status: session.status,
+                status: session.presentationStatus,
                 statusChangedAt: session.statusChangedAt
             ),
             "attention key should be valid"

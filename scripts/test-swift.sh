@@ -50,6 +50,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateCorruptionTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateMetadataTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateTests.swift" \
+  "$ROOT/internal/app/macos/tests/ActiveSessionPanelTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionReconcilerTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionControllerTests.swift" \

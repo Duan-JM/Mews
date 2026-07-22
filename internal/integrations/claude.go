@@ -136,6 +136,8 @@ func installClaudeHooks(
 	removeRecordedClaudeCommands(settings, previous)
 
 	hooks := []claudeHook{
+		{event: "SessionStart", status: "idle", message: "Claude Code session started"},
+		{event: "UserPromptSubmit", status: "running", message: "Claude Code is running"},
 		{event: "PermissionRequest", status: "needs_input", message: "Claude Code needs input"},
 		{event: "Stop", status: "done", message: "Claude Code finished"},
 		{event: "StopFailure", status: "failed", message: "Claude Code failed"},

@@ -38,7 +38,7 @@ extension MewsApp {
         guard !rows.isEmpty else {
             menu.addItem(
                 NSMenuItem(
-                    title: "No recoverable sessions",
+                    title: "No active sessions",
                     action: nil,
                     keyEquivalent: ""
                 )

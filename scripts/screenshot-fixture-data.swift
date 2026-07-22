@@ -30,6 +30,24 @@ extension SyntheticScreenshotCatalog {
                 status: .done,
                 age: 2,
                 actionable: true
+            ),
+            SyntheticSessionFixture(
+                sourceID: "copilot",
+                sourceLabel: "Copilot CLI",
+                project: "ExampleKit",
+                sessionID: "run04",
+                status: .running,
+                age: 3,
+                actionable: true
+            ),
+            SyntheticSessionFixture(
+                sourceID: "claude-code",
+                sourceLabel: "Claude Code",
+                project: "ExampleSite",
+                sessionID: "stop05",
+                status: .done,
+                age: 4,
+                actionable: false
             )
         ]
     }
@@ -49,8 +67,8 @@ extension SyntheticScreenshotCatalog {
                 sourceID: "codex",
                 sourceLabel: "Codex",
                 project: "ExampleSite",
-                sessionID: "idle05",
-                status: .idle,
+                sessionID: "stop05",
+                status: .done,
                 age: 4,
                 actionable: false
             )
@@ -261,8 +279,8 @@ struct SyntheticSessionFixture {
             sourceLabel: sourceLabel,
             projectLabel: project,
             sessionLabel: sessionID,
-            statusLabel: mewsStatusLabel(status.rawValue),
-            statusCode: status.fixtureCode,
+            statusLabel: status.sessionPresentationLabel,
+            statusCode: status.sessionPresentationCode,
             returnContext: context,
             evidenceAt: now.addingTimeInterval(-age),
             priority: status.fixturePriority
@@ -292,21 +310,6 @@ struct SyntheticHealthFixture {
 }
 
 extension SessionStatus {
-    var fixtureCode: String {
-        switch self {
-        case .idle:
-            return "IDLE"
-        case .running:
-            return "RUN"
-        case .needsInput:
-            return "ASK"
-        case .done:
-            return "DONE"
-        case .failed:
-            return "FAIL"
-        }
-    }
-
     var fixturePriority: SessionPresentationPriority {
         switch self {
         case .needsInput:

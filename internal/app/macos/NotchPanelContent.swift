@@ -28,13 +28,14 @@ struct NotchPanelContent: Equatable {
     }
 
     var visibleSessionRows: [SessionPresentationRow] {
-        return Array(sessionRows.prefix(SessionPresentation.panelLimit))
+        return sessionRows
     }
 
     var visibleRecent: [NotchEventSummary] {
-        let remaining = max(0, Self.recentLimit - visibleSessionRows.count)
-        let candidates = sessionRows.isEmpty ? recent : unscopedRecent
-        return Array(candidates.prefix(remaining))
+        guard sessionRows.isEmpty else {
+            return []
+        }
+        return Array(recent.prefix(Self.recentLimit))
     }
 
     init(
@@ -104,7 +105,7 @@ struct NotchPanelContent: Equatable {
             actionableEventID: previous.actionableEventID,
             sessionRows: SessionPresentationPolicy.stabilizedRows(
                 canonical: sessionRows,
-                previous: previous.visibleSessionRows
+                previous: previous.sessionRows
             ),
             health: previous.health,
             unscopedRecent: previous.unscopedRecent

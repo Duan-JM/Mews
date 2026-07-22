@@ -194,9 +194,9 @@ extension MewsAppModelTests {
             "stable sessions should render as actionable rows"
         )
         try panelExpect(
-            content.visibleRecent.count == 1 &&
-                content.visibleRecent.first?.sessionLabel == nil,
-            "events without stable identity should remain bounded history"
+            content.visibleRecent.isEmpty &&
+                content.unscopedRecent.count == 1,
+            "active-session rows should not mix recent history into the panel"
         )
     }
 
@@ -312,8 +312,8 @@ extension MewsAppModelTests {
             sourceLabel: "Copilot CLI",
             projectLabel: "Mews",
             sessionLabel: id,
-            statusLabel: mewsStatusLabel(status.rawValue),
-            statusCode: status == .needsInput ? "ASK" : "RUN",
+            statusLabel: status.sessionPresentationLabel,
+            statusCode: status.sessionPresentationCode,
             returnContext: nil,
             evidenceAt: evidenceAt,
             priority: status == .needsInput ? .needsInput : .running

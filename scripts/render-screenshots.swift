@@ -53,7 +53,7 @@ enum RenderSyntheticScreenshots {
             ),
             ScreenshotDocument(
                 fileName: SyntheticScreenshotCatalog.sessionsFileName,
-                expectedWords: ["ASK", "FAIL", "DONE", "RETURN", "COPY"],
+                expectedWords: ["ACTIVE", "ASK", "FAIL", "STOP", "RETURN", "COPY"],
                 colorScheme: catalog.sessionsPanel.colorScheme,
                 appearance: appearanceName(
                     for: catalog.sessionsPanel.colorScheme
@@ -74,7 +74,7 @@ enum RenderSyntheticScreenshots {
                     "COPY",
                     "FIX",
                     "RUN",
-                    "IDLE"
+                    "STOP"
                 ],
                 colorScheme: catalog.healthPanel.colorScheme,
                 appearance: appearanceName(
