@@ -419,9 +419,9 @@ Main-agent completion and failure events will notify Mews.
 Subagent completion events will remain silent.
 ```
 
-The managed hook file routes `sessionStart`, `subagentStart`, `subagentStop`, `agentStop`, `sessionEnd`, and `errorOccurred` through `mw hook copilot <event>`. `agentStop` maps to a main-agent `done` event, `subagentStop` maps to a silent subagent `done` event, `sessionEnd` maps to `idle`, and `errorOccurred` maps to `failed` while preserving Copilot's `recoverable` flag.
+The managed hook file routes `sessionStart`, `userPromptSubmitted`, `subagentStop`, `agentStop`, `sessionEnd`, and `errorOccurred` through `mw hook copilot <event>`. `userPromptSubmitted` maps to a main-agent `running` event without persisting prompt text unless task-title opt-in is enabled. `agentStop` maps to a main-agent `done` event, `subagentStop` maps to a silent subagent `done` event, `sessionEnd` maps to `idle`, and `errorOccurred` maps to `failed` while preserving Copilot's `recoverable` flag.
 
-Some Copilot CLI versions can invoke `agentStop` while a subagent is finishing. Mews correlates the official subagent lifecycle using hashes of the session identifier and transcript path, suppresses that duplicate event, and clears the Mews-owned correlation state on session start, session end, and `mw undo`. Raw transcript paths and transcript contents are never stored. A hook-provided agent name is also enough to classify the event as a subagent.
+Some Copilot CLI versions emit lifecycle events while a subagent or nested tool call is active. Those payloads use provider tool-call identifiers such as `call_*` or `toolu_*`; nested `agentStop` may set `transcriptPath` to null, while the later primary stop can reuse the subagent transcript path. Mews suppresses lifecycle events with tool-call identifiers and hook-provided subagent names without using transcript paths to classify the primary stop. Legacy Mews-owned correlation state is cleared on session start, session end, and `mw undo`; raw transcript paths and transcript contents are never stored.
 
 Mews may derive `project` from `cwd` and preserve a hook `session_id` when provided. Do not read prompts, transcripts, or terminal scrollback by default; task titles require explicit opt-in and are truncated to 80 characters.
 

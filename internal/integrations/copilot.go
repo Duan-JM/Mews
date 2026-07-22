@@ -13,8 +13,9 @@ import (
 )
 
 const copilotHookFile = "mews.json"
-const copilotOwnershipMarker = "copilot-v2"
-const previousCopilotOwnershipMarker = "copilot-v1"
+const copilotOwnershipMarker = "copilot-v3"
+const previousCopilotOwnershipMarker = "copilot-v2"
+const legacyCopilotOwnershipMarker = "copilot-v1"
 
 type copilotHookConfig struct {
 	Version int                             `json:"version"`
@@ -26,10 +27,6 @@ type copilotCommandHook struct {
 	Bash       string            `json:"bash"`
 	TimeoutSec int               `json:"timeoutSec"`
 	Env        map[string]string `json:"env,omitempty"`
-}
-
-type copilotHookSpec struct {
-	event string
 }
 
 type previousCopilotHookFormat struct {
@@ -173,7 +170,7 @@ func RemoveCopilotHooks() error {
 	if err != nil {
 		return err
 	}
-	return RemoveCopilotHookAt(hookPath)
+	return removeCopilotHookAt(hookPath, true)
 }
 
 func RemoveCopilotHookAt(hookPath string) error {
@@ -268,20 +265,12 @@ func copilotHook(mwPath, hookEvent string) copilotCommandHook {
 }
 
 func copilotManagedConfig(mwPath string) (copilotHookConfig, []string) {
-	specs := []copilotHookSpec{
-		{event: "sessionStart"},
-		{event: "subagentStart"},
-		{event: "subagentStop"},
-		{event: "agentStop"},
-		{event: "sessionEnd"},
-		{event: "errorOccurred"},
-	}
-
-	hooks := make(map[string][]copilotCommandHook, len(specs))
-	managed := make([]string, 0, len(specs))
-	for _, spec := range specs {
-		hook := copilotHook(mwPath, spec.event)
-		hooks[spec.event] = []copilotCommandHook{hook}
+	events := copilotHookEvents()
+	hooks := make(map[string][]copilotCommandHook, len(events))
+	managed := make([]string, 0, len(events))
+	for _, event := range events {
+		hook := copilotHook(mwPath, event)
+		hooks[event] = []copilotCommandHook{hook}
 		managed = append(managed, hook.Bash)
 	}
 
@@ -292,17 +281,21 @@ func copilotManagedConfig(mwPath string) (copilotHookConfig, []string) {
 }
 
 func isMewsHook(data []byte) bool {
+	return matchesCopilotControlHook(
+		data,
+		copilotOwnershipMarker,
+		copilotHookEvents(),
+	)
+}
+
+func matchesCopilotControlHook(
+	data []byte,
+	marker string,
+	expectedEvents []string,
+) bool {
 	var config copilotHookConfig
 	if err := json.Unmarshal(data, &config); err != nil || config.Version != 1 {
 		return false
-	}
-	expectedEvents := []string{
-		"sessionStart",
-		"subagentStart",
-		"subagentStop",
-		"agentStop",
-		"sessionEnd",
-		"errorOccurred",
 	}
 	if len(config.Hooks) != len(expectedEvents) {
 		return false
@@ -316,7 +309,7 @@ func isMewsHook(data []byte) bool {
 		if hook.Type != "command" || hook.TimeoutSec != 5 {
 			return false
 		}
-		if hook.Env["MEWS_MANAGED_INTEGRATION"] != copilotOwnershipMarker {
+		if hook.Env["MEWS_MANAGED_INTEGRATION"] != marker {
 			return false
 		}
 		suffix := strings.Join([]string{
@@ -332,8 +325,12 @@ func isMewsHook(data []byte) bool {
 }
 
 func isPreviousMewsHook(data []byte) bool {
-	return matchesPreviousMewsHook(data, previousCopilotHookFormat{
-		marker: previousCopilotOwnershipMarker,
+	return matchesCopilotControlHook(
+		data,
+		previousCopilotOwnershipMarker,
+		previousCopilotHookEvents(),
+	) || matchesPreviousMewsHook(data, previousCopilotHookFormat{
+		marker: legacyCopilotOwnershipMarker,
 		quote:  shellQuote,
 	})
 }
@@ -346,6 +343,28 @@ func isLegacyMewsHook(data []byte) bool {
 
 func isRecordedMewsHook(data []byte) bool {
 	return isMewsHook(data) || isPreviousMewsHook(data) || isLegacyMewsHook(data)
+}
+
+func copilotHookEvents() []string {
+	return []string{
+		"sessionStart",
+		"userPromptSubmitted",
+		"subagentStop",
+		"agentStop",
+		"sessionEnd",
+		"errorOccurred",
+	}
+}
+
+func previousCopilotHookEvents() []string {
+	return []string{
+		"sessionStart",
+		"subagentStart",
+		"subagentStop",
+		"agentStop",
+		"sessionEnd",
+		"errorOccurred",
+	}
 }
 
 func matchesPreviousMewsHook(
