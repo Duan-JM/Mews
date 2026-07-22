@@ -8,6 +8,12 @@ enum SessionStatus: String, Codable, Equatable {
     case idle
 }
 
+enum SessionPresence: Equatable {
+    case open
+    case closed
+    case unknown
+}
+
 struct SessionIdentity: Codable, Hashable, Comparable {
     let source: String
     let sessionID: String
@@ -82,6 +88,25 @@ struct CurrentSessionState: Equatable {
 
     var sessionID: String {
         identity.sessionID
+    }
+
+    var presence: SessionPresence {
+        let normalizedHook = normalizedText(hookEvent)?.lowercased()
+        if normalizedHook == "sessionend" {
+            return .closed
+        }
+        if normalizedHook != nil &&
+            (source == "claude-code" || source == "copilot") {
+            return .open
+        }
+        return .unknown
+    }
+
+    var presentationStatus: SessionStatus {
+        guard presence == .open else {
+            return status
+        }
+        return evidenceStatus == .idle ? .done : evidenceStatus
     }
 }
 

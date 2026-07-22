@@ -43,7 +43,7 @@ Scope:
 
 - Receive local events from CLI commands, hooks, wrappers, or scripts.
 - Show the latest state in the macOS menu bar.
-- Open a compact physical-notch or top-center shell with prioritized recent sessions, bounded history, and validated per-session actions.
+- Open a compact physical-notch or top-center shell with current sessions, native scrolling, and validated per-session actions.
 - Keep a short recent-event history.
 - Support system notifications.
 - Provide integrations for Claude Code, Codex, and Copilot CLI when stable hooks are available.
@@ -73,7 +73,7 @@ Must have:
 5. `mw doctor` that reports setup, hook, store, and companion state honestly.
 6. `mw undo` for Mews-owned integrations.
 7. Clear privacy copy in the README.
-8. A thin menu bar companion with a compact notch/top-center shell for at most three prioritized recent sessions, bounded history, and validated per-session actions, launched by `mw start`.
+8. A thin menu bar companion with a fixed-size notch/top-center shell for all displayable current sessions, native vertical scrolling, and validated per-session actions, launched by `mw start`.
 9. Versioned, checksummed packages and a credential-gated signed release path.
 
 Runtime health is separate from agent lifecycle presentation. `mw status`, `mw doctor`, and the native companion use one local snapshot: `checking` applies when a transition is pending and no confirmed degraded or blocked capability outranks it, `ready` hides repair controls, `degraded` preserves core event delivery while naming the affected capability, and `blocked` means a core local dependency is unavailable. The native UI shows only fresh confirmed degradation or blockage, with a copyable recovery instruction when available. Configuration drift and functional IPC failure remain distinct.
@@ -97,7 +97,7 @@ Mews first handles five states:
 | `failed` | Main task failed or a command exited unexpectedly | 4-second notch preview followed by compact `FAIL`, or a system notification fallback |
 | `idle` | No active task | Quiet `IDLE` compact notch state |
 
-UI freshness is separate from stored history. `running` and `needs_input` can drive the current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. After that, the current state becomes `idle`, current-context panel actions disable, and the event stays available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
+UI freshness is separate from stored history. `running` and `needs_input` can drive the compact current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while sources without a close event remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
 
 Events stay deliberately small:
 
@@ -116,13 +116,13 @@ Events stay deliberately small:
 
 1. Quiet by default. Only primary-agent completion, non-recoverable failure, and user-needed states should interrupt.
 2. The menu bar should be reliable. Extra visuals are optional enhancements.
-3. The pixel logo should open a compact shell without turning Mews into a dashboard. Keep at most three prioritized session rows, use bounded history for events without stable identity, and expose only validated per-session actions.
+3. The pixel logo should open a compact shell without turning Mews into a dashboard. Keep the 420×220 frame, show all displayable current sessions through native scrolling, keep recent events out of the active panel, and expose only validated per-session actions.
 4. Integrations must be explicit. Mews should not secretly read terminal output.
 5. Missed notifications and silent subagent events should be recoverable from recent local history.
-6. Stale states return to `idle` on the fixed freshness schedule above instead of getting stuck forever.
+6. Stale unknown-presence states return to `idle` on the fixed freshness schedule, and known-open states use the 24-hour safety cap so missed closure events cannot stay visible forever.
 7. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
 8. Each attention event uses one automatic channel: the physical-notch shell when available, otherwise Notification Center.
-9. While expanded, session order and health actions stay fixed until collapse so refreshes cannot move an action target beneath the pointer.
+9. While expanded, retained session order and health actions stay fixed so refreshes cannot move an action target beneath the pointer; sessions that close disappear immediately.
 
 ## Display and Accessibility Behavior
 

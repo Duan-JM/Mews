@@ -8,18 +8,19 @@ struct NotchSessionContentView: View {
     let onCopyCommand: (String) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            ForEach(snapshot.content.visibleSessionRows, id: \.identity) { row in
-                sessionRow(row)
-                    .frame(height: 42)
-                    .overlay(rule, alignment: .bottom)
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(spacing: 0) {
+                ForEach(snapshot.content.sessionRows, id: \.identity) { row in
+                    sessionRow(row)
+                        .frame(height: 42)
+                        .overlay(rule, alignment: .bottom)
+                }
             }
-            ForEach(Array(snapshot.content.visibleRecent.enumerated()), id: \.offset) { _, event in
-                recentRow(event)
-            }
-            Spacer(minLength: 7)
         }
+        .frame(maxHeight: .infinity)
         .padding(.top, 4)
+        .padding(.bottom, 7)
+        .accessibilityLabel("Active sessions")
     }
 
     private func sessionRow(_ row: SessionPresentationRow) -> some View {
@@ -93,25 +94,6 @@ struct NotchSessionContentView: View {
         )
     }
 
-    private func recentRow(_ event: NotchEventSummary) -> some View {
-        HStack(spacing: 8) {
-            Text(event.statusLabel.uppercased())
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .tracking(0.4)
-                .foregroundStyle(
-                    surface.foreground.opacity(statusOpacity(event.presentationStatus))
-                )
-                .frame(width: 72, alignment: .leading)
-            Text(event.message)
-                .font(.system(size: 11, weight: .regular))
-                .foregroundStyle(surface.foreground.opacity(palette.secondaryText))
-                .lineLimit(1)
-            Spacer(minLength: 0)
-        }
-        .frame(height: 16)
-        .accessibilityElement(children: .combine)
-    }
-
     private var rule: some View {
         Rectangle()
             .fill(surface.foreground.opacity(palette.separator))
@@ -119,19 +101,6 @@ struct NotchSessionContentView: View {
     }
 
     private func statusOpacity(_ status: SessionStatus) -> Double {
-        switch status {
-        case .needsInput, .failed:
-            return max(0.92, palette.statusFloor)
-        case .done:
-            return max(0.76, palette.statusFloor)
-        case .running:
-            return max(0.64, palette.statusFloor)
-        case .idle:
-            return max(0.42, palette.statusFloor)
-        }
-    }
-
-    private func statusOpacity(_ status: MewsPresentationStatus) -> Double {
         switch status {
         case .needsInput, .failed:
             return max(0.92, palette.statusFloor)

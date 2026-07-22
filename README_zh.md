@@ -92,19 +92,19 @@ Mews 把这些隐藏状态变成本地、低打扰的提醒。
 
 - 主 agent 需要关注时，只使用实体刘海提示或原生 macOS 通知降级中的一个通道。
 - 本地 JSONL 历史记录，错过通知后还能找回。
-- 菜单栏 companion 使用随状态变化的像素 Logo、按操作优先级排列的近期 session，以及紧凑的刘海/顶部居中状态层。
+- 菜单栏 companion 使用随状态变化的像素 Logo、活跃 session 列表，以及紧凑的刘海/顶部居中状态层。
 - `doctor` 会显示 setup、三种接入、通知权限、LaunchAgent、socket 和菜单栏 app 状态。
 - 本地事件日志有容量上限，发布包带隔离 smoke test。
 
 ## Mac companion
 
-当前菜单栏 companion 故意保持轻量。它会启动本地 IPC agent，读取本地事件历史与可恢复 session 状态，并通过紧凑的像素 Logo 显示最新状态。左键点击 Logo 会打开贴合实体刘海或其他屏幕顶部居中的小型状态层；右键或 Control-click 会打开按优先级排列的 session、无稳定 session id 的历史事件、Refresh 和 Quit 菜单。
+当前菜单栏 companion 故意保持轻量。它会启动本地 IPC agent，读取本地事件历史与可恢复 session 状态，并通过紧凑的像素 Logo 显示最新状态。左键点击 Logo 会打开贴合实体刘海或其他屏幕顶部居中的活跃 session 状态层；右键或 Control-click 会打开活跃 session、无稳定 session id 的历史事件、Refresh 和 Quit 菜单。
 
 状态层会跟随屏幕拓扑变化，不会沿用过期坐标。有实体刘海时，顶部窄颈贴合硬件，刘海下方固定显示像素小猫与 `IDLE`、`RUN`、`ASK`、`DONE` 或 `FAIL`。需要输入、完成和失败事件会短暂加宽状态条并显示直白说明，随后收回紧凑形态；点击可见区域会从同一锚点展开现有面板。合盖模式或只连接外接屏时，状态层会以独立的自适应材质面板落在主屏菜单栏下方；短暂没有可用屏幕时先隐藏，屏幕恢复后重新定位。提醒通道也使用当前拓扑：实体刘海可用时由刘海状态层提示，其他布局使用 Notification Center，不会自动展开顶部居中面板。面板可跨 Space，并能显示在全屏辅助层。开启“减弱动态效果”后，尺寸变化改为静态切换和短淡入淡出；开启“降低透明度”或“增强对比度”后，顶部居中面板会改用不透明的高对比度表面；VoiceOver 可以读出明确的状态和面板标签。
 
-当前状态有固定时效，但本地历史不会被删除。`running` 与 `needs_input` 最多保留 24 小时，`done` 与 `failed` 保留 30 分钟。注意力过期后会解除，并在 Notification Center 允许时移除对应通知。超过时限后，Logo 和当前摘要回到 `idle`；最近 24 小时内仍可恢复的 session 会继续出现在 session 列表里。App 会复用已经在运行的本地 agent，不会重复启动，也不会在退出时终止外部进程。内置 agent 退出或暂时不可用时，重试间隔会从 10 秒逐步增加，最长 5 分钟，不会跟着两秒一次的历史刷新持续拉起进程。
+当前状态有固定时效，但本地历史不会被删除。`running` 与 `needs_input` 最多保留 24 小时，`done` 与 `failed` 保留 30 分钟。注意力过期后会解除，并在 Notification Center 允许时移除对应通知。Claude Code 和 Copilot CLI 有明确生命周期证据时，会在每轮执行之间继续留在活跃 session 列表中，最长 24 小时；`SessionEnd` 会立即移除对应 session。Codex 目前只有完成事件，没有对应的关闭事件，因此停止后的 Codex session 只保留 30 分钟。更早的证据仍可从本地历史查看。App 会复用已经在运行的本地 agent，不会重复启动，也不会在退出时终止外部进程。内置 agent 退出或暂时不可用时，重试间隔会从 10 秒逐步增加，最长 5 分钟，不会跟着两秒一次的历史刷新持续拉起进程。
 
-展开后的状态层最多显示三个 session，顺序依次为 `needs_input`、`failed`、未确认的 `done`、`running`，再到已确认或空闲的近期 session。每行显示 agent、受限项目名、缩短后的 session id、状态，以及各自的 **Return** 与 **Copy**。展开期间行顺序和健康状态操作保持固定，刷新不会把鼠标下方的目标换走。没有稳定 session id 的事件继续作为受限历史显示，不会伪造成 session。完整 session id、工作目录、subagent 事件、可恢复失败、prompt 文本和 `mw run` 命令文本不会出现在面板里。操作只使用经过校验的本地上下文和 Mews 生成的历史命令；上下文不可用时按钮保持禁用。
+展开后的状态层保持固定的 420×220 尺寸，在原生纵向滚动区域中显示所有可展示的活跃 session。顺序依次为 `needs_input`、`failed`、`running`、未确认的停止状态，再到已确认的停止状态。每行显示 agent、受限项目名、缩短后的 session id、状态，以及各自的 **Return** 与 **Copy**。身份仍然有效时，展开期间的行顺序和健康状态操作保持固定；明确关闭的 session 会立即消失。没有稳定 session id 的事件只保留在历史中，不会伪造成 session 或占用活跃面板。完整 session id、工作目录、subagent 事件、可恢复失败、prompt 文本和 `mw run` 命令文本不会出现在面板里。操作只使用经过校验的本地上下文和 Mews 生成的历史命令；上下文不可用时按钮保持禁用。
 
 现在的单色像素小猫会在空闲时睡觉、agent 运行时工作、需要输入时提醒，并在完成或失败时播放一次短动作。
 
@@ -114,13 +114,13 @@ Mews 把这些隐藏状态变成本地、低打扰的提醒。
 
 ![Mews 浅色和深色外观下的合成实体刘海状态，包含像素小猫以及 IDLE、RUN、ASK、DONE、FAIL 标签](assets/screenshots/mews-status-states.png)
 
-浅色外观的顶部居中材质面板展示 `needs_input`、`failed`、`done` 三种 session。安全的本地上下文会启用 **Return** 与 **Copy**，上下文不可用时两个按钮保持明显的禁用状态。
+浅色外观的顶部居中材质面板显示五个活跃 session，并展示首个滚动位置中的 `needs_input`、`failed`、停止和 running 状态。安全的本地上下文会启用 **Return** 与 **Copy**，上下文不可用时两个按钮保持明显的禁用状态。
 
-![Mews 浅色外观的顶部居中材质面板，包含 needs-input、failed、done session，以及启用和禁用的 Return、Copy 按钮](assets/screenshots/mews-multi-session.png)
+![Mews 浅色外观的顶部居中材质面板，显示五个活跃 session，以及可见的 needs-input、failed、停止、running 行和启用、禁用的 Return、Copy 按钮](assets/screenshots/mews-multi-session.png)
 
-深色外观的顶部居中材质面板展示 event delivery 警告、**Copy Fix**、可操作的 running session，以及按钮禁用的 idle session。
+深色外观的顶部居中材质面板展示 event delivery 警告、**Copy Fix**、可操作的 running session，以及按钮禁用的停止状态 session。
 
-![Mews 深色外观的顶部居中材质面板，包含降级的 event-delivery 健康状态、Copy Fix、可操作的 running session 和按钮禁用的 idle session](assets/screenshots/mews-degraded-health.png)
+![Mews 深色外观的顶部居中材质面板，显示两个活跃 session、降级的 event-delivery 健康状态、Copy Fix、可操作的 running session 和按钮禁用的停止状态 session](assets/screenshots/mews-degraded-health.png)
 
 贡献者可运行 `make screenshots` 重新生成三张固定尺寸图片。开发专用 fixture 不会渲染本地事件历史、prompt、终端输出、用户名、HOME 路径或真实、冗长的 session id。
 

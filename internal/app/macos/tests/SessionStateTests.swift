@@ -12,6 +12,7 @@ extension MewsAppModelTests {
         try testRecoverableSessionStateStore()
         try testSessionPresentation()
         try testSessionPresentationSource()
+        try testActiveSessionPanel()
     }
 
     private static func testIndependentSessions() throws {
@@ -131,6 +132,10 @@ extension MewsAppModelTests {
         try sessionExpect(
             current.statusChangedAt == start.addingTimeInterval(20),
             "a status transition should update change time"
+        )
+        try sessionExpect(
+            current.presence == .open && current.presentationStatus == .done,
+            "a stopped Copilot turn should remain an open session"
         )
     }
 

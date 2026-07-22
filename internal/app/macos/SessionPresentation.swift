@@ -3,8 +3,8 @@ import Foundation
 enum SessionPresentationPriority: Int, Comparable {
     case needsInput
     case failed
-    case unacknowledgedDone
     case running
+    case unacknowledgedDone
     case recent
 
     static func < (
@@ -74,20 +74,26 @@ struct SessionPresentationRow: Equatable {
         )
         return parts.joined(separator: ", ")
     }
+}
 
-    func disablingActions() -> SessionPresentationRow {
-        return SessionPresentationRow(
-            identity: identity,
-            status: status,
-            sourceLabel: sourceLabel,
-            projectLabel: projectLabel,
-            sessionLabel: sessionLabel,
-            statusLabel: statusLabel,
-            statusCode: statusCode,
-            returnContext: nil,
-            evidenceAt: evidenceAt,
-            priority: priority
-        )
+extension SessionStatus {
+    var sessionPresentationLabel: String {
+        return self == .done ? "Stopped" : mewsStatusLabel(rawValue)
+    }
+
+    var sessionPresentationCode: String {
+        switch self {
+        case .idle:
+            return "IDLE"
+        case .running:
+            return "RUN"
+        case .needsInput:
+            return "ASK"
+        case .done:
+            return "STOP"
+        case .failed:
+            return "FAIL"
+        }
     }
 }
 
@@ -113,15 +119,10 @@ struct RuntimeHealthPresentation: Equatable {
 }
 
 struct SessionPresentation: Equatable {
-    static let panelLimit = 3
     static let menuLimit = 5
 
     let rows: [SessionPresentationRow]
     let health: RuntimeHealthPresentation?
-
-    var panelRows: [SessionPresentationRow] {
-        return Array(rows.prefix(Self.panelLimit))
-    }
 
     var menuRows: [SessionPresentationRow] {
         return Array(rows.prefix(Self.menuLimit))
@@ -161,8 +162,8 @@ struct SessionPresentationPolicy {
         let canonicalByIdentity = Dictionary(
             uniqueKeysWithValues: canonical.map { ($0.identity, $0) }
         )
-        var retained = previous.map { row in
-            canonicalByIdentity[row.identity] ?? row.disablingActions()
+        var retained = previous.compactMap { row in
+            canonicalByIdentity[row.identity]
         }
         let retainedIdentities = Set(retained.map(\.identity))
         retained.append(
@@ -176,8 +177,9 @@ struct SessionPresentationPolicy {
         attentionRecord: AttentionRecord?,
         fileManager: FileManager
     ) -> SessionPresentationRow {
+        let status = session.presentationStatus
         let matchingAttention = attentionRecord.flatMap { record in
-            record.key.status == session.status &&
+            record.key.status == status &&
                 record.key.statusChangedAt == session.statusChangedAt
                 ? record
                 : nil
@@ -185,19 +187,20 @@ struct SessionPresentationPolicy {
 
         return SessionPresentationRow(
             identity: session.identity,
-            status: session.status,
+            status: status,
             sourceLabel: notchDisplayText(
                 mewsSourceLabel(session.source),
                 maximumColumns: 18
             ) ?? "Agent",
             projectLabel: notchProjectLabel(session.project),
             sessionLabel: notchSessionLabel(session.sessionID) ?? "unknown",
-            statusLabel: mewsStatusLabel(session.status.rawValue),
-            statusCode: statusCode(session.status),
+            statusLabel: status.sessionPresentationLabel,
+            statusCode: status.sessionPresentationCode,
             returnContext: session.returnContext?.actionable(fileManager: fileManager),
             evidenceAt: session.evidenceAt,
             priority: priority(
-                status: session.status,
+                status: status,
+                hasCurrentCompletion: session.status == .done,
                 attention: matchingAttention
             )
         )
@@ -209,12 +212,22 @@ struct SessionPresentationPolicy {
     ) -> Bool {
         let age = now.timeIntervalSince(session.evidenceAt)
         let policy = SessionFreshnessPolicy.standard
-        return age >= -policy.futureTolerance &&
-            age <= policy.activeLifetime
+        guard age >= -policy.futureTolerance else {
+            return false
+        }
+        switch session.presence {
+        case .closed:
+            return false
+        case .open:
+            return age <= policy.activeLifetime
+        case .unknown:
+            return session.isFresh && session.status != .idle
+        }
     }
 
     private static func priority(
         status: SessionStatus,
+        hasCurrentCompletion: Bool,
         attention: AttentionRecord?
     ) -> SessionPresentationPriority {
         switch status {
@@ -223,9 +236,15 @@ struct SessionPresentationPolicy {
         case .failed:
             return .failed
         case .done:
-            return attention?.disposition == .acknowledged
-                ? .recent
-                : .unacknowledgedDone
+            guard hasCurrentCompletion else {
+                return .recent
+            }
+            switch attention?.disposition {
+            case .acknowledged, .resolved:
+                return .recent
+            case .delivered, nil:
+                return .unacknowledgedDone
+            }
         case .running:
             return .running
         case .idle:
@@ -244,21 +263,6 @@ struct SessionPresentationPolicy {
             return left.evidenceAt > right.evidenceAt
         }
         return left.identity < right.identity
-    }
-
-    private static func statusCode(_ status: SessionStatus) -> String {
-        switch status {
-        case .idle:
-            return "IDLE"
-        case .running:
-            return "RUN"
-        case .needsInput:
-            return "ASK"
-        case .done:
-            return "DONE"
-        case .failed:
-            return "FAIL"
-        }
     }
 
     private static func health(
