@@ -353,47 +353,86 @@ func TestCopilotOwnershipRequiresMarkerForCurrentFormat(t *testing.T) {
 	}
 }
 
-func TestInstallCopilotMigratesPreviousManagedFormat(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
+func TestInstallCopilotMigratesPreviousManagedFormats(t *testing.T) {
+	tests := []struct {
+		name   string
+		config func(string) (copilotHookConfig, []string)
+	}{
+		{name: "v2 lifecycle hooks", config: previousControlCopilotConfigForTest},
+		{name: "v1 notification hooks", config: previousCopilotConfigForTest},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			t.Setenv("COPILOT_HOME", filepath.Join(home, "copilot"))
 
-	config, managed := previousCopilotConfigForTest("/old/mw")
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	hookPath, _ := CopilotHookPath()
-	if err := os.MkdirAll(filepath.Dir(hookPath), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(hookPath, append(data, '\n'), 0o600); err != nil {
-		t.Fatal(err)
-	}
+			config, managed := test.config("/old/mw")
+			data, err := json.MarshalIndent(config, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			hookPath, _ := CopilotHookPath()
+			if err := os.MkdirAll(filepath.Dir(hookPath), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(hookPath, append(data, '\n'), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := RemoveCopilotHooks(); err != nil {
+				t.Fatalf("RemoveCopilotHooks returned error: %v", err)
+			}
+			if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
+				t.Fatalf("previous Copilot hook still exists after removal: %v", err)
+			}
+			if err := os.WriteFile(hookPath, append(data, '\n'), 0o600); err != nil {
+				t.Fatal(err)
+			}
 
-	previous := &store.IntegrationState{
-		Name:    "copilot",
-		Path:    hookPath,
-		Created: true,
-		Managed: managed,
-	}
-	state, err := installCopilot("/new/mw", previous, false)
-	if err != nil {
-		t.Fatalf("installCopilot returned error: %v", err)
-	}
-	t.Cleanup(func() {
-		if state.RollbackPath != "" {
-			_ = os.Remove(state.RollbackPath)
-		}
-	})
+			previous := &store.IntegrationState{
+				Name:    "copilot",
+				Path:    hookPath,
+				Created: true,
+				Managed: managed,
+			}
+			state, err := installCopilot("/new/mw", previous, false)
+			if err != nil {
+				t.Fatalf("installCopilot returned error: %v", err)
+			}
+			t.Cleanup(func() {
+				if state.RollbackPath != "" {
+					_ = os.Remove(state.RollbackPath)
+				}
+			})
 
-	updated, err := os.ReadFile(hookPath)
-	if err != nil {
-		t.Fatal(err)
+			updated, err := os.ReadFile(hookPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !isMewsHook(updated) ||
+				!strings.Contains(string(updated), copilotOwnershipMarker) ||
+				!strings.Contains(string(updated), "userPromptSubmitted") {
+				t.Fatalf("previous Copilot hooks were not migrated: %s", updated)
+			}
+		})
 	}
-	if !isMewsHook(updated) || !strings.Contains(string(updated), copilotOwnershipMarker) {
-		t.Fatalf("previous Copilot hooks were not migrated: %s", updated)
+}
+
+func previousControlCopilotConfigForTest(
+	mwPath string,
+) (copilotHookConfig, []string) {
+	config := copilotHookConfig{
+		Version: 1,
+		Hooks:   make(map[string][]copilotCommandHook),
 	}
+	managed := make([]string, 0, len(previousCopilotHookEvents()))
+	for _, event := range previousCopilotHookEvents() {
+		hook := copilotHook(mwPath, event)
+		hook.Env["MEWS_MANAGED_INTEGRATION"] = previousCopilotOwnershipMarker
+		config.Hooks[event] = []copilotCommandHook{hook}
+		managed = append(managed, hook.Bash)
+	}
+	return config, managed
 }
 
 func previousCopilotConfigForTest(mwPath string) (copilotHookConfig, []string) {
@@ -425,7 +464,7 @@ func previousCopilotConfigForTest(mwPath string) (copilotHookConfig, []string) {
 			Bash:       command,
 			TimeoutSec: 5,
 			Env: map[string]string{
-				"MEWS_MANAGED_INTEGRATION": previousCopilotOwnershipMarker,
+				"MEWS_MANAGED_INTEGRATION": legacyCopilotOwnershipMarker,
 			},
 		}}
 		managed = append(managed, command)

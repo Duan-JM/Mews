@@ -77,7 +77,8 @@ func runCopilotHook(args []string, stdin io.Reader, stdout, stderr io.Writer) in
 
 func supportedCopilotHook(event string) bool {
 	switch event {
-	case "sessionStart", "subagentStart", "subagentStop", "agentStop", "sessionEnd", "errorOccurred":
+	case "sessionStart", "userPromptSubmitted", "subagentStart", "subagentStop",
+		"agentStop", "sessionEnd", "errorOccurred":
 		return true
 	default:
 		return false
@@ -108,6 +109,10 @@ func handleCopilotControlEvent(
 	stdout io.Writer,
 	stderr io.Writer,
 ) int {
+	if isCopilotToolCallSessionID(payload.SessionID) {
+		fmt.Fprintln(stdout, "Mews ignored Copilot tool-call lifecycle event")
+		return 0
+	}
 	switch hookEvent {
 	case "sessionStart":
 		if err := store.ClearCopilotHookSession(payload.SessionID); err != nil {
@@ -117,23 +122,11 @@ func handleCopilotControlEvent(
 		fmt.Fprintln(stdout, "Mews Copilot hook accepted: sessionStart")
 		return 0
 	case "subagentStart":
-		if err := store.MarkCopilotSubagent(payload.SessionID, payload.TranscriptPath); err != nil {
-			fmt.Fprintf(stderr, "Could not record Copilot subagent: %v\n", err)
-			return 1
-		}
+		// v2 hook files may call this until setup migrates them to v3.
 		fmt.Fprintln(stdout, "Mews Copilot hook accepted: subagentStart")
 		return 0
 	case "agentStop":
 		if payload.AgentName != "" {
-			fmt.Fprintln(stdout, "Mews ignored duplicate Copilot subagent stop")
-			return 0
-		}
-		subagent, err := store.IsCopilotSubagent(payload.TranscriptPath)
-		if err != nil {
-			fmt.Fprintf(stderr, "Could not classify Copilot agent: %v\n", err)
-			return 1
-		}
-		if subagent {
 			fmt.Fprintln(stdout, "Mews ignored duplicate Copilot subagent stop")
 			return 0
 		}
@@ -163,12 +156,10 @@ func copilotEvent(
 	if event.CWD != "" {
 		event.Project = filepath.Base(event.CWD)
 	}
-
 	switch hookEvent {
+	case "userPromptSubmitted":
+		event.Status = events.StatusRunning
 	case "subagentStop":
-		if err := store.MarkCopilotSubagent(payload.SessionID, payload.TranscriptPath); err != nil {
-			return events.Event{}, err
-		}
 		event.AgentScope = events.AgentScopeSubagent
 		event.Status = events.StatusDone
 	case "agentStop":
@@ -218,4 +209,14 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func isCopilotToolCallSessionID(value string) bool {
+	value = strings.TrimSpace(value)
+	for _, prefix := range []string{"call_", "toolu_"} {
+		if strings.HasPrefix(value, prefix) && len(value) > len(prefix) {
+			return true
+		}
+	}
+	return false
 }

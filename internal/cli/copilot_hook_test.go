@@ -9,31 +9,39 @@ import (
 	"testing"
 )
 
-func TestCopilotHookSuppressesSubagentAgentStopWithToolCallSessionID(t *testing.T) {
+func TestCopilotHookSuppressesToolCallLifecycleEvents(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
 	const parentSessionID = "18f53f95-467a-4f95-9ad8-29201d612f6a"
-	const nestedStopID = "call_qpS1YgQp6jkhN9x"
 	subagentPayload := `{
 		"sessionId":"` + parentSessionID + `",
 		"cwd":"/tmp/Mews",
 		"transcriptPath":"/tmp/subagent.jsonl"
 	}`
-	nestedStopPayload := `{
-		"sessionId":"` + nestedStopID + `",
-		"cwd":"/tmp/Mews",
-		"transcriptPath":"/tmp/subagent.jsonl"
-	}`
 	runCopilotHookForTest(t, "subagentStart", subagentPayload)
-	runCopilotHookForTest(t, "agentStop", nestedStopPayload)
+	for _, nestedStopID := range []string{
+		"call_qpS1YgQp6jkhN9x",
+		"toolu_01M9aYrMjZk7wUp62AZM1Djw",
+	} {
+		runCopilotHookForTest(t, "agentStop", `{
+			"sessionId":"`+nestedStopID+`",
+			"cwd":"/tmp/Mews",
+			"transcriptPath":null
+		}`)
+	}
+	runCopilotHookForTest(t, "errorOccurred", `{
+		"sessionId":"call_errorOccurred",
+		"cwd":"/tmp/Mews",
+		"recoverable":false,
+		"error":{"message":"nested failure"}
+	}`)
 	runCopilotHookForTest(t, "subagentStop", subagentPayload)
-	runCopilotHookForTest(t, "agentStop", nestedStopPayload)
 
 	mainPayload := `{
 		"sessionId":"` + parentSessionID + `",
 		"cwd":"/tmp/Mews",
-		"transcriptPath":"/tmp/main.jsonl"
+		"transcriptPath":"/tmp/subagent.jsonl"
 	}`
 	runCopilotHookForTest(t, "agentStop", mainPayload)
 
@@ -48,9 +56,38 @@ func TestCopilotHookSuppressesSubagentAgentStopWithToolCallSessionID(t *testing.
 		t.Fatalf("second event = %#v, want main completion", events[1])
 	}
 	for _, event := range events {
-		if event["session_id"] == nestedStopID {
+		sessionID, _ := event["session_id"].(string)
+		if isCopilotToolCallSessionID(sessionID) {
 			t.Fatalf("nested tool-call session reached presentation history: %#v", event)
 		}
+	}
+}
+
+func TestCopilotHookRecordsPromptSubmissionAsRunningWithoutPromptText(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	const prompt = "private prompt that must not be persisted"
+	runCopilotHookForTest(t, "userPromptSubmitted", `{
+		"sessionId":"18f53f95-467a-4f95-9ad8-29201d612f6a",
+		"cwd":"/tmp/Mews",
+		"prompt":"`+prompt+`"
+	}`)
+
+	path := filepath.Join(home, "Library", "Application Support", "Mews", "events.jsonl")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte(prompt)) {
+		t.Fatal("prompt submission persisted prompt text without task-title opt-in")
+	}
+	events := readHookEvents(t, home)
+	if len(events) != 1 ||
+		events[0]["hook_event"] != "userPromptSubmitted" ||
+		events[0]["status"] != "running" ||
+		events[0]["agent_scope"] != "main" {
+		t.Fatalf("events = %#v, want one primary running transition", events)
 	}
 }
 
