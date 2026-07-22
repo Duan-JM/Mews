@@ -59,7 +59,7 @@ func TestCopilotHookStateUsesOpaqueMarkersAndClearsPerSession(t *testing.T) {
 	if err := MarkCopilotSubagent(sessionID, transcriptPath); err != nil {
 		t.Fatalf("MarkCopilotSubagent returned error: %v", err)
 	}
-	if marked, err := IsCopilotSubagent(sessionID, transcriptPath); err != nil || !marked {
+	if marked, err := IsCopilotSubagent(transcriptPath); err != nil || !marked {
 		t.Fatalf("IsCopilotSubagent = %v, %v; want true, nil", marked, err)
 	}
 
@@ -83,7 +83,7 @@ func TestCopilotHookStateUsesOpaqueMarkersAndClearsPerSession(t *testing.T) {
 	if err := ClearCopilotHookSession(sessionID); err != nil {
 		t.Fatalf("ClearCopilotHookSession returned error: %v", err)
 	}
-	if marked, err := IsCopilotSubagent(sessionID, transcriptPath); err != nil || marked {
+	if marked, err := IsCopilotSubagent(transcriptPath); err != nil || marked {
 		t.Fatalf("IsCopilotSubagent after clear = %v, %v; want false, nil", marked, err)
 	}
 }

@@ -24,8 +24,8 @@ func MarkCopilotSubagent(sessionID, transcriptPath string) error {
 	return writeFileAtomic(markerPath, []byte("subagent\n"), 0o600)
 }
 
-func IsCopilotSubagent(sessionID, transcriptPath string) (bool, error) {
-	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(transcriptPath) == "" {
+func IsCopilotSubagent(transcriptPath string) (bool, error) {
+	if strings.TrimSpace(transcriptPath) == "" {
 		return false, nil
 	}
 	paths, err := Paths()
@@ -36,20 +36,31 @@ func IsCopilotSubagent(sessionID, transcriptPath string) (bool, error) {
 	if err != nil || !exists {
 		return false, err
 	}
-	sessionDir, markerPath, err := copilotHookPaths(paths, sessionID, transcriptPath)
+	transcriptKey, err := copilotHookKey("transcript_path", transcriptPath)
 	if err != nil {
 		return false, err
 	}
-	exists, err = copilotHookDirectoryExists(sessionDir)
-	if err != nil || !exists {
+
+	sessionEntries, err := os.ReadDir(paths.CopilotHooks)
+	if err != nil {
 		return false, err
 	}
-	if _, err := os.Stat(markerPath); os.IsNotExist(err) {
-		return false, nil
-	} else if err != nil {
-		return false, err
+	for _, entry := range sessionEntries {
+		sessionDir := filepath.Join(paths.CopilotHooks, entry.Name())
+		exists, err = copilotHookDirectoryExists(sessionDir)
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(sessionDir, transcriptKey)); err == nil {
+			return true, nil
+		} else if !os.IsNotExist(err) {
+			return false, err
+		}
 	}
-	return true, nil
+	return false, nil
 }
 
 func ClearCopilotHookSession(sessionID string) error {

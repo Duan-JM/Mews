@@ -128,7 +128,7 @@ func handleCopilotControlEvent(
 			fmt.Fprintln(stdout, "Mews ignored duplicate Copilot subagent stop")
 			return 0
 		}
-		subagent, err := store.IsCopilotSubagent(payload.SessionID, payload.TranscriptPath)
+		subagent, err := store.IsCopilotSubagent(payload.TranscriptPath)
 		if err != nil {
 			fmt.Fprintf(stderr, "Could not classify Copilot agent: %v\n", err)
 			return 1

@@ -9,22 +9,29 @@ import (
 	"testing"
 )
 
-func TestCopilotHookSuppressesSubagentAgentStop(t *testing.T) {
+func TestCopilotHookSuppressesSubagentAgentStopWithToolCallSessionID(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
+	const parentSessionID = "18f53f95-467a-4f95-9ad8-29201d612f6a"
+	const nestedStopID = "call_qpS1YgQp6jkhN9x"
 	subagentPayload := `{
-		"sessionId":"session-123",
+		"sessionId":"` + parentSessionID + `",
+		"cwd":"/tmp/Mews",
+		"transcriptPath":"/tmp/subagent.jsonl"
+	}`
+	nestedStopPayload := `{
+		"sessionId":"` + nestedStopID + `",
 		"cwd":"/tmp/Mews",
 		"transcriptPath":"/tmp/subagent.jsonl"
 	}`
 	runCopilotHookForTest(t, "subagentStart", subagentPayload)
-	runCopilotHookForTest(t, "agentStop", subagentPayload)
+	runCopilotHookForTest(t, "agentStop", nestedStopPayload)
 	runCopilotHookForTest(t, "subagentStop", subagentPayload)
-	runCopilotHookForTest(t, "agentStop", subagentPayload)
+	runCopilotHookForTest(t, "agentStop", nestedStopPayload)
 
 	mainPayload := `{
-		"sessionId":"session-123",
+		"sessionId":"` + parentSessionID + `",
 		"cwd":"/tmp/Mews",
 		"transcriptPath":"/tmp/main.jsonl"
 	}`
@@ -39,6 +46,11 @@ func TestCopilotHookSuppressesSubagentAgentStop(t *testing.T) {
 	}
 	if events[1]["hook_event"] != "agentStop" || events[1]["agent_scope"] != "main" {
 		t.Fatalf("second event = %#v, want main completion", events[1])
+	}
+	for _, event := range events {
+		if event["session_id"] == nestedStopID {
+			t.Fatalf("nested tool-call session reached presentation history: %#v", event)
+		}
 	}
 }
 
