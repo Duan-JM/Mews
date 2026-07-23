@@ -10,6 +10,14 @@ struct NotchExpandedContentView: View {
         return .resolved(increaseContrast: snapshot.increaseContrast)
     }
 
+    private var headerLayout: NotchExpandedHeaderLayout {
+        return NotchExpandedHeaderLayout.resolved(
+            placementMode: snapshot.placementMode,
+            anchorSize: snapshot.anchorSize,
+            sessionCount: snapshot.content.sessionRows.count
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             topBar
@@ -62,7 +70,7 @@ struct NotchExpandedContentView: View {
                 )
         }
         .frame(height: 28)
-        .padding(.top, 14)
+        .padding(.top, headerLayout.topInset)
     }
 
     private var emptyContent: some View {
@@ -85,5 +93,35 @@ struct NotchExpandedContentView: View {
     private var topBarLabel: String {
         let count = snapshot.content.sessionRows.count
         return count == 0 ? "NO ACTIVE" : "\(count) ACTIVE"
+    }
+}
+
+struct NotchExpandedHeaderLayout: Equatable {
+    static let preferredTopInset: CGFloat = 14
+    static let notchClearance: CGFloat = 6
+    // The fixed panel fits three complete session rows before scrolling.
+    static let visibleSessionCapacity = 3
+
+    let topInset: CGFloat
+
+    static func resolved(
+        placementMode: OverlayPlacementMode,
+        anchorSize: CGSize,
+        sessionCount: Int
+    ) -> NotchExpandedHeaderLayout {
+        guard placementMode == .notch,
+              anchorSize.height > 0,
+              sessionCount > visibleSessionCapacity else {
+            return NotchExpandedHeaderLayout(
+                topInset: preferredTopInset
+            )
+        }
+
+        return NotchExpandedHeaderLayout(
+            topInset: max(
+                preferredTopInset,
+                anchorSize.height + notchClearance
+            )
+        )
     }
 }

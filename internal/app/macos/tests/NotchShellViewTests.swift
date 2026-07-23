@@ -6,6 +6,7 @@ extension MewsAppModelTests {
         try testNotchShellLayout(snapshot: snapshot)
         try testNotchShellHitGeometry(snapshot: snapshot)
         try testTopCenterShellGeometry()
+        try testExpandedHeaderNotchAvoidance()
         try testNotchStatusCopies()
         try testNotchAccessibilityPreferences()
         try testNotchPresentationPolicy()
@@ -43,6 +44,15 @@ extension MewsAppModelTests {
             geometry.layout.cornerRadius == 16 &&
                 !geometry.shape.path(in: rect).contains(CGPoint(x: 1, y: 1)),
             "top-center mode should use detached popover corner geometry"
+        )
+        let header = expandedHeaderLayout(
+            placementMode: .topCenter,
+            anchorHeight: 44,
+            sessionCount: 999
+        )
+        try shellExpect(
+            header.topInset == 14,
+            "top-center fallback should preserve the existing header geometry"
         )
     }
 
@@ -108,6 +118,61 @@ extension MewsAppModelTests {
                 in: panelFrame
             ),
             "transparent space beside the hardware-width neck should not be clickable"
+        )
+    }
+
+    private static func testExpandedHeaderNotchAvoidance() throws {
+        let shortCount = expandedHeaderLayout(
+            anchorHeight: 32,
+            sessionCount: 3
+        )
+        let oneDigitCount = expandedHeaderLayout(
+            anchorHeight: 32,
+            sessionCount: 9
+        )
+        let mediumCount = expandedHeaderLayout(
+            anchorHeight: 32,
+            sessionCount: 31
+        )
+        let longCount = expandedHeaderLayout(
+            anchorHeight: 32,
+            sessionCount: 999
+        )
+        let tallerNotch = expandedHeaderLayout(
+            anchorHeight: 44,
+            sessionCount: 999
+        )
+        try shellExpect(
+            shortCount.topInset == 14,
+            "a non-scrolling session set should keep the existing header slot"
+        )
+        try shellExpect(
+            oneDigitCount.topInset == 38,
+            "a scrollable one-digit count should clear a 32-point notch"
+        )
+        try shellExpect(
+            mediumCount.topInset == 38,
+            "a two-digit count should clear a 32-point notch"
+        )
+        try shellExpect(
+            longCount.topInset == 38,
+            "a three-digit count should remain below the measured notch"
+        )
+        try shellExpect(
+            tallerNotch.topInset == 50,
+            "the safe inset should follow a taller physical notch"
+        )
+    }
+
+    private static func expandedHeaderLayout(
+        placementMode: OverlayPlacementMode = .notch,
+        anchorHeight: CGFloat,
+        sessionCount: Int
+    ) -> NotchExpandedHeaderLayout {
+        return NotchExpandedHeaderLayout.resolved(
+            placementMode: placementMode,
+            anchorSize: CGSize(width: 52, height: anchorHeight),
+            sessionCount: sessionCount
         )
     }
 
