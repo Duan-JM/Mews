@@ -25,4 +25,4 @@ The release MVP includes the Go CLI, bounded JSONL history, Unix socket agent, L
 
 Setup writes backups and an `integrations.json` audit record before editing existing configuration. Undo removes exact Claude commands, the marked Codex block, and the Mews-owned Copilot hook while preserving unrelated edits made after setup.
 
-CI covers tests, lint, CodeQL, universal macOS build, package checksum verification, and an isolated package install smoke. Formal release remains a maintainer action because Developer ID and notarization credentials are required. The generated Homebrew formula uses stable `opt/mews` runtime paths; the tap has not been published yet.
+CI covers tests, lint, CodeQL, universal macOS build, package checksum verification, and isolated package and Homebrew Cask runtime smokes. Formal release remains a maintainer action because Developer ID and notarization credentials are required. The generated Cask installs the signed app and links its bundled CLI; the tap has not been published yet. The ignored local development Cask removes quarantine only for an ad-hoc signed build and is never a release artifact.

@@ -32,6 +32,9 @@ make test           # Run Go tests and Swift model tests
 make lint           # Run Go, Swift, source-size, and shell lint checks
 make screenshots    # Regenerate privacy-safe synthetic interface screenshots
 make package        # Produce local release artifacts
+make cask           # Produce a release archive and versioned Homebrew Cask
+make cask-local     # Build a prerelease and prepare an ignored local Homebrew tap
+make cask-smoke     # Exercise isolated Cask install, runtime, and uninstall
 make release        # Sign, notarize, verify, and package a formal release
 make install-local  # Install into a local test prefix
 make clean          # Remove build outputs
@@ -61,7 +64,7 @@ Read `docs/architecture.md` before making architectural changes.
 
 ### Runtime pieces
 
-1. **`mw` CLI**: installed from a release package or future Homebrew tap, written primarily in Go.
+1. **`mw` CLI**: installed from a release package or Homebrew Cask, written primarily in Go.
 2. **Mews Menu Bar Agent**: a thin macOS app bundle launched by `mw start`.
 3. **Local IPC**: Unix domain socket under Application Support, with a private short-path fallback when macOS path limits require it.
 4. **Local Store**: JSON and JSONL files under `~/Library/Application Support/Mews/`.
@@ -210,4 +213,4 @@ NOTARY_PROFILE=mews-notary \
 make release
 ```
 
-The command builds with the requested version, signs the CLI and app with hardened runtime, notarizes and staples the app, verifies it with Gatekeeper, and produces a tarball, SHA-256 checksum, and checksum-pinned Homebrew formula. Missing credentials or an invalid version must fail. Do not create tags, GitHub releases, or publish the formula to a tap unless the human explicitly requests that publication action.
+The command builds with the requested version, signs the CLI and app with hardened runtime, notarizes and staples the app, verifies it with Gatekeeper, and produces a tarball, SHA-256 checksum, and checksum-pinned Homebrew Cask. Missing credentials or an invalid version must fail. Do not create tags, GitHub releases, or publish the Cask to a tap unless the human explicitly requests that publication action.

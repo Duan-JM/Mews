@@ -9,15 +9,14 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-: "${VERSION:?VERSION is required and must be a clean semver tag such as v1.2.3}"
+: "${VERSION:?VERSION is required (for example v1.2.3 or v1.2.3-dev.1)}"
 : "${SIGN_IDENTITY:?SIGN_IDENTITY is required for Developer ID signing}"
 : "${NOTARY_PROFILE:?NOTARY_PROFILE is required for xcrun notarytool}"
 
-SEMVER_RE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-if [[ ! "$VERSION" =~ $SEMVER_RE ]]; then
-  echo "VERSION must be a clean semver tag such as v1.2.3 (got: $VERSION)" >&2
-  exit 1
-fi
+# shellcheck source=scripts/version.sh
+source "$ROOT/scripts/version.sh"
+mews_require_release_version "$VERSION"
+REPOSITORY="${REPOSITORY:-Duan-JM/Mews}"
 
 for tool in codesign ditto shasum spctl xcrun; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -76,7 +75,20 @@ VERSION="$VERSION" SKIP_BUILD=1 "$ROOT/scripts/package.sh"
   shasum -a 256 -c "$CHECKSUM_NAME"
 )
 VERSION="$VERSION" "$ROOT/scripts/smoke-package.sh"
-VERSION="$VERSION" "$ROOT/scripts/homebrew-formula.sh"
+VERSION="$VERSION" CASK_LOCAL_BUILD=0 SKIP_PACKAGE=1 "$ROOT/scripts/smoke-cask.sh"
+CASK_PATH="$ROOT/dist/$CASK_FILENAME"
+RELEASE_CASK_URL="https://github.com/${REPOSITORY}/releases/download/${VERSION}/mews-${VERSION}-darwin.tar.gz"
+VERSION="$VERSION" \
+  REPOSITORY="$REPOSITORY" \
+  CASK_URL="$RELEASE_CASK_URL" \
+  CASK_OUTPUT="$CASK_PATH" \
+  CASK_BINARY_TARGET="mw" \
+  CASK_LOCAL_BUILD=0 \
+  "$ROOT/scripts/homebrew-cask.sh"
+if grep -F "com.apple.quarantine" "$CASK_PATH" >/dev/null; then
+  echo "Formal release Cask must not bypass Gatekeeper quarantine." >&2
+  exit 1
+fi
 
 echo "Release artifact ready: dist/mews-${VERSION}-darwin.tar.gz"
-echo "Homebrew formula ready: dist/mews.rb"
+echo "Homebrew Cask ready: dist/$CASK_FILENAME"

@@ -5,7 +5,7 @@
 Mews is a local macOS companion for terminal AI agents. The first public version should feel like this:
 
 ```bash
-brew install mews
+brew install --cask mews
 mw setup
 mw setup --yes
 mw start
@@ -25,7 +25,7 @@ After that, Mews starts a menu bar companion, installs the supported Claude Code
 
 ## Design Principles
 
-1. **Install, setup, start, undo**: the main path is `brew install mews`, `mw setup`, `mw start`, and `mw undo`.
+1. **Install, setup, start, undo**: the main path is `brew install --cask mews`, `mw setup`, `mw start`, and `mw undo`.
 2. **Menu bar first**: status must be visible even if notifications are missed.
 3. **Local-only**: all state stays under the current macOS user account.
 4. **No surprise writes**: Mews explains what it will enable, writes backups, and can undo its own changes.
@@ -55,7 +55,7 @@ After that, Mews starts a menu bar companion, installs the supported Claude Code
 
 Mews has two runtime pieces:
 
-1. **`mw` CLI**: user-facing command installed from a verified release package or a future Homebrew tap.
+1. **`mw` CLI**: user-facing command installed from a verified release package or the Homebrew Cask.
 2. **Mews Menu Bar Agent**: a native Swift/AppKit LSUIElement app launched by `mw start`.
 
 The CLI handles setup, diagnostics, undo, and scriptable events. The agent owns the menu bar icon, notification delivery, current state, recent history, and local IPC server.
@@ -530,7 +530,7 @@ Copilot CLI        hooks installed
 
 ## Packaging
 
-The release package and future Homebrew formula install:
+The release archive contains:
 
 ```text
 bin/mw
@@ -538,6 +538,8 @@ libexec/Mews.app
 ```
 
 The fallback installer writes only beneath `PREFIX` and does not edit shell startup files. Users of a custom prefix must expose `PREFIX/bin` through their shell configuration.
+
+The Homebrew Cask moves the signed app to `/Applications/Mews.app` and links its bundled `Contents/Resources/mw` executable into Homebrew's `bin` directory. The CLI resolves the containing app bundle after following that symlink, so setup hooks keep a stable path across Cask upgrades.
 
 `mw setup`:
 
@@ -555,7 +557,9 @@ The fallback installer writes only beneath `PREFIX` and does not edit shell star
 
 This keeps the install path simple while still using a proper app bundle for menu bar identity and macOS notifications.
 
-`make build` produces universal `arm64` and `x86_64` CLI and app executables, then applies a complete ad-hoc signature to the local app bundle so menu bar identity and notification permission work during development. `make package` produces a versioned tarball and SHA-256 checksum. `VERSION=vX.Y.Z make release-check` runs tests, lint, checksum verification, and an isolated installed-runtime smoke that applies setup, executes all three generated integration paths through IPC, checks privacy-safe history, and verifies undo/reset. Formal `make release` must run from a clean `main` synchronized with `origin/main` and requires a Developer ID identity and notarization keychain profile. It replaces the local signature with Developer ID signatures, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, and generates a checksum-pinned Homebrew formula for tap publication. Homebrew-managed hooks and LaunchAgent paths use the stable `opt/mews` prefix rather than a versioned Cellar path.
+`make build` produces universal `arm64` and `x86_64` CLI and app executables, then applies a complete ad-hoc signature to the local app bundle so menu bar identity and notification permission work during development. `make package` produces a versioned tarball and SHA-256 checksum. `VERSION=v0.1.0-dev.1 make cask-local` creates an ignored local tap and a development-only Cask that removes quarantine after installation because ad-hoc signatures cannot pass Gatekeeper; that Cask must never be published. Setup and undo remain explicit.
+
+`VERSION=vX.Y.Z make release-check` runs tests, lint, checksum verification, the isolated package runtime smoke, and a real Homebrew Cask install/runtime/uninstall smoke. Formal `make release` must run from a clean `main` synchronized with `origin/main` and requires a Developer ID identity and notarization keychain profile. It replaces the local signature with Developer ID signatures, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, verifies the normally quarantined Cask installation with Gatekeeper, and generates a checksum-pinned Cask for tap publication.
 
 `make screenshots` is a developer-only documentation path. It compiles an explicit set of production UI model and view sources together with synthetic fixtures and a renderer under `scripts/`, writes into temporary directories, and renders fixed 420-by-220-point scenes at 2x resolution. The fixtures cover physical-notch and top-center placement in light and dark appearance. The command validates the fixture manifest, dimensions, file set, current username and HOME exclusions, prohibited sensitive-text markers, and expected visible labels through the macOS Vision framework. It renders twice and requires byte-identical PNG output before replacing `assets/screenshots` through a rollback-protected directory swap. The app build still compiles only `internal/app/macos/*.swift`, and the release package does not copy `scripts/`, so the fixture and renderer never enter Mews.app or the installed runtime. Only the validated documentation PNGs remain under `assets/`.
 
@@ -639,7 +643,7 @@ Repository rules:
 1. **Root stays product-facing**: README, install script, security docs, contributing guide, and Makefile should be enough for a new contributor to understand the project.
 2. **Go code follows `cmd/` + `internal/`**: no sprawling packages at root.
 3. **Scripts are explicit**: build, package, release, and local install scripts live under `scripts/`; `install.sh` stays as the user-facing fallback installer.
-4. **Makefile is the contributor API**: common tasks should be discoverable through `make lint-tools`, `make hooks`, `make check`, `make test`, `make build`, `make lint`, `make package`, and `make install-local`.
+4. **Makefile is the contributor API**: common tasks should be discoverable through `make lint-tools`, `make hooks`, `make check`, `make test`, `make build`, `make lint`, `make package`, `make cask-local`, `make cask-smoke`, and `make install-local`.
 5. **Security docs are first-class**: because Mews edits local tool configs, it needs `SECURITY.md` and a practical `SECURITY_AUDIT.md` from the start.
 6. **Workflows stay boring**: CI runs tests, lint, shellcheck, CodeQL, package checksum verification, and an isolated artifact smoke. Signing remains an explicit credential-gated maintainer action.
 
@@ -653,6 +657,9 @@ make build          # Build mw CLI and package Mews.app
 make test           # Run Go tests and Swift model tests
 make lint           # Run Go, Swift, source-size, and shell lint checks
 make package        # Produce local release artifact
+make cask           # Produce a release archive and versioned Homebrew Cask
+make cask-local     # Build a prerelease and prepare an ignored local tap
+make cask-smoke     # Install, run, and uninstall an isolated local Cask
 make release        # Sign, notarize, verify, and package a release
 make install-local  # Install into a local test prefix
 make clean          # Remove build outputs
@@ -688,6 +695,7 @@ Manual acceptance checks:
 13. The pixel logo opens the compact notch/top-center shell, while right-click and Control-click retain the existing menu.
 14. A physical-notch attention event does not also send a system notification; clamshell and no-notch layouts keep the notification fallback.
 15. A physical notch keeps a recognizable compact status below the hardware, briefly previews new attention events, and expands from the same visible hit region.
+16. A local `mews@dev` Cask installs the app and CLI, runs without a Gatekeeper prompt, preserves explicit setup/undo, and uninstalls without leaving its artifacts.
 
 Automated tests:
 
@@ -703,6 +711,7 @@ Automated tests:
 - Integration marker insertion and removal.
 - Backup and restore behavior.
 - Doctor checks for missing socket, denied notification permission, and unwritable store.
+- Prerelease version parsing and isolated Homebrew Cask install/runtime/uninstall.
 
 ## Rollback
 
@@ -723,6 +732,4 @@ Every external write must have a rollback path:
 
 1. Copilot CLI lifecycle compatibility needs real-session verification across supported versions, especially agents that omit explicit subagent lifecycle events.
 2. Claude Code and Codex integrations need real-session compatibility checks as upstream payloads evolve.
-3. The Homebrew tap layout must preserve the signed app bundle and checksum verification.
-
 These do not block the first architecture because each has a safe fallback.

@@ -10,6 +10,7 @@ make hooks
 make check
 make package
 VERSION=dev ./scripts/smoke-package.sh
+VERSION=v0.1.0-dev.1 make cask-smoke
 ```
 
 `make lint-tools` installs the pinned Go, Swift, and Shell linters under `.tools/bin`.
@@ -65,7 +66,7 @@ day-to-day change.
 A release promotion uses a pull request from `dev` to `main`. After that pull
 request is merged, a maintainer runs the formal release command from a clean
 `main` synchronized with `origin/main`. Creating a tag, GitHub release, or
-published Homebrew formula remains a separate explicit action.
+published Homebrew Cask remains a separate explicit action.
 
 An urgent hotfix starts from `main` and targets `main`. After it is merged, move
 the same fix back to `dev` through a separate pull request. Do not use a direct
