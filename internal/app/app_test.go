@@ -39,6 +39,16 @@ func TestResolveBundleRejectsMissingBundle(t *testing.T) {
 	}
 }
 
+func TestContainingBundlePathFindsBundledCLI(t *testing.T) {
+	path := "/Applications/Mews.app/Contents/Resources/mw"
+	if got := containingBundlePath(path); got != "/Applications/Mews.app" {
+		t.Fatalf("containingBundlePath(%q) = %q", path, got)
+	}
+	if got := containingBundlePath("/opt/homebrew/bin/mw"); got != "" {
+		t.Fatalf("containingBundlePath returned unexpected bundle: %q", got)
+	}
+}
+
 func TestStableInstalledPathUsesHomebrewOptPrefix(t *testing.T) {
 	tests := map[string]string{
 		"/opt/homebrew/Cellar/mews/0.1.0/bin/mw": "/opt/homebrew/opt/mews/bin/mw",

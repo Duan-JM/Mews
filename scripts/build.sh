@@ -5,18 +5,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 VERSION="${VERSION:-dev}"
-SEMVER_RE='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
-
-if [[ "$VERSION" == "dev" ]]; then
-  APP_SHORT_VERSION="0.0.0"
-  APP_BUILD_VERSION="0"
-elif [[ "$VERSION" =~ $SEMVER_RE ]]; then
-  APP_SHORT_VERSION="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
-  APP_BUILD_VERSION="$APP_SHORT_VERSION"
-else
-  echo "VERSION must be dev or a clean semver tag such as v1.2.3 (got: $VERSION)" >&2
-  exit 1
-fi
+# shellcheck source=scripts/version.sh
+source "$ROOT/scripts/version.sh"
+mews_parse_version "$VERSION"
 
 mkdir -p bin
 rm -f bin/mw

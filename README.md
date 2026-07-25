@@ -17,7 +17,7 @@ Mews watches the AI agents you run from terminal and keeps their lifecycle event
 
 When Claude Code, Codex, Copilot CLI, or a long-running terminal command finishes, fails, or needs you, Mews lets you know. You do not have to keep checking every pane.
 
-> Mews is an MVP release candidate. The local product path, three agent integrations, reversible setup, package verification, and signed/notarized release pipeline are implemented. A Homebrew tap is still a distribution follow-up.
+> Mews is an MVP release candidate. The local product path, three agent integrations, reversible setup, package verification, Homebrew Cask generation, and signed/notarized release pipeline are implemented. Publishing the tap is still a distribution follow-up.
 
 ## Install
 
@@ -33,6 +33,28 @@ mw start
 ```
 
 Verify the downloaded archive with the adjacent `.sha256` file before installing.
+
+For a local Homebrew Cask preview from this repository:
+
+```bash
+make lint-tools
+VERSION=v0.1.0-dev.1 make cask-local
+brew install --cask duan-jm/mews-local/mews@dev
+mw setup
+mw setup --yes
+mw start
+```
+
+The generated local Cask removes quarantine only from its ad-hoc signed development build. Signed release Casks keep normal Gatekeeper protection. Setup stays explicit because it edits Claude Code, Codex, and Copilot CLI configuration after showing the planned writes.
+
+Remove the preview in rollback order:
+
+```bash
+mw undo
+brew uninstall --cask duan-jm/mews-local/mews@dev
+brew untrust --cask duan-jm/mews-local/mews@dev
+brew untap duan-jm/mews-local
+```
 
 For development from this repository:
 
@@ -192,7 +214,7 @@ NOTARY_PROFILE=mews-notary \
 make release
 ```
 
-`make release-check` runs tests, lint, package checksum verification, and an isolated installed-runtime smoke without requiring signing credentials. The formal release command must run from a clean `main` synchronized with `origin/main`; it requires signing and notarization credentials, verifies the app with Gatekeeper, and produces a tarball, SHA-256 checksum, and version-pinned `dist/mews.rb` formula for publication to a Homebrew tap. It fails instead of producing an unsigned formal release.
+`make release-check` runs tests, lint, package checksum verification, and isolated package and Cask runtime smokes without requiring signing credentials. The formal release command must run from a clean `main` synchronized with `origin/main`; it requires signing and notarization credentials, verifies the app and installed Cask with Gatekeeper, and produces a tarball, SHA-256 checksum, and version-pinned Homebrew Cask for tap publication. Stable versions generate `dist/mews.rb`; prereleases such as `v0.1.0-dev.1` generate `dist/mews@dev.rb`. The command fails instead of producing an unsigned formal release.
 
 ## Roadmap
 

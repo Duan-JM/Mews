@@ -42,6 +42,9 @@ func ResolveBundle() (Bundle, error) {
 	}
 	var candidates []string
 	for _, executable := range executables {
+		if containingBundle := containingBundlePath(executable); containingBundle != "" {
+			candidates = append(candidates, containingBundle)
+		}
 		exeDir := filepath.Dir(executable)
 		candidates = append(candidates,
 			filepath.Join(exeDir, "..", "lib", BundleName),
@@ -55,6 +58,18 @@ func ResolveBundle() (Bundle, error) {
 		}
 	}
 	return Bundle{}, ErrNotFound
+}
+
+func containingBundlePath(path string) string {
+	for dir := filepath.Dir(filepath.Clean(path)); ; dir = filepath.Dir(dir) {
+		if filepath.Base(dir) == BundleName {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+	}
 }
 
 func StableInstalledPath(path string) string {

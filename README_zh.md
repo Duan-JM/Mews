@@ -17,7 +17,7 @@ Mews 会盯着你在终端里运行的 AI agent，把它们的生命周期事件
 
 当 Claude Code、Codex、Copilot CLI 或一个长时间运行的终端命令完成、失败或需要你处理时，Mews 会提醒你。
 
-> Mews 目前是 MVP release candidate。本地产品链路、三种 agent 接入、可逆 setup、安装包验证，以及签名和公证发布流程已经实现。Homebrew tap 仍是后续分发工作。
+> Mews 目前是 MVP release candidate。本地产品链路、三种 agent 接入、可逆 setup、安装包验证、Homebrew Cask 生成，以及签名和公证发布流程已经实现。公开 tap 仍是后续分发工作。
 
 ## 安装
 
@@ -33,6 +33,28 @@ mw start
 ```
 
 安装前请用 release 附带的 `.sha256` 文件校验压缩包。
+
+可以从当前仓库体验本地 Homebrew Cask：
+
+```bash
+make lint-tools
+VERSION=v0.1.0-dev.1 make cask-local
+brew install --cask duan-jm/mews-local/mews@dev
+mw setup
+mw setup --yes
+mw start
+```
+
+本地 Cask 只会为 ad-hoc 签名的开发构建移除 quarantine；正式签名的 release Cask 仍由 Gatekeeper 正常校验。Setup 保持显式执行，因为它会先展示计划，再修改 Claude Code、Codex 和 Copilot CLI 配置。
+
+按回滚顺序移除本地预览：
+
+```bash
+mw undo
+brew uninstall --cask duan-jm/mews-local/mews@dev
+brew untrust --cask duan-jm/mews-local/mews@dev
+brew untap duan-jm/mews-local
+```
 
 从仓库开发和体验：
 
@@ -196,7 +218,7 @@ NOTARY_PROFILE=mews-notary \
 make release
 ```
 
-`make release-check` 会运行测试、lint、安装包校验和检查，以及隔离的安装后运行 smoke，不需要签名凭据。正式发布命令强制要求签名和公证凭据，使用 Gatekeeper 校验 App，并生成 tarball、SHA-256 校验文件，以及用于发布到 Homebrew tap 的版本固定 `dist/mews.rb` formula。缺少凭据时不会生成形式上像正式发布、实际未签名的产物。
+`make release-check` 会运行测试、lint、安装包校验和检查，以及隔离的 package/Cask 运行 smoke，不需要签名凭据。正式发布命令强制要求签名和公证凭据，使用 Gatekeeper 校验 App 和 Cask 安装结果，并生成 tarball、SHA-256 校验文件和版本固定的 Homebrew Cask。稳定版本生成 `dist/mews.rb`，`v0.1.0-dev.1` 这类预发布版本生成 `dist/mews@dev.rb`。缺少凭据时不会生成形式上像正式发布、实际未签名的产物。
 
 ## 路线图
 

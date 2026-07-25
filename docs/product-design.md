@@ -74,7 +74,7 @@ Must have:
 6. `mw undo` for Mews-owned integrations.
 7. Clear privacy copy in the README.
 8. A thin menu bar companion with a fixed-size notch/top-center shell for all displayable current sessions, native vertical scrolling, and validated per-session actions, launched by `mw start`.
-9. Versioned, checksummed packages and a credential-gated signed release path.
+9. Versioned, checksummed packages, a Homebrew Cask, and a credential-gated signed release path.
 
 Runtime health is separate from agent lifecycle presentation. `mw status`, `mw doctor`, and the native companion use one local snapshot: `checking` applies when a transition is pending and no confirmed degraded or blocked capability outranks it, `ready` hides repair controls, `degraded` preserves core event delivery while naming the affected capability, and `blocked` means a core local dependency is unavailable. The native UI shows only fresh confirmed degradation or blockage, with a copyable recovery instruction when available. Configuration drift and functional IPC failure remain distinct.
 
