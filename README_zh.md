@@ -1,231 +1,82 @@
 <div align="center">
-  <img src="./assets/mews-logo.svg" width="96" height="96" alt="Mews 极简猫咪 logo">
+  <img src="./assets/mews-logo.svg" width="96" height="96" alt="Mews 猫咪 Logo">
   <h1>Mews</h1>
-  <p><em>🐈 不再错过你的 AI agent。</em></p>
+  <p><em>别再错过终端里的 AI Agent。</em></p>
 </div>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-local--first-black?style=flat-square" alt="macOS local first">
-  <img src="https://img.shields.io/badge/distribution-signed_release_pipeline-orange?style=flat-square" alt="Signed release pipeline">
-  <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/status-MVP_release_candidate-green?style=flat-square" alt="MVP release candidate">
+  <img src="https://img.shields.io/badge/macOS-local--only-black?style=flat-square" alt="仅在 macOS 本地运行">
+  <img src="https://img.shields.io/badge/status-release_candidate-green?style=flat-square" alt="发布候选版本">
+  <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="GPL v3 许可证">
 </p>
 
 [English](./README.md)
 
-Mews 会盯着你在终端里运行的 AI agent，把它们的生命周期事件留在本机，让你不用一直切回终端看状态。
+Mews 是一个运行在 macOS 菜单栏的本地小工具，用来查看终端 AI Agent 的状态。Agent 完成、失败或等待输入时，它会及时提醒你，不用反复检查每个终端窗口。
 
-当 Claude Code、Codex、Copilot CLI 或一个长时间运行的终端命令完成、失败或需要你处理时，Mews 会提醒你。
+## 基础功能
 
-> Mews 目前是 MVP release candidate。本地产品链路、三种 agent 接入、可逆 setup、安装包验证、Homebrew Cask 生成，以及签名和公证发布流程已经实现。公开 tap 仍是后续分发工作。
+- MacBook 刘海可用时显示紧凑状态，其他场景使用通知中心。
+- 在菜单栏查看当前会话，并在本机保留最近的事件历史。
+- 支持 Claude Code、Codex、Copilot CLI，也可以通过 `mw run` 监控长时间运行的命令。
+- 本地上下文有效时可以返回原终端，也可以复制查看该会话本地历史的命令。
 
 ## 安装
 
-从 GitHub release 安装：
+> Mews 目前还没有公开下载，首个签名版本正在准备中。
+
+首个版本发布后，从 [GitHub Releases](https://github.com/Duan-JM/Mews/releases) 下载压缩包和对应的 `.sha256` 文件，然后运行：
 
 ```bash
+shasum -a 256 -c mews-vX.Y.Z-darwin.tar.gz.sha256
 tar -xzf mews-vX.Y.Z-darwin.tar.gz
 cd mews-vX.Y.Z-darwin
 sudo ./install.sh
+
 mw setup
 mw setup --yes
 mw start
 ```
 
-安装前请用 release 附带的 `.sha256` 文件校验压缩包。
+`mw setup` 会先展示计划修改的本地配置。`mw setup --yes` 应用这些改动，`mw start` 启动菜单栏应用。
 
-可以从当前仓库体验本地 Homebrew Cask：
+## 卸载
 
-```bash
-make lint-tools
-VERSION=v0.1.0-dev.1 make cask-local
-brew install --cask duan-jm/mews-local/mews@dev
-mw setup
-mw setup --yes
-mw start
-```
-
-本地 Cask 只会为 ad-hoc 签名的开发构建移除 quarantine；正式签名的 release Cask 仍由 Gatekeeper 正常校验。Setup 保持显式执行，因为它会先展示计划，再修改 Claude Code、Codex 和 Copilot CLI 配置。
-
-按回滚顺序移除本地预览：
+删除安装文件前，先移除 Mews 管理的接入配置：
 
 ```bash
 mw undo
-brew uninstall --cask duan-jm/mews-local/mews@dev
-brew untrust --cask duan-jm/mews-local/mews@dev
-brew untap duan-jm/mews-local
+
+# 可选：删除本地事件历史和日志。
+mw reset --yes
+
+sudo rm -f /usr/local/bin/mw
+sudo rm -rf /usr/local/libexec/Mews.app
 ```
 
-从仓库开发和体验：
+想保留本地历史时，请跳过 `mw reset --yes`。如果安装时使用了自定义 `PREFIX`，请把 `/usr/local` 换成对应路径。
 
-```bash
-make lint-tools
-make check
-./bin/mw setup
-./bin/mw setup --yes
-./bin/mw start
-./bin/mw doctor
-```
+## 安全设计
 
-`mw setup` 会先展示 Mews 准备写入的本地改动。`mw setup --yes` 才会应用这些 Mews-owned 设置。`mw start` 会安装当前用户的 LaunchAgent，并启动由 `make build` 打包出来的轻量菜单栏 companion。
+- 核心功能完全在本机运行，不需要账号，不包含遥测，也不依赖云服务。
+- Mews 默认不读取或上传代码、提示词、对话记录、命令输出和终端滚动内容。
+- `mw setup` 会展示计划写入的内容，为支持的配置文件创建备份；无法安全修改时会保持原文件不变。
+- `mw undo` 只移除 Mews 管理的接入改动，不删除用户的其他配置。
+- 任务标题需要主动开启，内容会截断并只保存在本机。返回操作只使用经过校验的本地上下文，不执行事件传入的命令。
 
-终端返回默认使用 `auto`：能识别事件来源时回到原终端，否则使用 Terminal.app。可以在 setup 时指定，也可以之后修改：
+安全问题的报告方式和完整边界见 [Security Policy](./SECURITY.md)。
 
-```bash
-mw setup --yes --terminal kitty
-mw config terminal kitty
-```
+## 使用技巧
 
-可选项包括 `auto`、`terminal`、`kitty`、`iterm2`、`wezterm`、`ghostty` 和 `alacritty`。`mw status` 与 `mw config terminal` 会显示当前设置。
+- 用 `mw status` 快速查看已监控的工具和当前状态。
+- 接入、通知或菜单栏应用异常时，运行 `mw doctor`。
+- 用 `mw history` 查看最近事件，或用 `mw history --session <id>` 查看单个会话。
+- 用 `mw config terminal <name>` 选择返回操作打开的终端。
+- 在长命令前加 `mw run -- <command>`，命令结束时会收到提醒。
+- 只有需要在本机保存简短任务标题时，才为 `mw setup --yes` 添加 `--include-task-title`。
 
-主 session 每次进入完成、失败或需要输入状态时，Mews.app 只选择一个提醒通道。同一轮状态的重复 hook、日志重放或轮转、App 重启不会再次提醒；session 回到 `running` 或 `idle` 后，后续的新一轮状态仍会提醒。有可用实体刘海时，由刘海状态层展示状态变化，不再同时发送 macOS 通知；合盖、无刘海屏幕或暂时没有可用屏幕时，Notification Center 继续作为降级通道。Subagent 完成和可恢复错误只进入本地历史，不会替换主状态或打断用户。降级通知的标题会标明 agent 和状态，并在工具提供相关信息时显示项目名和缩短后的 session id。正文会描述生命周期动作，但不会展示完整工作目录、完整 session id、prompt 或终端输出。如果希望正文带一个简短任务标题，需要显式开启：
+## 文档
 
-```bash
-mw setup --yes --include-task-title
-```
+架构、产品设计、界面预览、打包、发布和回滚细节见 [文档索引](./docs/README.md)。参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
-这个选项最多保存 80 个来自 hook payload 的本地字符。Mews 仍然不会上传 prompt、transcript 或终端输出。
-
-App bundle 会带上 Mews 猫咪 logo 作为 macOS 图标。原生降级通知使用这个 App 身份，不会把 logo 作为通知内容额外塞进去。事件带有可用本地上下文时，通知会提供 **Return to CLI** 和 **Copy Return Command**。通过通知、状态层或 session 菜单返回时，只确认该 session 当前的注意力；复制返回命令不会确认。返回时会先复制 Mews 生成的 `mw history --session 'abc123'`，再优先激活原终端；有 tmux 上下文时会把记录的 client 切回原 session、window 和 pane。如果原 client 已 detached，但 tmux server 和 pane 仍存在，Mews 会新开 kitty 窗口并直接 attach 到记录的 pane。kitty 已配置本地 Unix remote-control socket 时还会尝试聚焦原窗口。无法恢复原 kitty 或 detached tmux 上下文时，即使 kitty 已经在运行，Mews 也会在经过校验的工作目录打开并激活一个新窗口。其他终端的原上下文不可用时，会用选定终端打开该目录。Mews 不修改 kitty 配置，不执行事件传入的命令，也不读取 terminal scrollback。
-
-Setup 会安装：
-
-- Claude Code 生命周期 hook：`~/.claude/settings.json`
-- Codex 顶层 `notify` 命令：`~/.codex/config.toml`
-- Copilot CLI user-level hook：`~/.copilot/hooks/mews.json`
-
-Mews 修改 Claude 和 Codex 配置前会创建备份，保留无关设置，并把管理路径记录到 `integrations.json`。遇到冲突或无法安全处理的配置结构时会拒绝修改。setup 后需要重启对应 CLI，让它重新加载配置。
-
-如果某个接入不能安全启用，Mews 会跳过它，并在 `mw doctor` 里说明原因。
-
-## 运行健康状态
-
-`mw status`、`mw doctor` 和原生 companion 读取同一份本地 runtime-health snapshot。`checking`、`ready` 与过期数据不会占用菜单和展开面板；只有新鲜的 `degraded` 或 `blocked` 能力会显示受影响项、简短原因，以及可复制的恢复指令。配置漂移与 IPC 功能故障保持分开，恢复动作不会自动修改第三方配置。
-
-## 为什么做
-
-AI agent 很容易启动，也很容易被忘掉。
-
-你让 Claude Code 改一个文件，让 Codex 跑测试，或者让 Copilot CLI 处理一段任务，然后切去做别的事。十分钟后它可能已经完成、失败、卡住或在等你确认，但信号还埋在某个终端窗口里。
-
-Mews 把这些隐藏状态变成本地、低打扰的提醒。
-
-## MVP 已有能力
-
-- 主 agent 需要关注时，只使用实体刘海提示或原生 macOS 通知降级中的一个通道。
-- 本地 JSONL 历史记录，错过通知后还能找回。
-- 菜单栏 companion 使用随状态变化的像素 Logo、活跃 session 列表，以及紧凑的刘海/顶部居中状态层。
-- `doctor` 会显示 setup、三种接入、通知权限、LaunchAgent、socket 和菜单栏 app 状态。
-- 本地事件日志有容量上限，发布包带隔离 smoke test。
-
-## Mac companion
-
-当前菜单栏 companion 故意保持轻量。它会启动本地 IPC agent，读取本地事件历史与可恢复 session 状态，并通过紧凑的像素 Logo 显示最新状态。左键点击 Logo 会打开贴合实体刘海或其他屏幕顶部居中的活跃 session 状态层；右键或 Control-click 会打开活跃 session、无稳定 session id 的历史事件、Refresh 和 Quit 菜单。
-
-状态层会跟随屏幕拓扑变化，不会沿用过期坐标。有实体刘海时，顶部窄颈贴合硬件，刘海下方固定显示像素小猫与 `IDLE`、`RUN`、`ASK`、`DONE` 或 `FAIL`。需要输入、完成和失败事件会短暂加宽状态条并显示直白说明，随后收回紧凑形态；点击可见区域会从同一锚点展开现有面板。合盖模式或只连接外接屏时，状态层会以独立的自适应材质面板落在主屏菜单栏下方；短暂没有可用屏幕时先隐藏，屏幕恢复后重新定位。提醒通道也使用当前拓扑：实体刘海可用时由刘海状态层提示，其他布局使用 Notification Center，不会自动展开顶部居中面板。面板可跨 Space，并能显示在全屏辅助层。开启“减弱动态效果”后，尺寸变化改为静态切换和短淡入淡出；开启“降低透明度”或“增强对比度”后，顶部居中面板会改用不透明的高对比度表面；VoiceOver 可以读出明确的状态和面板标签。
-
-当前状态有固定时效，但本地历史不会被删除。`running` 与 `needs_input` 最多保留 24 小时，`done` 与 `failed` 保留 30 分钟。注意力过期后会解除，并在 Notification Center 允许时移除对应通知。Claude Code 和 Copilot CLI 有明确生命周期证据时，会在每轮执行之间继续留在活跃 session 列表中，最长 24 小时；`SessionEnd` 会立即移除对应 session。Codex 目前只有完成事件，没有对应的关闭事件，因此停止后的 Codex session 只保留 30 分钟。更早的证据仍可从本地历史查看。App 会复用已经在运行的本地 agent，不会重复启动，也不会在退出时终止外部进程。内置 agent 退出或暂时不可用时，重试间隔会从 10 秒逐步增加，最长 5 分钟，不会跟着两秒一次的历史刷新持续拉起进程。
-
-展开后的状态层保持固定的 420×220 尺寸，在原生纵向滚动区域中显示所有可展示的活跃 session。顺序依次为 `needs_input`、`failed`、`running`、未确认的停止状态，再到已确认的停止状态。每行显示 agent、受限项目名、缩短后的 session id、状态，以及各自的 **Return** 与 **Copy**。身份仍然有效时，展开期间的行顺序和健康状态操作保持固定；明确关闭的 session 会立即消失。没有稳定 session id 的事件只保留在历史中，不会伪造成 session 或占用活跃面板。完整 session id、工作目录、subagent 事件、可恢复失败、prompt 文本和 `mw run` 命令文本不会出现在面板里。操作只使用经过校验的本地上下文和 Mews 生成的历史命令；上下文不可用时按钮保持禁用。
-
-现在的单色像素小猫会在空闲时睡觉、agent 运行时工作、需要输入时提醒，并在完成或失败时播放一次短动作。
-
-### 合成界面预览
-
-第一张合成预览展示浅色和深色外观下保持纯黑的实体刘海样式，以及像素小猫与 `IDLE`、`RUN`、`ASK`、`DONE`、`FAIL` 五种紧凑状态。
-
-![Mews 浅色和深色外观下的合成实体刘海状态，包含像素小猫以及 IDLE、RUN、ASK、DONE、FAIL 标签](assets/screenshots/mews-status-states.png)
-
-浅色外观的顶部居中材质面板显示五个活跃 session，并展示首个滚动位置中的 `needs_input`、`failed`、停止和 running 状态。安全的本地上下文会启用 **Return** 与 **Copy**，上下文不可用时两个按钮保持明显的禁用状态。
-
-![Mews 浅色外观的顶部居中材质面板，显示五个活跃 session，以及可见的 needs-input、failed、停止、running 行和启用、禁用的 Return、Copy 按钮](assets/screenshots/mews-multi-session.png)
-
-深色外观的顶部居中材质面板展示 event delivery 警告、**Copy Fix**、可操作的 running session，以及按钮禁用的停止状态 session。
-
-![Mews 深色外观的顶部居中材质面板，显示两个活跃 session、降级的 event-delivery 健康状态、Copy Fix、可操作的 running session 和按钮禁用的停止状态 session](assets/screenshots/mews-degraded-health.png)
-
-贡献者可运行 `make screenshots` 重新生成三张固定尺寸图片。开发专用 fixture 不会渲染本地事件历史、prompt、终端输出、用户名、HOME 路径或真实、冗长的 session id。
-
-## Mews 监控什么
-
-Mews 面向终端 AI 用户已经在用的工具：
-
-- Claude Code：通过 user-level 生命周期 hook 接入
-- Codex：通过 user-level `notify` 命令接入
-- Copilot CLI：通过 user-level hook 接入
-- 长时间运行的 shell 命令：使用 `mw run -- <command>`
-
-用户不应该为了让 Mews 有用，就先学 hook JSON、手动改配置或理解通知协议。
-
-## 隐私
-
-Mews 的隐私边界应该简单、可审计。
-
-- 只在你的 Mac 本机运行。
-- 不上传代码、prompt、transcript 或终端输出。
-- 默认不扫描 terminal scrollback。
-- 只启用你同意的接入。
-- 自动写入的改动都应该可以撤销。
-
-## 命令
-
-大多数用户只需要这些命令：
-
-```bash
-mw setup       # 查看 setup 计划
-mw setup --yes # 应用 Mews-owned setup
-mw setup --yes --terminal kitty # setup 时指定返回终端
-mw setup --yes --include-task-title # 显式开启本地短任务标题
-mw start       # setup 后启动本地 agent
-mw status      # 查看当前本地状态
-mw config terminal kitty # 修改返回终端
-mw history     # 查看最近本地事件
-mw history --session <id> # 查看某个 session 的事件
-mw listen      # 在终端里监听并打印事件
-mw doctor      # 检查 setup 和接入状态
-mw undo        # 移除 Mews 安装的接入和 setup state
-```
-
-脚本化场景可以用：
-
-```bash
-mw notify      # 发送自定义状态事件
-mw run -- cmd  # 运行命令，并在退出时通知
-mw stop        # 停止本地 agent
-mw reset --yes # undo 后删除 Mews 本地数据和日志
-```
-
-## Mews 不是什么
-
-Mews 不是 AI 聊天应用，不是 Claude wrapper，不是 Codex dashboard，不是 Copilot 替代品，也不是团队监控产品。
-
-它只是一个给终端 AI agent 用户用的小型 Mac companion，让你不用一直盯着终端。
-
-## 发布
-
-维护者可以先运行不需要签名凭据的发布检查：
-
-```bash
-VERSION=vX.Y.Z make release-check
-```
-
-正式发布需要在与 `origin/main` 同步的干净 `main` 分支上运行：
-
-```bash
-VERSION=vX.Y.Z \
-SIGN_IDENTITY="Developer ID Application: ..." \
-NOTARY_PROFILE=mews-notary \
-make release
-```
-
-`make release-check` 会运行测试、lint、安装包校验和检查，以及隔离的 package/Cask 运行 smoke，不需要签名凭据。正式发布命令强制要求签名和公证凭据，使用 Gatekeeper 校验 App 和 Cask 安装结果，并生成 tarball、SHA-256 校验文件和版本固定的 Homebrew Cask。稳定版本生成 `dist/mews.rb`，`v0.1.0-dev.1` 这类预发布版本生成 `dist/mews@dev.rb`。缺少凭据时不会生成形式上像正式发布、实际未签名的产物。
-
-## 路线图
-
-- 发布并维护 Homebrew tap。
-- 增加 quiet mode 和更细的通知规则。
-- 改进菜单栏视觉，但不扩张为 agent dashboard。
-
-## 产品说明
-
-更长的设计说明在 [docs/](./docs/)。
+Mews 使用 [GPL v3](./LICENSE) 许可证。

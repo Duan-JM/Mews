@@ -140,6 +140,22 @@ Events stay deliberately small:
 - Idle uses a static pixel frame. The app reuses a responsive external agent, checks that ownership through its existing two-second local refresh, and never terminates an agent it did not launch. Failed child restarts back off from 10 seconds to a five-minute cap and reset after one healthy minute.
 - Public interface previews use fixed synthetic projects, short session identifiers, safe messages, and no local history, prompt, path, username, or terminal content.
 
+## Interface Previews
+
+These synthetic previews use fixed, privacy-safe data.
+
+Compact physical-notch states in light and dark appearance:
+
+![Synthetic Mews physical-notch states in light and dark appearance with the pixel mascot and IDLE, RUN, ASK, DONE, and FAIL labels](../assets/screenshots/mews-status-states.png)
+
+The light top-center panel shows multiple active sessions and enabled or disabled return actions:
+
+![Synthetic light-appearance top-center panel reporting five active sessions, with visible needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
+
+The dark top-center panel shows a degraded health message and session actions:
+
+![Synthetic dark-appearance top-center panel reporting two active sessions, with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled stopped session](../assets/screenshots/mews-degraded-health.png)
+
 ## Install and Distribution
 
 The release package path is:
@@ -168,9 +184,9 @@ make build
 ```text
 Mews
 
-Never miss your AI agents again.
+Never miss your terminal AI agents.
 
-A tiny local macOS companion for Claude Code, Codex, Copilot CLI, and terminal-first AI workflows.
+A local macOS menu bar companion for AI coding agents running in terminals.
 ```
 
 ## Success Signals

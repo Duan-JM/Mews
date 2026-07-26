@@ -15,7 +15,7 @@ The product should feel like a Mole-style local Mac utility: simple command surf
 
 ## Current State
 
-This repository has a release-candidate Go CLI, a thin Swift/AppKit menu bar app, safe Claude Code/Codex/Copilot CLI integrations, reversible setup state, and a credential-gated signed release pipeline. `README.md`, `docs/architecture.md`, and `docs/product-design.md` define the product direction.
+This repository has a release-candidate Go CLI, a thin Swift/AppKit menu bar app, safe Claude Code/Codex/Copilot CLI integrations, reversible setup state, and a credential-gated signed release pipeline. The root READMEs describe the user path; `docs/architecture.md` and `docs/product-design.md` define the implementation and product direction.
 
 ## Commands
 
@@ -152,9 +152,9 @@ External tools and macOS integration points should be mocked where practical. Do
 
 Update docs with the code change that makes them true.
 
-- `README.md`: user-facing product promise, install path, commands, privacy, and roadmap.
+- `README.md` and `README_zh.md`: concise user-facing product promise, basic features, install and uninstall paths, safety summary, and practical tips.
 - `docs/architecture.md`: runtime design, integration strategy, storage, IPC, packaging, and rollback.
-- `docs/product-design.md`: product framing, audience, MVP scope, state model, and risks.
+- `docs/product-design.md`: product framing, audience, MVP scope, state model, interface previews, roadmap, and risks.
 - `AGENTS.md`: agent workflow, repository structure, commands, and safety rules.
 
 Do not document commands as working until they exist.

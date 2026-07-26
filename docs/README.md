@@ -3,7 +3,7 @@
 Long-form design notes live here so the repository root stays product-facing.
 
 - [Architecture](./architecture.md): runtime design, command model, integrations, storage, IPC, packaging, and rollback.
-- [Product design](./product-design.md): product framing, audience, MVP scope, state model, and risks.
+- [Product design](./product-design.md): product framing, audience, MVP scope, state model, interface previews, and risks.
 
 Root documents:
 
