@@ -182,7 +182,7 @@ Storage format:
 - `attention.json`: minimal versioned delivery and acknowledgement state for the latest semantic round per session.
 - `integrations.json`: installed integration records and backup paths.
 - `backups/`: original config files before Mews modifies them.
-- `copilot-hooks/`: opaque hashes used to correlate Copilot subagent lifecycle events.
+- `copilot-hooks/`: opaque hashes and pending-stop markers used to correlate Copilot subagent lifecycle events.
 
 The socket normally lives in Application Support. If the full path would exceed the macOS Unix socket limit, Mews uses a private `0700` directory under the system temporary directory for the current user.
 
@@ -421,9 +421,9 @@ Main-agent completion and failure events will notify Mews.
 Subagent completion events will remain silent.
 ```
 
-The managed hook file routes `sessionStart`, `userPromptSubmitted`, `subagentStop`, `agentStop`, `sessionEnd`, and `errorOccurred` through `mw hook copilot <event>`. `userPromptSubmitted` maps to a main-agent `running` event without persisting prompt text unless task-title opt-in is enabled. `agentStop` maps to a main-agent `done` event, `subagentStop` maps to a silent subagent `done` event, `sessionEnd` maps to `idle`, and `errorOccurred` maps to `failed` while preserving Copilot's `recoverable` flag.
+The managed hook file routes `sessionStart`, `userPromptSubmitted`, `subagentStart`, `subagentStop`, `agentStop`, `sessionEnd`, and `errorOccurred` through `mw hook copilot <event>`. `userPromptSubmitted` maps to a main-agent `running` event without persisting prompt text unless task-title opt-in is enabled. When `agentStop` arrives with no tracked subagents, it maps directly to a main-agent `done` event. When tracked subagents remain active, it maps to a main-agent `running` event with `subagentRunning` lifecycle evidence; the final `subagentStop` records its silent subagent `done` event and then emits the deferred main-agent `done` event. `sessionEnd` maps to `idle`, and `errorOccurred` maps to `failed` while preserving Copilot's `recoverable` flag.
 
-Some Copilot CLI versions emit lifecycle events while a subagent or nested tool call is active. Those payloads use provider tool-call identifiers such as `call_*` or `toolu_*`; nested `agentStop` may set `transcriptPath` to null, while the later primary stop can reuse the subagent transcript path. Mews suppresses lifecycle events with tool-call identifiers and hook-provided subagent names without using transcript paths to classify the primary stop. Legacy Mews-owned correlation state is cleared on session start, session end, and `mw undo`; raw transcript paths and transcript contents are never stored.
+Some Copilot CLI versions emit lifecycle events while a subagent or nested tool call is active. Those payloads use provider tool-call identifiers such as `call_*` or `toolu_*`; nested `agentStop` may set `transcriptPath` to null, while the later primary stop can reuse the subagent transcript path. Mews suppresses lifecycle events with tool-call identifiers and hook-provided subagent names without using transcript paths to classify the primary stop. Supported subagents are tracked by opaque transcript-path hashes under a per-session file lock. State transition and event delivery share that lock, and deferred completions retain a stable event ID until delivery succeeds, so concurrent or uncertain retries cannot reorder the final primary state or notify twice. Resumed prompts or errors cancel a stale deferred completion before it can replace newer primary state, and orphaned active markers expire with the 24-hour active-session safety cap. Copilot's built-in `general-purpose` agent does not emit subagent lifecycle hooks, so Mews retains the provider's main-turn stop behavior for that agent instead of guessing. Correlation state is cleared on session start, session end, and `mw undo`; undo also disables late in-flight hook writes until the next successful Copilot setup. Raw transcript paths and transcript contents are never stored.
 
 Mews may derive `project` from `cwd` and preserve a hook `session_id` when provided. Do not read prompts, transcripts, or terminal scrollback by default; task titles require explicit opt-in and are truncated to 80 characters.
 
@@ -434,6 +434,7 @@ Implemented default behavior:
 - Primary-agent `needs_input`: show a four-second physical-notch preview and retain compact `ASK`, or notify immediately when no physical notch is available.
 - Primary-agent non-recoverable `failed`: show a four-second physical-notch preview and retain compact `FAIL`, or notify immediately when no physical notch is available.
 - Primary-agent `done`: show a 2.5-second physical-notch preview and retain compact `DONE`, or notify immediately when no physical notch is available.
+- Primary-agent stop with tracked Copilot subagents: retain a `SUB` / `Subagent Running` row without notifying; notify once after the final tracked subagent stops.
 - Subagent events and recoverable errors: keep in history without notifying or replacing primary status.
 - `running`: update menu bar only.
 - `idle`: update menu bar only.
@@ -691,7 +692,7 @@ Manual acceptance checks:
 9. With notifications denied, menu bar status still works and doctor explains the permission.
 10. With the agent stopped, `mw notify` stores the validated event locally for later history.
 11. With malformed third-party config, Mews refuses to edit and leaves the file unchanged.
-12. A Copilot subagent completion stays in history without triggering a native notification or replacing primary status.
+12. A Copilot subagent completion stays in history without triggering a native notification or replacing primary status; a deferred main completion notifies only after the final tracked subagent stops.
 13. The pixel logo opens the compact notch/top-center shell, while right-click and Control-click retain the existing menu.
 14. A physical-notch attention event does not also send a system notification; clamshell and no-notch layouts keep the notification fallback.
 15. A physical notch keeps a recognizable compact status below the hardware, briefly previews new attention events, and expands from the same visible hit region.

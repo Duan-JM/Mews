@@ -108,6 +108,11 @@ struct CurrentSessionState: Equatable {
         }
         return evidenceStatus == .idle ? .done : evidenceStatus
     }
+
+    var isSubagentRunning: Bool {
+        return presentationStatus == .running &&
+            normalizedText(hookEvent)?.lowercased() == "subagentrunning"
+    }
 }
 
 struct SessionStateIndex: Equatable {

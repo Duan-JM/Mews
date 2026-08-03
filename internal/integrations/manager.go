@@ -18,6 +18,10 @@ type Result struct {
 }
 
 func InstallAll(mwPath string) ([]store.IntegrationState, error) {
+	copilotStateDisabled, err := store.CopilotHookStateDisabled()
+	if err != nil {
+		return nil, err
+	}
 	previousState, _, err := store.LoadIntegrationState()
 	if err != nil {
 		return nil, err
@@ -54,7 +58,7 @@ func InstallAll(mwPath string) ([]store.IntegrationState, error) {
 		state, err := installer.install(mwPath, previous[installer.name])
 		if err != nil {
 			rollbackInstall(installed)
-			return nil, err
+			return nil, restoreCopilotHookState(copilotStateDisabled, err)
 		}
 		installed = append(installed, state)
 	}
@@ -62,7 +66,7 @@ func InstallAll(mwPath string) ([]store.IntegrationState, error) {
 	state := store.IntegrationStateFile{Version: 1, Integrations: installed}
 	if err := store.SaveIntegrationState(state); err != nil {
 		rollbackInstall(installed)
-		return nil, err
+		return nil, restoreCopilotHookState(copilotStateDisabled, err)
 	}
 	for _, integration := range installed {
 		if integration.RollbackPath != "" {
@@ -70,6 +74,16 @@ func InstallAll(mwPath string) ([]store.IntegrationState, error) {
 		}
 	}
 	return installed, nil
+}
+
+func restoreCopilotHookState(disabled bool, installErr error) error {
+	if !disabled {
+		return installErr
+	}
+	if err := store.RemoveCopilotHookState(); err != nil {
+		return fmt.Errorf("%w; restore Copilot hook state: %v", installErr, err)
+	}
+	return installErr
 }
 
 func UndoAll() error {

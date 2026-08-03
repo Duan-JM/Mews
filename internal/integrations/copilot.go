@@ -13,8 +13,9 @@ import (
 )
 
 const copilotHookFile = "mews.json"
-const copilotOwnershipMarker = "copilot-v3"
-const previousCopilotOwnershipMarker = "copilot-v2"
+const copilotOwnershipMarker = "copilot-v4"
+const previousCopilotOwnershipMarker = "copilot-v3"
+const olderCopilotOwnershipMarker = "copilot-v2"
 const legacyCopilotOwnershipMarker = "copilot-v1"
 
 type copilotHookConfig struct {
@@ -78,6 +79,9 @@ func installCopilot(
 			_ = os.Remove(currentBackup)
 		}
 	}()
+	if err := store.EnableCopilotHookState(); err != nil {
+		return store.IntegrationState{}, err
+	}
 	if err := writeFileAtomic(writePath, data, 0o600); err != nil {
 		return store.IntegrationState{}, err
 	}
@@ -329,6 +333,10 @@ func isPreviousMewsHook(data []byte) bool {
 		data,
 		previousCopilotOwnershipMarker,
 		previousCopilotHookEvents(),
+	) || matchesCopilotControlHook(
+		data,
+		olderCopilotOwnershipMarker,
+		olderCopilotHookEvents(),
 	) || matchesPreviousMewsHook(data, previousCopilotHookFormat{
 		marker: legacyCopilotOwnershipMarker,
 		quote:  shellQuote,
@@ -349,6 +357,7 @@ func copilotHookEvents() []string {
 	return []string{
 		"sessionStart",
 		"userPromptSubmitted",
+		"subagentStart",
 		"subagentStop",
 		"agentStop",
 		"sessionEnd",
@@ -357,6 +366,17 @@ func copilotHookEvents() []string {
 }
 
 func previousCopilotHookEvents() []string {
+	return []string{
+		"sessionStart",
+		"userPromptSubmitted",
+		"subagentStop",
+		"agentStop",
+		"sessionEnd",
+		"errorOccurred",
+	}
+}
+
+func olderCopilotHookEvents() []string {
 	return []string{
 		"sessionStart",
 		"subagentStart",

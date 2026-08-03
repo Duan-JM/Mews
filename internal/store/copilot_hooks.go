@@ -3,85 +3,119 @@ package store
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 )
 
-func MarkCopilotSubagent(sessionID, transcriptPath string) error {
-	paths, err := Ensure()
-	if err != nil {
-		return err
-	}
-	sessionDir, markerPath, err := copilotHookPaths(paths, sessionID, transcriptPath)
-	if err != nil {
-		return err
-	}
-	if err := ensureCopilotHookDirectory(sessionDir); err != nil {
-		return err
-	}
-	return writeFileAtomic(markerPath, []byte("subagent\n"), 0o600)
+const copilotMainStopPending = "main-stop-pending"
+const copilotHookStateDisabled = ".copilot-hooks-disabled"
+const copilotSubagentLifetime = 24 * time.Hour
+
+type copilotPendingStop struct {
+	ID           string    `json:"id"`
+	CompletionAt time.Time `json:"completion_at,omitempty"`
 }
 
-func IsCopilotSubagent(transcriptPath string) (bool, error) {
-	if strings.TrimSpace(transcriptPath) == "" {
-		return false, nil
-	}
+func StartCopilotSubagent(sessionID, transcriptPath string) error {
+	return withCopilotHookSession(sessionID, func(sessionDir string) error {
+		markerPath, err := copilotSubagentMarkerPath(sessionDir, transcriptPath)
+		if err != nil {
+			return err
+		}
+		return writeFileAtomic(markerPath, []byte("active\n"))
+	})
+}
+
+func ProcessCopilotMainStop(
+	sessionID string,
+	deliverDeferred func() error,
+	deliverCompletion func(completionID string, completionAt time.Time) error,
+) (bool, error) {
+	deferred := false
+	err := withCopilotHookSession(sessionID, func(sessionDir string) error {
+		active, err := activeCopilotSubagentCount(sessionDir)
+		if err != nil {
+			return err
+		}
+		if _, err := copilotPendingStopID(sessionDir); err != nil {
+			return err
+		}
+		if active > 0 {
+			deferred = true
+			return deliverDeferred()
+		}
+		pending, err := prepareCopilotPendingCompletion(sessionDir)
+		if err != nil {
+			return err
+		}
+		if err := deliverCompletion(pending.ID, pending.CompletionAt); err != nil {
+			return err
+		}
+		return os.Remove(filepath.Join(sessionDir, copilotMainStopPending))
+	})
+	return deferred, err
+}
+
+func CopilotHookStateDisabled() (bool, error) {
 	paths, err := Paths()
 	if err != nil {
 		return false, err
 	}
-	exists, err := copilotHookDirectoryExists(paths.CopilotHooks)
-	if err != nil || !exists {
-		return false, err
+	_, err = os.Stat(filepath.Join(paths.AppSupport, copilotHookStateDisabled))
+	if os.IsNotExist(err) {
+		return false, nil
 	}
-	transcriptKey, err := copilotHookKey("transcript_path", transcriptPath)
-	if err != nil {
-		return false, err
-	}
+	return err == nil, err
+}
 
-	sessionEntries, err := os.ReadDir(paths.CopilotHooks)
-	if err != nil {
-		return false, err
-	}
-	for _, entry := range sessionEntries {
-		sessionDir := filepath.Join(paths.CopilotHooks, entry.Name())
-		exists, err = copilotHookDirectoryExists(sessionDir)
+func ProcessCopilotSubagentStop(
+	sessionID string,
+	transcriptPath string,
+	deliverCompletion func(completionID string, completionAt time.Time) error,
+) (bool, error) {
+	completeMain := false
+	err := withCopilotHookSession(sessionID, func(sessionDir string) error {
+		markerPath, err := copilotSubagentMarkerPath(sessionDir, transcriptPath)
 		if err != nil {
-			return false, err
+			return err
 		}
-		if !exists {
-			continue
+		if err := os.Remove(markerPath); err != nil && !os.IsNotExist(err) {
+			return err
 		}
-		if _, err := os.Stat(filepath.Join(sessionDir, transcriptKey)); err == nil {
-			return true, nil
-		} else if !os.IsNotExist(err) {
-			return false, err
+		active, err := activeCopilotSubagentCount(sessionDir)
+		if err != nil || active > 0 {
+			return err
 		}
-	}
-	return false, nil
+		pending, err := prepareCopilotPendingCompletion(sessionDir)
+		if err != nil || pending.ID == "" {
+			return err
+		}
+		if err := deliverCompletion(pending.ID, pending.CompletionAt); err != nil {
+			return err
+		}
+		completeMain = true
+		return os.Remove(filepath.Join(sessionDir, copilotMainStopPending))
+	})
+	return completeMain, err
+}
+
+func CancelCopilotMainStop(sessionID string) error {
+	return withCopilotHookSession(sessionID, func(sessionDir string) error {
+		err := os.Remove(filepath.Join(sessionDir, copilotMainStopPending))
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	})
 }
 
 func ClearCopilotHookSession(sessionID string) error {
-	paths, err := Paths()
-	if err != nil {
-		return err
-	}
-	exists, err := copilotHookDirectoryExists(paths.CopilotHooks)
-	if err != nil || !exists {
-		return err
-	}
-	sessionKey, err := copilotHookKey("session_id", sessionID)
-	if err != nil {
-		return err
-	}
-	sessionDir := filepath.Join(paths.CopilotHooks, sessionKey)
-	exists, err = copilotHookDirectoryExists(sessionDir)
-	if err != nil || !exists {
-		return err
-	}
-	return os.RemoveAll(sessionDir)
+	return withCopilotHookSession(sessionID, os.RemoveAll)
 }
 
 func RemoveCopilotHookState() error {
@@ -89,28 +123,215 @@ func RemoveCopilotHookState() error {
 	if err != nil {
 		return err
 	}
-	exists, err := copilotHookDirectoryExists(paths.CopilotHooks)
-	if err != nil || !exists {
+	if err := os.MkdirAll(paths.AppSupport, 0o700); err != nil {
 		return err
 	}
-	return os.RemoveAll(paths.CopilotHooks)
+	return withCopilotHookRootLock(paths, syscall.LOCK_EX, func() error {
+		exists, err := copilotHookDirectoryExists(paths.CopilotHooks)
+		if err != nil {
+			return err
+		}
+		if exists {
+			if err := os.RemoveAll(paths.CopilotHooks); err != nil {
+				return err
+			}
+		}
+		return writeFileAtomic(
+			filepath.Join(paths.AppSupport, copilotHookStateDisabled),
+			[]byte("disabled\n"),
+		)
+	})
 }
 
-func copilotHookPaths(
+func EnableCopilotHookState() error {
+	paths, err := Paths()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(paths.AppSupport, 0o700); err != nil {
+		return err
+	}
+	return withCopilotHookRootLock(paths, syscall.LOCK_EX, func() error {
+		err := os.Remove(filepath.Join(paths.AppSupport, copilotHookStateDisabled))
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	})
+}
+
+func withCopilotHookSession(
+	sessionID string,
+	operation func(sessionDir string) error,
+) error {
+	paths, err := Paths()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(paths.AppSupport, 0o700); err != nil {
+		return err
+	}
+	return withCopilotHookRootLock(paths, syscall.LOCK_SH, func() error {
+		if _, err := os.Stat(
+			filepath.Join(paths.AppSupport, copilotHookStateDisabled),
+		); err == nil {
+			return fmt.Errorf("copilot hook state is disabled")
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+		if err := ensureCopilotHookDirectory(paths.CopilotHooks); err != nil {
+			return err
+		}
+		return withLockedCopilotSession(paths, sessionID, operation)
+	})
+}
+
+func withLockedCopilotSession(
 	paths StorePaths,
 	sessionID string,
-	transcriptPath string,
-) (string, string, error) {
+	operation func(sessionDir string) error,
+) error {
 	sessionKey, err := copilotHookKey("session_id", sessionID)
 	if err != nil {
-		return "", "", err
+		return err
 	}
+	lock, err := os.OpenFile(
+		filepath.Join(paths.CopilotHooks, sessionKey+".lock"),
+		os.O_CREATE|os.O_RDWR,
+		0o600,
+	)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		return err
+	}
+	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+
+	sessionDir := filepath.Join(paths.CopilotHooks, sessionKey)
+	if err := ensureCopilotHookDirectory(sessionDir); err != nil {
+		return err
+	}
+	return operation(sessionDir)
+}
+
+func withCopilotHookRootLock(
+	paths StorePaths,
+	mode int,
+	operation func() error,
+) error {
+	lock, err := os.OpenFile(
+		filepath.Join(paths.AppSupport, ".copilot-hooks.lock"),
+		os.O_CREATE|os.O_RDWR,
+		0o600,
+	)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), mode); err != nil {
+		return err
+	}
+	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
+	return operation()
+}
+
+func copilotSubagentMarkerPath(sessionDir, transcriptPath string) (string, error) {
 	transcriptKey, err := copilotHookKey("transcript_path", transcriptPath)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	sessionDir := filepath.Join(paths.CopilotHooks, sessionKey)
-	return sessionDir, filepath.Join(sessionDir, transcriptKey), nil
+	return filepath.Join(sessionDir, "active-"+transcriptKey), nil
+}
+
+func activeCopilotSubagentCount(sessionDir string) (int, error) {
+	entries, err := os.ReadDir(sessionDir)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "active-") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return 0, err
+		}
+		if time.Since(info.ModTime()) > copilotSubagentLifetime {
+			if err := os.Remove(filepath.Join(sessionDir, entry.Name())); err != nil {
+				return 0, err
+			}
+			continue
+		}
+		count++
+	}
+	return count, nil
+}
+
+func copilotPendingStopID(sessionDir string) (string, error) {
+	if existing, err := readCopilotPendingStop(sessionDir); err != nil || existing.ID != "" {
+		return existing.ID, err
+	}
+	id, err := newEventID()
+	if err != nil {
+		return "", err
+	}
+	if err := writeCopilotPendingStop(
+		sessionDir,
+		copilotPendingStop{ID: id},
+	); err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func prepareCopilotPendingCompletion(
+	sessionDir string,
+) (copilotPendingStop, error) {
+	pending, err := readCopilotPendingStop(sessionDir)
+	if err != nil || pending.ID == "" || !pending.CompletionAt.IsZero() {
+		return pending, err
+	}
+	pending.CompletionAt = time.Now()
+	if err := writeCopilotPendingStop(sessionDir, pending); err != nil {
+		return copilotPendingStop{}, err
+	}
+	return pending, nil
+}
+
+func readCopilotPendingStop(sessionDir string) (copilotPendingStop, error) {
+	data, err := os.ReadFile(filepath.Join(sessionDir, copilotMainStopPending))
+	if os.IsNotExist(err) {
+		return copilotPendingStop{}, nil
+	}
+	if err != nil {
+		return copilotPendingStop{}, err
+	}
+	var pending copilotPendingStop
+	if err := json.Unmarshal(data, &pending); err != nil {
+		return copilotPendingStop{}, fmt.Errorf("invalid Copilot pending stop: %w", err)
+	}
+	decoded, err := hex.DecodeString(pending.ID)
+	if err != nil || len(decoded) != 16 {
+		return copilotPendingStop{}, fmt.Errorf("invalid Copilot pending stop identifier")
+	}
+	return pending, nil
+}
+
+func writeCopilotPendingStop(
+	sessionDir string,
+	pending copilotPendingStop,
+) error {
+	data, err := json.Marshal(pending)
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(
+		filepath.Join(sessionDir, copilotMainStopPending),
+		append(data, '\n'),
+	)
 }
 
 func copilotHookKey(name, value string) (string, error) {

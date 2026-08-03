@@ -144,7 +144,7 @@ func SaveSetupState(state SetupState) error {
 		return err
 	}
 	data = append(data, '\n')
-	return writeFileAtomic(paths.Config, data, 0o600)
+	return writeFileAtomic(paths.Config, data)
 }
 
 func RemoveSetupState() error {
@@ -195,7 +195,7 @@ func SaveIntegrationState(state IntegrationStateFile) error {
 		return err
 	}
 	data = append(data, '\n')
-	return writeFileAtomic(paths.Integrations, data, 0o600)
+	return writeFileAtomic(paths.Integrations, data)
 }
 
 func RemoveIntegrationState() error {
@@ -228,7 +228,7 @@ func Reset() error {
 	return nil
 }
 
-func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
+func writeFileAtomic(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
 	tempPath := file.Name()
 	defer os.Remove(tempPath)
 
-	if err := file.Chmod(mode); err != nil {
+	if err := file.Chmod(0o600); err != nil {
 		file.Close()
 		return err
 	}
