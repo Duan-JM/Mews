@@ -91,7 +91,7 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 	if err := os.WriteFile(codexPath, append(codexData, []byte("\nreview_model = \"gpt-5\"\n")...), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.MarkCopilotSubagent("session-123", "/tmp/subagent.jsonl"); err != nil {
+	if err := store.StartCopilotSubagent("session-123", "/tmp/subagent.jsonl"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,6 +179,9 @@ func TestInstallAllRollsBackWhenClaudeSettingsAreMalformed(t *testing.T) {
 	if err := os.WriteFile(claudePath, []byte(`{"hooks":`), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.RemoveCopilotHookState(); err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := InstallAll("/opt/mews/bin/mw"); err == nil ||
 		!strings.Contains(err.Error(), "malformed JSON") {
@@ -187,6 +190,10 @@ func TestInstallAllRollsBackWhenClaudeSettingsAreMalformed(t *testing.T) {
 	hookPath, _ := CopilotHookPath()
 	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
 		t.Fatalf("Copilot hook was not rolled back: %v", err)
+	}
+	disabled, err := store.CopilotHookStateDisabled()
+	if err != nil || !disabled {
+		t.Fatalf("Copilot hook state disabled = %v, %v; want true, nil", disabled, err)
 	}
 }
 
@@ -391,7 +398,8 @@ func TestInstallCopilotMigratesPreviousManagedFormats(t *testing.T) {
 		name   string
 		config func(string) (copilotHookConfig, []string)
 	}{
-		{name: "v2 lifecycle hooks", config: previousControlCopilotConfigForTest},
+		{name: "v3 lifecycle hooks", config: previousControlCopilotConfigForTest},
+		{name: "v2 lifecycle hooks", config: olderControlCopilotConfigForTest},
 		{name: "v1 notification hooks", config: previousCopilotConfigForTest},
 	}
 	for _, test := range tests {
@@ -444,7 +452,8 @@ func TestInstallCopilotMigratesPreviousManagedFormats(t *testing.T) {
 			}
 			if !isMewsHook(updated) ||
 				!strings.Contains(string(updated), copilotOwnershipMarker) ||
-				!strings.Contains(string(updated), "userPromptSubmitted") {
+				!strings.Contains(string(updated), "userPromptSubmitted") ||
+				!strings.Contains(string(updated), "subagentStart") {
 				t.Fatalf("previous Copilot hooks were not migrated: %s", updated)
 			}
 		})
@@ -454,14 +463,36 @@ func TestInstallCopilotMigratesPreviousManagedFormats(t *testing.T) {
 func previousControlCopilotConfigForTest(
 	mwPath string,
 ) (copilotHookConfig, []string) {
+	return copilotControlConfigForTest(
+		mwPath,
+		previousCopilotOwnershipMarker,
+		previousCopilotHookEvents(),
+	)
+}
+
+func olderControlCopilotConfigForTest(
+	mwPath string,
+) (copilotHookConfig, []string) {
+	return copilotControlConfigForTest(
+		mwPath,
+		olderCopilotOwnershipMarker,
+		olderCopilotHookEvents(),
+	)
+}
+
+func copilotControlConfigForTest(
+	mwPath string,
+	marker string,
+	events []string,
+) (copilotHookConfig, []string) {
 	config := copilotHookConfig{
 		Version: 1,
 		Hooks:   make(map[string][]copilotCommandHook),
 	}
-	managed := make([]string, 0, len(previousCopilotHookEvents()))
-	for _, event := range previousCopilotHookEvents() {
+	managed := make([]string, 0, len(events))
+	for _, event := range events {
 		hook := copilotHook(mwPath, event)
-		hook.Env["MEWS_MANAGED_INTEGRATION"] = previousCopilotOwnershipMarker
+		hook.Env["MEWS_MANAGED_INTEGRATION"] = marker
 		config.Hooks[event] = []copilotCommandHook{hook}
 		managed = append(managed, hook.Bash)
 	}

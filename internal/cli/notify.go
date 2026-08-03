@@ -177,6 +177,9 @@ func firstString(value any, keys ...string) string {
 
 func notificationMessage(event *events.Event) string {
 	action := string(event.Status)
+	if event.HookEvent == "subagentRunning" {
+		action = "subagents running"
+	}
 	switch event.Status {
 	case events.StatusDone:
 		action = "done"

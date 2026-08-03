@@ -48,8 +48,25 @@ func runCopilotHook(args []string, stdin io.Reader, stdout, stderr io.Writer) in
 		fmt.Fprintf(stderr, "Invalid Copilot hook payload: %v\n", err)
 		return 2
 	}
-	if code := handleCopilotControlEvent(hookEvent, payload, stdout, stderr); code >= 0 {
+	if handled, code := handleCopilotControlEvent(
+		hookEvent,
+		payload,
+		stdout,
+		stderr,
+	); handled {
 		return code
+	}
+
+	paths, err := store.Ensure()
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
+		return 1
+	}
+	switch hookEvent {
+	case "agentStop":
+		return runCopilotMainStop(paths, payload, data, stdout, stderr)
+	case "subagentStop":
+		return runCopilotSubagentStop(paths, payload, data, stdout, stderr)
 	}
 
 	event, err := copilotEvent(hookEvent, payload, data)
@@ -57,22 +74,173 @@ func runCopilotHook(args []string, stdin io.Reader, stdout, stderr io.Writer) in
 		fmt.Fprintf(stderr, "Invalid Copilot hook payload: %v\n", err)
 		return 2
 	}
-	enrichRuntimeContext(&event)
-	if err := event.Validate(); err != nil {
-		fmt.Fprintf(stderr, "Invalid Copilot event: %v\n", err)
-		return 2
-	}
-	paths, err := store.Ensure()
-	if err != nil {
-		fmt.Fprintf(stderr, "Could not prepare Mews store: %v\n", err)
-		return 1
-	}
-	if err := deliverEvent(paths, &event, stderr); err != nil {
+	if err := deliverCopilotEvent(paths, &event, stderr); err != nil {
 		fmt.Fprintf(stderr, "Could not deliver Copilot event: %v\n", err)
 		return 1
 	}
 	fmt.Fprintf(stdout, "Mews Copilot hook accepted: %s\n", hookEvent)
 	return 0
+}
+
+func handleCopilotControlEvent(
+	hookEvent string,
+	payload copilotHookPayload,
+	stdout io.Writer,
+	stderr io.Writer,
+) (bool, int) {
+	if isCopilotToolCallSessionID(payload.SessionID) {
+		fmt.Fprintln(stdout, "Mews ignored Copilot tool-call lifecycle event")
+		return true, 0
+	}
+
+	switch hookEvent {
+	case "sessionStart":
+		if err := store.ClearCopilotHookSession(payload.SessionID); err != nil {
+			fmt.Fprintf(stderr, "Could not reset Copilot hook state: %v\n", err)
+			return true, 1
+		}
+		fmt.Fprintln(stdout, "Mews Copilot hook accepted: sessionStart")
+		return true, 0
+	case "subagentStart":
+		if err := store.StartCopilotSubagent(
+			payload.SessionID,
+			payload.TranscriptPath,
+		); err != nil {
+			fmt.Fprintf(stderr, "Could not record Copilot subagent: %v\n", err)
+			return true, 1
+		}
+		fmt.Fprintln(stdout, "Mews Copilot hook accepted: subagentStart")
+		return true, 0
+	case "agentStop":
+		if payload.AgentName != "" {
+			fmt.Fprintln(stdout, "Mews ignored duplicate Copilot subagent stop")
+			return true, 0
+		}
+	case "userPromptSubmitted", "errorOccurred":
+		if err := store.CancelCopilotMainStop(payload.SessionID); err != nil {
+			fmt.Fprintf(stderr, "Could not cancel deferred Copilot completion: %v\n", err)
+			return true, 1
+		}
+	case "sessionEnd":
+		if err := store.ClearCopilotHookSession(payload.SessionID); err != nil {
+			fmt.Fprintf(stderr, "Could not clear Copilot hook state: %v\n", err)
+			return true, 1
+		}
+	}
+	return false, 0
+}
+
+func runCopilotMainStop(
+	paths store.StorePaths,
+	payload copilotHookPayload,
+	data []byte,
+	stdout io.Writer,
+	stderr io.Writer,
+) int {
+	mainCompletion, err := copilotEvent("agentStop", payload, data)
+	if err != nil {
+		fmt.Fprintf(stderr, "Invalid Copilot hook payload: %v\n", err)
+		return 2
+	}
+	deferred := mainCompletion
+	deferred.HookEvent = "subagentRunning"
+	deferred.Status = events.StatusRunning
+	deferred.Message = notificationMessage(&deferred)
+	if err := prepareCopilotEvent(&mainCompletion); err != nil {
+		fmt.Fprintf(stderr, "Invalid Copilot event: %v\n", err)
+		return 2
+	}
+	if err := prepareCopilotEvent(&deferred); err != nil {
+		fmt.Fprintf(stderr, "Invalid Copilot event: %v\n", err)
+		return 2
+	}
+
+	_, err = store.ProcessCopilotMainStop(
+		payload.SessionID,
+		func() error {
+			deferred.Timestamp = time.Now()
+			return deliverEventFn(paths, &deferred, stderr)
+		},
+		func(completionID string, completionAt time.Time) error {
+			mainCompletion.ID = completionID
+			mainCompletion.Timestamp = completionAt
+			return deliverEventFn(paths, &mainCompletion, stderr)
+		},
+	)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not deliver Copilot event: %v\n", err)
+		return 1
+	}
+	fmt.Fprintln(stdout, "Mews Copilot hook accepted: agentStop")
+	return 0
+}
+
+func runCopilotSubagentStop(
+	paths store.StorePaths,
+	payload copilotHookPayload,
+	data []byte,
+	stdout io.Writer,
+	stderr io.Writer,
+) int {
+	subagentCompletion, err := copilotEvent("subagentStop", payload, data)
+	if err != nil {
+		fmt.Fprintf(stderr, "Invalid Copilot hook payload: %v\n", err)
+		return 2
+	}
+	mainCompletion, err := copilotEvent("agentStop", payload, []byte("{}"))
+	if err != nil {
+		fmt.Fprintf(stderr, "Invalid Copilot hook payload: %v\n", err)
+		return 2
+	}
+	if err := prepareCopilotEvent(&subagentCompletion); err != nil {
+		fmt.Fprintf(stderr, "Invalid Copilot event: %v\n", err)
+		return 2
+	}
+	if err := prepareCopilotEvent(&mainCompletion); err != nil {
+		fmt.Fprintf(stderr, "Invalid Copilot event: %v\n", err)
+		return 2
+	}
+
+	completedMain, err := store.ProcessCopilotSubagentStop(
+		payload.SessionID,
+		payload.TranscriptPath,
+		func(completionID string, completionAt time.Time) error {
+			mainCompletion.ID = completionID
+			mainCompletion.Timestamp = completionAt
+			if err := deliverEventFn(paths, &subagentCompletion, stderr); err != nil {
+				return err
+			}
+			return deliverEventFn(paths, &mainCompletion, stderr)
+		},
+	)
+	if err != nil {
+		fmt.Fprintf(stderr, "Could not deliver Copilot event: %v\n", err)
+		return 1
+	}
+	if !completedMain {
+		if err := deliverEventFn(paths, &subagentCompletion, stderr); err != nil {
+			fmt.Fprintf(stderr, "Could not deliver Copilot event: %v\n", err)
+			return 1
+		}
+	}
+	fmt.Fprintln(stdout, "Mews Copilot hook accepted: subagentStop")
+	return 0
+}
+
+func prepareCopilotEvent(event *events.Event) error {
+	enrichRuntimeContext(event)
+	return event.Validate()
+}
+
+func deliverCopilotEvent(
+	paths store.StorePaths,
+	event *events.Event,
+	stderr io.Writer,
+) error {
+	if err := prepareCopilotEvent(event); err != nil {
+		return err
+	}
+	return deliverEventFn(paths, event, stderr)
 }
 
 func supportedCopilotHook(event string) bool {
@@ -101,42 +269,6 @@ func readCopilotHookPayload(stdin io.Reader) ([]byte, copilotHookPayload, error)
 	payload.TranscriptPath = firstNonEmpty(payload.TranscriptPath, payload.LegacyTranscript)
 	payload.AgentName = firstNonEmpty(payload.AgentName, payload.LegacyAgentName)
 	return data, payload, nil
-}
-
-func handleCopilotControlEvent(
-	hookEvent string,
-	payload copilotHookPayload,
-	stdout io.Writer,
-	stderr io.Writer,
-) int {
-	if isCopilotToolCallSessionID(payload.SessionID) {
-		fmt.Fprintln(stdout, "Mews ignored Copilot tool-call lifecycle event")
-		return 0
-	}
-	switch hookEvent {
-	case "sessionStart":
-		if err := store.ClearCopilotHookSession(payload.SessionID); err != nil {
-			fmt.Fprintf(stderr, "Could not reset Copilot hook state: %v\n", err)
-			return 1
-		}
-		fmt.Fprintln(stdout, "Mews Copilot hook accepted: sessionStart")
-		return 0
-	case "subagentStart":
-		// v2 hook files may call this until setup migrates them to v3.
-		fmt.Fprintln(stdout, "Mews Copilot hook accepted: subagentStart")
-		return 0
-	case "agentStop":
-		if payload.AgentName != "" {
-			fmt.Fprintln(stdout, "Mews ignored duplicate Copilot subagent stop")
-			return 0
-		}
-	case "sessionEnd":
-		if err := store.ClearCopilotHookSession(payload.SessionID); err != nil {
-			fmt.Fprintf(stderr, "Could not clear Copilot hook state: %v\n", err)
-			return 1
-		}
-	}
-	return -1
 }
 
 func copilotEvent(

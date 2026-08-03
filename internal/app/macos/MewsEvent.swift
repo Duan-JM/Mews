@@ -154,6 +154,8 @@ func mewsNotificationBody(
         return "Agent failed"
     case "agentStop":
         return "Agent stopped"
+    case "subagentRunning":
+        return "Subagents are still running"
     case "errorOccurred":
         return "Agent reported an error"
     case "agent-turn-complete":

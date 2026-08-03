@@ -97,6 +97,16 @@ extension SessionStatus {
     }
 }
 
+extension CurrentSessionState {
+    var sessionPresentationLabel: String {
+        return isSubagentRunning ? "Subagent Running" : presentationStatus.sessionPresentationLabel
+    }
+
+    var sessionPresentationCode: String {
+        return isSubagentRunning ? "SUB" : presentationStatus.sessionPresentationCode
+    }
+}
+
 struct RuntimeHealthPresentation: Equatable {
     let state: RuntimeHealthState
     let capabilityID: String
@@ -194,8 +204,8 @@ struct SessionPresentationPolicy {
             ) ?? "Agent",
             projectLabel: notchProjectLabel(session.project),
             sessionLabel: notchSessionLabel(session.sessionID) ?? "unknown",
-            statusLabel: status.sessionPresentationLabel,
-            statusCode: status.sessionPresentationCode,
+            statusLabel: session.sessionPresentationLabel,
+            statusCode: session.sessionPresentationCode,
             returnContext: session.returnContext?.actionable(fileManager: fileManager),
             evidenceAt: session.evidenceAt,
             priority: priority(

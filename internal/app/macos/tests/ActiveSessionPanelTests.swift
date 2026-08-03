@@ -5,9 +5,38 @@ extension MewsAppModelTests {
         try testKnownLifecyclePresence()
         try testUnknownPresenceExpiry()
         try testActivePresenceFiltering()
+        try testSubagentRunningPresentation()
         try testResolvedStoppedPriority()
         try testScrollableActiveSessionPanel()
         try testExpandedActiveSessionStability()
+    }
+
+    private static func testSubagentRunningPresentation() throws {
+        let now = Date(timeIntervalSince1970: 1_900_000_360)
+        let session = try activeSession(
+            id: "subagent-running",
+            status: .running,
+            evidenceAt: now,
+            hookEvent: "subagentRunning"
+        )
+        let presentation = SessionPresentationPolicy.resolve(
+            sessions: [session],
+            attentionRecords: [],
+            healthSnapshot: nil,
+            now: now
+        )
+        let row = try sessionRequire(
+            presentation.rows.first,
+            "subagent-running session should be displayed"
+        )
+        try sessionExpect(
+            row.statusLabel == "Subagent Running" && row.statusCode == "SUB",
+            "deferred Copilot completion should identify active subagents"
+        )
+        try sessionExpect(
+            row.priority == .running,
+            "subagent-running sessions should retain running priority"
+        )
     }
 
     private static func testKnownLifecyclePresence() throws {
