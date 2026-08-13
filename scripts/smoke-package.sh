@@ -107,12 +107,16 @@ fi
 
 copilot_command="$(plutil -extract hooks.agentStop.0.bash raw -o - "$COPILOT_HOME/hooks/mews.json")"
 claude_command="$(plutil -extract hooks.PermissionRequest.0.hooks.0.command raw -o - "$CLAUDE_CONFIG_DIR/settings.json")"
+codex_running_command="$(plutil -extract hooks.UserPromptSubmit.0.hooks.0.command raw -o - "$CODEX_HOME/hooks.json")"
+codex_end_command="$(plutil -extract hooks.SessionEnd.0.hooks.0.command raw -o - "$CODEX_HOME/hooks.json")"
 printf '%s' '{"cwd":"/tmp/copilot-project","session_id":"copilot-123","prompt":"private copilot prompt"}' |
   /bin/bash -c "$copilot_command"
 printf '%s' '{"cwd":"/tmp/claude-project","session_id":"claude-123","prompt":"private claude prompt"}' |
   /bin/bash -c "$claude_command"
-"$MW" hook codex \
-  '{"cwd":"/tmp/codex-project","thread-id":"codex-123","prompt":"private codex prompt"}' >/dev/null
+printf '%s' '{"cwd":"/tmp/codex-project","session_id":"codex-123","prompt":"private codex prompt"}' |
+  /bin/bash -c "$codex_running_command"
+printf '%s' '{"cwd":"/tmp/codex-project","session_id":"codex-123","prompt":"private codex prompt"}' |
+  /bin/bash -c "$codex_end_command"
 "$MW" notify \
   --source custom \
   --status "done" \
@@ -123,7 +127,8 @@ history="$("$MW" history)"
 for expected in \
   "copilot done (copilot-project)" \
   "claude-code needs_input (claude-project)" \
-  "codex done (codex-project)" \
+  "codex running (codex-project)" \
+  "codex idle (codex-project)" \
   "custom done (package-smoke)"; do
   if ! grep -F "$expected" <<<"$history" >/dev/null; then
     echo "Packaged history missing: $expected" >&2
@@ -143,6 +148,7 @@ AGENT_PID=""
 for path in \
   "$COPILOT_HOME/hooks/mews.json" \
   "$CLAUDE_CONFIG_DIR/settings.json" \
+  "$CODEX_HOME/hooks.json" \
   "$CODEX_HOME/config.toml"; do
   if [[ -e "$path" ]]; then
     echo "Packaged undo left integration file: $path" >&2

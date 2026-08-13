@@ -1,14 +1,11 @@
 package integrations
 
 import (
-	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/Duan-JM/mews/internal/store"
 )
@@ -16,9 +13,18 @@ import (
 const (
 	codexMarkerStart = "# >>> mews managed notify >>>"
 	codexMarkerEnd   = "# <<< mews managed notify <<<"
+	codexTrustStart  = "# >>> mews managed hooks trust >>>"
+	codexTrustEnd    = "# <<< mews managed hooks trust <<<"
 )
 
-type codexInstallContext struct {
+type codexHook struct {
+	event   string
+	status  string
+	message string
+	timeout int
+}
+
+type codexFileContext struct {
 	path          string
 	writePath     string
 	current       []byte
@@ -27,262 +33,269 @@ type codexInstallContext struct {
 	currentBackup string
 }
 
+type codexHookReference struct {
+	key  string
+	hash string
+}
+
+var codexHooks = []codexHook{
+	{event: "SessionStart", status: "idle", message: "Codex session started", timeout: 5},
+	{event: "UserPromptSubmit", status: "running", message: "Codex is running", timeout: 5},
+	{event: "Stop", status: "done", message: "Codex finished", timeout: 5},
+	{event: "SessionEnd", status: "idle", message: "Codex session ended", timeout: 3},
+}
+
 func CodexConfigPath() (string, error) {
-	home := os.Getenv("CODEX_HOME")
-	if home == "" {
-		userHome, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		home = filepath.Join(userHome, ".codex")
+	home, err := codexHome()
+	if err != nil {
+		return "", err
 	}
 	return filepath.Join(home, "config.toml"), nil
 }
 
+func CodexHooksPath() (string, error) {
+	home, err := codexHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "hooks.json"), nil
+}
+
+func codexHome() (string, error) {
+	if home := os.Getenv("CODEX_HOME"); home != "" {
+		return home, nil
+	}
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(userHome, ".codex"), nil
+}
+
 func installCodex(mwPath string, previous *store.IntegrationState) (store.IntegrationState, error) {
-	ctx, err := prepareCodexInstall(previous)
+	hooksPath, configPath, err := codexInstallPaths(previous)
+	if err != nil {
+		return store.IntegrationState{}, err
+	}
+
+	hooksContext, configContext, err := prepareCodexFiles(hooksPath, configPath)
 	if err != nil {
 		return store.IntegrationState{}, err
 	}
 	installed := false
+	preserveTemporaryBackups := false
 	defer func() {
-		if !installed && ctx.currentBackup != "" {
-			_ = os.Remove(ctx.currentBackup)
+		if !installed && !preserveTemporaryBackups {
+			removeTemporaryBackup(hooksContext)
+			removeTemporaryBackup(configContext)
 		}
 	}()
 
-	command := codexNotifyLine(mwPath)
-	updated, err := installCodexBlock(ctx.current, command)
+	hooksDocument, err := parseCodexHooks(hooksContext.path, hooksContext.current)
 	if err != nil {
-		return store.IntegrationState{}, fmt.Errorf("%s: %w", ctx.path, err)
+		return store.IntegrationState{}, err
 	}
-	if !ctx.created {
-		ctx.currentBackup, err = backupFile("codex", ctx.writePath)
-		if err != nil {
-			return store.IntegrationState{}, err
-		}
+	removeRecordedCodexCommands(hooksDocument, previous)
+	managed, references, err := appendCodexHooks(hooksDocument, hooksContext.path, mwPath)
+	if err != nil {
+		return store.IntegrationState{}, err
 	}
-	if err := writeFileAtomic(ctx.writePath, updated, ctx.mode); err != nil {
+	hooksData, err := json.MarshalIndent(hooksDocument, "", "  ")
+	if err != nil {
+		return store.IntegrationState{}, err
+	}
+	hooksData = append(hooksData, '\n')
+
+	configData, err := installCodexTrustBlock(configContext.current, references)
+	if err != nil {
+		return store.IntegrationState{}, fmt.Errorf("%s: %w", configContext.path, err)
+	}
+	preserveTemporaryBackups, err = writeCodexFiles(
+		hooksContext,
+		configContext,
+		hooksData,
+		configData,
+	)
+	if err != nil {
 		return store.IntegrationState{}, err
 	}
 	installed = true
-	backupPath := ctx.currentBackup
+
+	hooksState, configState := codexPersistedFiles(previous, hooksContext, configContext)
 	var rollbackPath string
+	var rollbackFiles []store.IntegrationFileState
 	if previous != nil {
-		backupPath = previous.BackupPath
-		ctx.created = previous.Created
-		rollbackPath = ctx.currentBackup
+		rollbackPath = hooksContext.currentBackup
+		rollbackFiles = []store.IntegrationFileState{{
+			Path:       configContext.path,
+			BackupPath: configContext.currentBackup,
+			Created:    configContext.created,
+		}}
 	}
 	return store.IntegrationState{
-		Name:         "codex",
-		Path:         ctx.path,
-		BackupPath:   backupPath,
-		Created:      ctx.created,
-		Managed:      []string{command},
-		InstalledAt:  time.Now(),
-		RollbackPath: rollbackPath,
+		Name:            "codex",
+		Path:            hooksState.Path,
+		BackupPath:      hooksState.BackupPath,
+		Created:         hooksState.Created,
+		Managed:         managed,
+		AdditionalFiles: []store.IntegrationFileState{configState},
+		InstalledAt:     time.Now(),
+		RollbackPath:    rollbackPath,
+		RollbackFiles:   rollbackFiles,
 	}, nil
 }
 
-func prepareCodexInstall(previous *store.IntegrationState) (codexInstallContext, error) {
-	path, err := CodexConfigPath()
+func writeCodexFiles(
+	hooksContext codexFileContext,
+	configContext codexFileContext,
+	hooksData []byte,
+	configData []byte,
+) (bool, error) {
+	if err := writeFileAtomic(hooksContext.writePath, hooksData, hooksContext.mode); err != nil {
+		return false, err
+	}
+	if err := writeFileAtomic(configContext.writePath, configData, configContext.mode); err != nil {
+		if restoreErr := restoreCodexContext(hooksContext); restoreErr != nil {
+			return true, fmt.Errorf(
+				"write %s: %w; restore %s from %s: %v",
+				configContext.path,
+				err,
+				hooksContext.path,
+				hooksContext.currentBackup,
+				restoreErr,
+			)
+		}
+		return false, err
+	}
+	return false, nil
+}
+
+func codexInstallPaths(previous *store.IntegrationState) (string, string, error) {
+	hooksPath, err := CodexHooksPath()
 	if err != nil {
-		return codexInstallContext{}, err
+		return "", "", err
 	}
-	if err := ensureRecordedIntegrationPath(previous, path, "Codex", "CODEX_HOME"); err != nil {
-		return codexInstallContext{}, err
+	configPath, err := CodexConfigPath()
+	if err != nil {
+		return "", "", err
 	}
+	if err := validateCodexRecordedPaths(previous, hooksPath, configPath); err != nil {
+		return "", "", err
+	}
+	return hooksPath, configPath, nil
+}
+
+func prepareCodexFiles(hooksPath, configPath string) (codexFileContext, codexFileContext, error) {
+	hooksContext, err := prepareCodexFile(hooksPath, "codex-hooks")
+	if err != nil {
+		return codexFileContext{}, codexFileContext{}, err
+	}
+	configContext, err := prepareCodexFile(configPath, "codex-config")
+	if err != nil {
+		removeTemporaryBackup(hooksContext)
+		return codexFileContext{}, codexFileContext{}, err
+	}
+	return hooksContext, configContext, nil
+}
+
+func validateCodexRecordedPaths(previous *store.IntegrationState, hooksPath, configPath string) error {
+	if previous == nil {
+		return nil
+	}
+	if previous.Path == hooksPath {
+		for _, file := range previous.AdditionalFiles {
+			if file.Path == configPath {
+				return nil
+			}
+		}
+		return fmt.Errorf("configured Codex hooks are missing recorded config state; run `mw undo`")
+	}
+	if previous.Path == configPath && len(previous.AdditionalFiles) == 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"configured Codex integration is recorded at %s; run `mw undo` before changing CODEX_HOME",
+		previous.Path,
+	)
+}
+
+func prepareCodexFile(path, backupName string) (codexFileContext, error) {
 	writePath, err := resolveWritePath(path)
 	if err != nil {
-		return codexInstallContext{}, err
+		return codexFileContext{}, err
 	}
-
-	ctx := codexInstallContext{
+	context := codexFileContext{
 		path:      path,
 		writePath: writePath,
 		mode:      0o600,
 		created:   true,
 	}
-
 	data, err := os.ReadFile(writePath)
 	if os.IsNotExist(err) {
-		return ctx, nil
+		return context, nil
 	}
 	if err != nil {
-		return codexInstallContext{}, err
-	}
-
-	ctx.current = data
-	ctx.created = false
-	info, err := os.Stat(writePath)
-	if err != nil {
-		return codexInstallContext{}, err
-	}
-	ctx.mode = info.Mode().Perm()
-	return ctx, nil
-}
-
-func removeCodex(state store.IntegrationState) error {
-	writePath, err := resolveWritePath(state.Path)
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(writePath)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	updated, found, err := removeCodexBlock(data)
-	if err != nil {
-		return err
-	}
-	if !found {
-		return nil
-	}
-	if state.Created && len(bytes.TrimSpace(updated)) == 0 {
-		return os.Remove(state.Path)
+		return codexFileContext{}, err
 	}
 	info, err := os.Stat(writePath)
 	if err != nil {
-		return err
+		return codexFileContext{}, err
 	}
-	return writeFileAtomic(writePath, updated, info.Mode().Perm())
-}
-
-func CodexStatus() (string, bool) {
-	path, err := CodexConfigPath()
+	context.current = data
+	context.mode = info.Mode().Perm()
+	context.created = false
+	context.currentBackup, err = backupFile(backupName, writePath)
 	if err != nil {
-		return fmt.Sprintf("path error: %v", err), false
+		return codexFileContext{}, err
 	}
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return "notify integration not installed", false
-	}
-	if err != nil {
-		return fmt.Sprintf("unreadable: %v", err), false
-	}
-	block, found, err := codexBlock(data)
-	if err != nil {
-		return err.Error(), false
-	}
-	if !found || !strings.Contains(block, `"hook", "codex"`) {
-		if _, err := installCodexBlock(data, codexNotifyLine("/path/to/mw")); err != nil {
-			return fmt.Sprintf("not safely editable: %v", err), false
-		}
-		return "Mews notify integration not installed", false
-	}
-	return "notify integration installed", true
+	return context, nil
 }
 
-func codexNotifyLine(mwPath string) string {
-	parts := []string{mwPath, "hook", "codex"}
-	for i, part := range parts {
-		parts[i] = strconv.Quote(part)
+func removeTemporaryBackup(context codexFileContext) {
+	if context.currentBackup != "" {
+		_ = os.Remove(context.currentBackup)
 	}
-	return "notify = [" + strings.Join(parts, ", ") + "]"
 }
 
-func installCodexBlock(data []byte, notifyLine string) ([]byte, error) {
-	if !utf8.Valid(data) {
-		return nil, fmt.Errorf("config is not valid UTF-8")
-	}
-	if bytes.Contains(data, []byte(`"""`)) || bytes.Contains(data, []byte(`'''`)) {
-		return nil, fmt.Errorf("multiline TOML strings are not edited automatically")
-	}
-	withoutManaged, _, err := removeCodexBlock(data)
-	if err != nil {
-		return nil, err
-	}
-	lines := strings.Split(string(withoutManaged), "\n")
-	insertAt := len(lines)
-	for index, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "[") {
-			insertAt = index
-			break
-		}
-		key, _, ok := strings.Cut(trimmed, "=")
-		if !ok {
-			return nil, fmt.Errorf("config has an invalid top-level line %q", trimmed)
-		}
-		key = strings.TrimSpace(key)
-		if strings.HasPrefix(key, `"`) || strings.HasPrefix(key, `'`) {
-			return nil, fmt.Errorf("quoted top-level TOML keys are not edited automatically")
-		}
-		if key == "notify" {
-			return nil, fmt.Errorf("top-level notify is already configured and was left unchanged")
-		}
-	}
-
-	block := []string{codexMarkerStart, notifyLine, codexMarkerEnd, ""}
-	updated := append([]string{}, lines[:insertAt]...)
-	if len(updated) > 0 && strings.TrimSpace(updated[len(updated)-1]) != "" {
-		updated = append(updated, "")
-	}
-	updated = append(updated, block...)
-	updated = append(updated, lines[insertAt:]...)
-	return []byte(strings.TrimLeft(strings.Join(updated, "\n"), "\n")), nil
+func restoreCodexContext(context codexFileContext) error {
+	return restoreIntegrationFile(store.IntegrationFileState{
+		Path:       context.path,
+		BackupPath: context.currentBackup,
+		Created:    context.created,
+	})
 }
 
-func removeCodexBlock(data []byte) ([]byte, bool, error) {
-	lines := strings.Split(string(data), "\n")
-	start := -1
-	end := -1
-	for index, line := range lines {
-		switch strings.TrimSpace(line) {
-		case codexMarkerStart:
-			if start >= 0 {
-				return nil, false, fmt.Errorf("multiple Mews marker blocks found")
+func codexPersistedFiles(
+	previous *store.IntegrationState,
+	hooksContext codexFileContext,
+	configContext codexFileContext,
+) (store.IntegrationFileState, store.IntegrationFileState) {
+	hooks := store.IntegrationFileState{
+		Path:       hooksContext.path,
+		BackupPath: hooksContext.currentBackup,
+		Created:    hooksContext.created,
+	}
+	config := store.IntegrationFileState{
+		Path:       configContext.path,
+		BackupPath: configContext.currentBackup,
+		Created:    configContext.created,
+	}
+	if previous == nil {
+		return hooks, config
+	}
+	if previous.Path == hooksContext.path {
+		hooks.BackupPath = previous.BackupPath
+		hooks.Created = previous.Created
+		for _, file := range previous.AdditionalFiles {
+			if file.Path == configContext.path {
+				config.BackupPath = file.BackupPath
+				config.Created = file.Created
 			}
-			start = index
-		case codexMarkerEnd:
-			if start < 0 || end >= 0 {
-				return nil, false, fmt.Errorf("unmatched Mews marker")
-			}
-			end = index
 		}
+		return hooks, config
 	}
-	if start < 0 && end < 0 {
-		return data, false, nil
-	}
-	if start < 0 || end < start {
-		return nil, false, fmt.Errorf("unmatched Mews marker")
-	}
-	updated := append([]string{}, lines[:start]...)
-	after := lines[end+1:]
-	if len(updated) > 0 && len(after) > 0 &&
-		strings.TrimSpace(updated[len(updated)-1]) == "" &&
-		strings.TrimSpace(after[0]) == "" {
-		after = after[1:]
-	}
-	updated = append(updated, after...)
-	return []byte(strings.Join(updated, "\n")), true, nil
-}
 
-func codexBlock(data []byte) (string, bool, error) {
-	lines := strings.Split(string(data), "\n")
-	start := -1
-	for index, line := range lines {
-		switch strings.TrimSpace(line) {
-		case codexMarkerStart:
-			if start >= 0 {
-				return "", false, fmt.Errorf("multiple Mews marker blocks found")
-			}
-			start = index
-		case codexMarkerEnd:
-			if start < 0 {
-				return "", false, fmt.Errorf("unmatched Mews marker")
-			}
-			return strings.Join(lines[start:index+1], "\n"), true, nil
-		}
-	}
-	if start >= 0 {
-		return "", false, fmt.Errorf("unmatched Mews marker")
-	}
-	return "", false, nil
+	config.BackupPath = previous.BackupPath
+	config.Created = previous.Created
+	return hooks, config
 }

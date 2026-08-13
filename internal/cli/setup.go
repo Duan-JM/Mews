@@ -100,8 +100,11 @@ func printSetupPlan(
 	if settingsPath, err := integrations.ClaudeSettingsPath(); err == nil {
 		fmt.Fprintf(stdout, "  - install Claude Code hooks: %s\n", settingsPath)
 	}
+	if hooksPath, err := integrations.CodexHooksPath(); err == nil {
+		fmt.Fprintf(stdout, "  - install Codex lifecycle hooks: %s\n", hooksPath)
+	}
 	if configPath, err := integrations.CodexConfigPath(); err == nil {
-		fmt.Fprintf(stdout, "  - install Codex notify integration: %s\n", configPath)
+		fmt.Fprintf(stdout, "  - trust the fixed Mews Codex hooks in: %s\n", configPath)
 	}
 	fmt.Fprintln(stdout, "  - include project, cwd, hook event, and session metadata in events")
 	fmt.Fprintf(stdout, "  - return to terminal: %s\n", terminal.Description(terminalProfile))
@@ -139,7 +142,8 @@ func applySetup(
 	}
 
 	fmt.Fprintln(stdout, "Mews setup state saved.")
-	for _, integration := range installed {
+	for index := range installed {
+		integration := &installed[index]
 		fmt.Fprintf(stdout, "Installed %s integration: %s\n", integration.Name, integration.Path)
 	}
 	if options.includeTaskTitle {

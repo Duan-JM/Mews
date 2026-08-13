@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -57,20 +58,26 @@ func InstallAll(mwPath string) ([]store.IntegrationState, error) {
 	for _, installer := range installers {
 		state, err := installer.install(mwPath, previous[installer.name])
 		if err != nil {
-			rollbackInstall(installed)
-			return nil, restoreCopilotHookState(copilotStateDisabled, err)
+			rollbackErr := rollbackInstall(installed)
+			return nil, restoreCopilotHookState(copilotStateDisabled, errors.Join(err, rollbackErr))
 		}
 		installed = append(installed, state)
 	}
 
 	state := store.IntegrationStateFile{Version: 1, Integrations: installed}
 	if err := store.SaveIntegrationState(state); err != nil {
-		rollbackInstall(installed)
-		return nil, restoreCopilotHookState(copilotStateDisabled, err)
+		rollbackErr := rollbackInstall(installed)
+		return nil, restoreCopilotHookState(copilotStateDisabled, errors.Join(err, rollbackErr))
 	}
-	for _, integration := range installed {
+	for index := range installed {
+		integration := &installed[index]
 		if integration.RollbackPath != "" {
 			_ = os.Remove(integration.RollbackPath)
+		}
+		for _, file := range integration.RollbackFiles {
+			if file.BackupPath != "" {
+				_ = os.Remove(file.BackupPath)
+			}
 		}
 	}
 	return installed, nil
@@ -97,17 +104,7 @@ func UndoAll() error {
 
 	for i := len(state.Integrations) - 1; i >= 0; i-- {
 		integration := state.Integrations[i]
-		switch integration.Name {
-		case "copilot":
-			err = removeCopilot(integration)
-		case "claude-code":
-			err = removeClaude(integration)
-		case "codex":
-			err = removeCodex(integration)
-		default:
-			err = fmt.Errorf("unknown integration %q", integration.Name)
-		}
-		if err != nil {
+		if err := removeIntegration(integration); err != nil {
 			return fmt.Errorf("remove %s integration: %w", integration.Name, err)
 		}
 		state.Integrations = state.Integrations[:i]
@@ -118,13 +115,46 @@ func UndoAll() error {
 		} else if err := store.RemoveIntegrationState(); err != nil {
 			return err
 		}
-		if integration.BackupPath != "" {
-			if err := os.Remove(integration.BackupPath); err != nil && !os.IsNotExist(err) {
-				return err
-			}
+		if err := removeIntegrationBackups(integration); err != nil {
+			return err
 		}
 	}
 	return store.RemoveCopilotHookState()
+}
+
+func removeIntegration(integration store.IntegrationState) error {
+	switch integration.Name {
+	case "copilot":
+		return removeCopilot(integration)
+	case "claude-code":
+		return removeClaude(integration)
+	case "codex":
+		return removeCodex(integration)
+	default:
+		return fmt.Errorf("unknown integration %q", integration.Name)
+	}
+}
+
+func removeIntegrationBackups(integration store.IntegrationState) error {
+	if err := removeBackupFile(integration.BackupPath); err != nil {
+		return err
+	}
+	for index := range integration.AdditionalFiles {
+		if err := removeBackupFile(integration.AdditionalFiles[index].BackupPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func removeBackupFile(path string) error {
+	if path == "" {
+		return nil
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 func undoUnrecordedCopilot() error {
@@ -145,25 +175,39 @@ func Statuses() []Result {
 	}
 }
 
-func rollbackInstall(installed []store.IntegrationState) {
+func rollbackInstall(installed []store.IntegrationState) error {
+	var rollbackErr error
 	for i := len(installed) - 1; i >= 0; i-- {
 		integration := installed[i]
+		primary := store.IntegrationFileState{
+			Path:       integration.Path,
+			BackupPath: integration.BackupPath,
+			Created:    integration.Created,
+		}
 		if integration.RollbackPath != "" {
-			rollback := integration
-			rollback.BackupPath = integration.RollbackPath
-			_ = restoreBackup(rollback)
-			_ = os.Remove(integration.RollbackPath)
-			continue
+			primary.BackupPath = integration.RollbackPath
+			primary.Created = false
 		}
-		if integration.BackupPath != "" {
-			_ = restoreBackup(integration)
-			_ = os.Remove(integration.BackupPath)
-			continue
+		if err := restoreIntegrationFile(primary); err != nil {
+			rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore %s: %w", primary.Path, err))
+		} else if err := removeBackupFile(primary.BackupPath); err != nil {
+			rollbackErr = errors.Join(rollbackErr, err)
 		}
-		if integration.Created {
-			_ = os.Remove(integration.Path)
+
+		files := integration.AdditionalFiles
+		if len(integration.RollbackFiles) > 0 {
+			files = integration.RollbackFiles
+		}
+		for index := range files {
+			file := files[index]
+			if err := restoreIntegrationFile(file); err != nil {
+				rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore %s: %w", file.Path, err))
+			} else if err := removeBackupFile(file.BackupPath); err != nil {
+				rollbackErr = errors.Join(rollbackErr, err)
+			}
 		}
 	}
+	return rollbackErr
 }
 
 func ensureRecordedIntegrationPath(previous *store.IntegrationState, path, name, envVar string) error {
@@ -218,21 +262,31 @@ func backupFile(name, path string) (string, error) {
 }
 
 func restoreBackup(integration store.IntegrationState) error {
-	if integration.BackupPath == "" {
-		if integration.Created {
-			return os.Remove(integration.Path)
+	return restoreIntegrationFile(store.IntegrationFileState{
+		Path:       integration.Path,
+		BackupPath: integration.BackupPath,
+		Created:    integration.Created,
+	})
+}
+
+func restoreIntegrationFile(file store.IntegrationFileState) error {
+	if file.BackupPath == "" {
+		if file.Created {
+			if err := os.Remove(file.Path); err != nil && !os.IsNotExist(err) {
+				return err
+			}
 		}
 		return nil
 	}
-	data, err := os.ReadFile(integration.BackupPath)
+	data, err := os.ReadFile(file.BackupPath)
 	if err != nil {
 		return err
 	}
-	info, err := os.Stat(integration.BackupPath)
+	info, err := os.Stat(file.BackupPath)
 	if err != nil {
 		return err
 	}
-	writePath, err := resolveWritePath(integration.Path)
+	writePath, err := resolveWritePath(file.Path)
 	if err != nil {
 		return err
 	}

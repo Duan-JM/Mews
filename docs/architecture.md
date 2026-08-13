@@ -120,7 +120,7 @@ New presentation changes can show a bounded preview without collapsing an expand
 
 Presentation selection uses an injected current time rather than mutating stored history. `running` and `needs_input` events remain current for 24 hours; settled `done`, `failed`, and explicit `idle` events remain current for 30 minutes. Events more than five minutes in the future are not selected as current. When the latest primary event expires, the status logo returns to `idle`, automatic peeks close, and current attention resolves. Expired primary events remain in bounded local history but do not occupy the expanded active-session panel; events without stable identity keep their separate bounded menu entries.
 
-The same centralized freshness policy applies to the recoverable session index. Repository updates and explicit history recovery reject evidence beyond the five-minute future tolerance. A valid current event may replace an already persisted too-future record so clock-skewed evidence cannot block the session until its timestamp arrives. Expiry is derived at read time with an injected clock: it changes the reported status to `idle` without rewriting the accepted evidence, the session index, or `events.jsonl`. Presentation derives a separate presence value from the latest source and hook event. Any case-insensitive `sessionEnd` is closed; other Claude Code and Copilot CLI lifecycle hooks are open; Codex, runner, and hookless records remain unknown. No persisted schema migration is required because existing records already retain `hookEvent`.
+The same centralized freshness policy applies to the recoverable session index. Repository updates and explicit history recovery reject evidence beyond the five-minute future tolerance. A valid current event may replace an already persisted too-future record so clock-skewed evidence cannot block the session until its timestamp arrives. Expiry is derived at read time with an injected clock: it changes the reported status to `idle` without rewriting the accepted evidence, the session index, or `events.jsonl`. Presentation derives a separate presence value from the latest source and hook event. Any case-insensitive `sessionEnd` is closed; other Claude Code and Copilot CLI lifecycle hooks are open. Codex `SessionStart`, `UserPromptSubmit`, and `Stop` are open, while legacy `agent-turn-complete`, runner, and hookless records remain unknown. No persisted schema migration is required because existing records already retain `hookEvent`.
 
 A pure attention reconciler maps the current session collection into stable attention rounds. A round key contains the stable `source` plus `session_id` identity, semantic status, and `statusChangedAt`; it never uses a JSONL row, file offset, or random request identifier. Reconciliation returns newly alertable rounds, resolved rounds, the active count, and stable Notification Center identifiers. Delivered, acknowledged, and resolved state is persisted before routing, so duplicate hooks, replay, rotation, and restart do not redeliver a handled round. Returning to `running` or `idle`, expiry, or a later semantic round resolves the older attention and requests removal of matching pending and delivered notifications.
 
@@ -145,7 +145,7 @@ Supported tools in the first version:
 | Tool | First strategy | Fallback |
 |---|---|---|
 | Claude Code | Install local hook commands after confirmation | Use `mw run -- <command>` for process-exit fallback |
-| Codex | Install a top-level notify command after confirmation | Use `mw run -- <command>` for process-exit fallback |
+| Codex | Install trusted user-level lifecycle hooks after confirmation | Use `mw run -- <command>` for unsupported versions |
 | Copilot CLI | Install user-level hooks in `~/.copilot/hooks/mews.json` | `mw run -- copilot` for process-exit fallback |
 | Custom scripts | `mw notify` | None |
 
@@ -223,7 +223,8 @@ Mews will:
   - launch menu bar app: <path-to-Mews.app>
   - install Copilot CLI hooks: <copilot-home>/hooks/mews.json
   - install Claude Code hooks: <home>/.claude/settings.json
-  - install Codex notify integration: <home>/.codex/config.toml
+  - install Codex lifecycle hooks: <home>/.codex/hooks.json
+  - trust the fixed Mews Codex hooks in: <home>/.codex/config.toml
   - include project, cwd, hook event, and session metadata in events
   - return to terminal: auto (origin terminal, Terminal fallback)
   - skip task titles by default; use --include-task-title to opt in
@@ -404,9 +405,9 @@ Rules:
 
 ### Codex
 
-Mews installs Codex's top-level `notify` argv array and routes its JSON argument through `mw hook codex`. The managed TOML block has stable markers, is inserted before table declarations, and refuses to replace an existing top-level `notify` command.
+Mews installs user-level Codex command hooks for `SessionStart`, `UserPromptSubmit`, `Stop`, and `SessionEnd` in `~/.codex/hooks.json`. Each command calls `mw hook codex <event>` and receives the hook JSON through stdin. `UserPromptSubmit` records `running`, `Stop` records stopped-between-turns state, and `SessionEnd` closes the active row immediately.
 
-Codex `notify` currently reports turn completion without an explicit session-close event. Mews therefore keeps Codex presence unknown and applies the 30-minute settled freshness window to its stopped row instead of claiming that the terminal session is known to remain open.
+Codex requires user hook definitions to carry a matching trust hash before they run outside the sandbox. `mw setup --yes` writes a marked `hooks.state` block for only the fixed Mews commands it just installed. `mw doctor` verifies both the hook definitions and their current hashes. Existing user hooks and a user-owned legacy `notify` command are preserved. An older Mews-managed `notify` block is migrated to lifecycle hooks.
 
 ### Copilot CLI
 
@@ -504,7 +505,7 @@ It checks:
 - Notification permission granted.
 - Integration rollback state ready.
 - Claude Code hooks installed.
-- Codex notify integration installed.
+- Codex hooks installed and trusted.
 - Copilot CLI hook status.
 
 Example:
@@ -525,7 +526,7 @@ Socket             available
 Notifications      authorized
 Undo               ready
 Claude Code        hooks installed
-Codex              notify integration installed
+Codex              hooks installed and trusted
 Copilot CLI        hooks installed
 ```
 
@@ -722,7 +723,7 @@ Every external write must have a rollback path:
 |---|---|
 | LaunchAgent plist | unload and delete plist |
 | Claude Code settings | restore backup or remove Mews marker block |
-| Codex config | restore backup or remove Mews marker block |
+| Codex hooks and trust state | remove only recorded Mews commands and trust markers; preserve user hooks and config |
 | Copilot CLI hook | remove the Mews-owned hook file |
 | Copilot hook correlation state | delete the Mews-owned opaque marker directory |
 | Mews store | keep by default, delete with explicit reset command |

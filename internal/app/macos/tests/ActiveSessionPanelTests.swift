@@ -3,12 +3,53 @@ import Foundation
 extension MewsAppModelTests {
     static func testActiveSessionPanel() throws {
         try testKnownLifecyclePresence()
+        try testCodexLifecyclePresence()
         try testUnknownPresenceExpiry()
         try testActivePresenceFiltering()
         try testSubagentRunningPresentation()
         try testResolvedStoppedPriority()
         try testScrollableActiveSessionPanel()
         try testExpandedActiveSessionStability()
+    }
+
+    private static func testCodexLifecyclePresence() throws {
+        let start = Date(timeIntervalSince1970: 1_800_000_160)
+        var index = SessionStateIndex()
+        let running = try sessionEvent(
+            id: "codex-running",
+            source: "codex",
+            sessionID: "codex-lifecycle",
+            status: "running",
+            hookEvent: "UserPromptSubmit",
+            timestamp: start
+        )
+        _ = index.apply(running, now: start)
+        let open = try sessionRequire(
+            index.currentSessions(now: start).first,
+            "Codex running lifecycle evidence should be indexed"
+        )
+        try sessionExpect(
+            open.presence == .open && open.presentationStatus == .running,
+            "Codex UserPromptSubmit should present an open running session"
+        )
+
+        let ended = try sessionEvent(
+            id: "codex-ended",
+            source: "codex",
+            sessionID: "codex-lifecycle",
+            status: "idle",
+            hookEvent: "SessionEnd",
+            timestamp: start.addingTimeInterval(1)
+        )
+        _ = index.apply(ended, now: ended.timestamp)
+        let closed = try sessionRequire(
+            index.currentSessions(now: ended.timestamp).first,
+            "Codex SessionEnd evidence should remain indexed"
+        )
+        try sessionExpect(
+            closed.presence == .closed,
+            "Codex SessionEnd should remove the session from active presentation"
+        )
     }
 
     private static func testSubagentRunningPresentation() throws {

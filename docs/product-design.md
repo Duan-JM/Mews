@@ -97,7 +97,7 @@ Mews first handles five states:
 | `failed` | Main task failed or a command exited unexpectedly | 4-second notch preview followed by compact `FAIL`, or a system notification fallback |
 | `idle` | No active task | Quiet `IDLE` compact notch state |
 
-UI freshness is separate from stored history. `running` and `needs_input` can drive the compact current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while sources without a close event remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
+UI freshness is separate from stored history. `running` and `needs_input` can drive the compact current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code, Codex, or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while legacy or hookless sources remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
 
 Events stay deliberately small:
 

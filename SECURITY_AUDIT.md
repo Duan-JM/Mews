@@ -13,7 +13,7 @@ This document tracks the safety checks that must stay true for the release MVP.
 - Integration edits create backups before writing.
 - `mw undo` removes only Mews-owned integration blocks.
 - Malformed third-party config files are not edited.
-- Existing Codex `notify` commands are not replaced.
+- Existing user Codex hooks and `notify` commands are preserved; Mews trusts only its fixed installed hook definitions.
 - Event metadata has field-size limits and the JSONL history is bounded.
 - Terminal return actions validate directories and terminal identifiers, restrict tmux sockets to the current user, and use fixed kitty and tmux argument lists.
 - Formal release packaging fails when signing or notarization credentials are missing.

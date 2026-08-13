@@ -70,22 +70,30 @@ func runCodexHook(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 	}
 
 	payload := stdin
-	if len(args) == 1 {
+	hookEvent := "agent-turn-complete"
+	status := events.StatusDone
+	message := "Codex turn completed"
+	lifecycleEvent := len(args) == 1 && isCodexLifecycleEvent(args[0])
+	if lifecycleEvent {
+		hookEvent, status, message = codexLifecycleEvent(args[0])
+	} else if len(args) == 1 {
 		payload = strings.NewReader(args[0])
 	}
 	event := events.Event{
 		Version:   1,
 		Source:    "codex",
-		HookEvent: "agent-turn-complete",
-		Status:    events.StatusDone,
-		Message:   "Codex turn completed",
+		HookEvent: hookEvent,
+		Status:    status,
+		Message:   message,
 		Timestamp: time.Now(),
 	}
 	if err := enrichFromHookPayload(&event, payload); err != nil {
 		fmt.Fprintf(stderr, "Invalid Codex hook payload: %v\n", err)
 		return 2
 	}
-	if event.HookEvent == "" {
+	if lifecycleEvent {
+		event.HookEvent = hookEvent
+	} else if event.HookEvent == "" {
 		event.HookEvent = "agent-turn-complete"
 	}
 	enrichRuntimeContext(&event)
@@ -102,8 +110,30 @@ func runCodexHook(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 	return 0
 }
 
+func isCodexLifecycleEvent(event string) bool {
+	switch event {
+	case "SessionStart", "UserPromptSubmit", "Stop", "SessionEnd":
+		return true
+	default:
+		return false
+	}
+}
+
+func codexLifecycleEvent(event string) (string, events.Status, string) {
+	switch event {
+	case "SessionStart":
+		return event, events.StatusIdle, "Codex session started"
+	case "UserPromptSubmit":
+		return event, events.StatusRunning, "Codex is running"
+	case "SessionEnd":
+		return event, events.StatusIdle, "Codex session ended"
+	default:
+		return event, events.StatusDone, "Codex finished"
+	}
+}
+
 func printHookUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: mw hook codex [payload]")
+	fmt.Fprintln(w, "Usage: mw hook codex [SessionStart|UserPromptSubmit|Stop|SessionEnd|payload]")
 	fmt.Fprintln(w, "       mw hook copilot <event>")
 }
 
@@ -135,7 +165,13 @@ func enrichFromHookPayload(event *events.Event, stdin io.Reader) error {
 			"thread_id",
 		)
 	}
-	if hookEvent := firstString(payload, "type", "hook_event", "hookEvent"); hookEvent != "" {
+	if hookEvent := firstString(
+		payload,
+		"type",
+		"hook_event",
+		"hookEvent",
+		"hook_event_name",
+	); hookEvent != "" {
 		event.HookEvent = hookEvent
 	}
 	if event.Project == "" && event.CWD != "" {

@@ -36,13 +36,21 @@ type SetupState struct {
 }
 
 type IntegrationState struct {
-	Name         string    `json:"name"`
-	Path         string    `json:"path"`
-	BackupPath   string    `json:"backup_path,omitempty"`
-	Created      bool      `json:"created,omitempty"`
-	Managed      []string  `json:"managed,omitempty"`
-	InstalledAt  time.Time `json:"installed_at"`
-	RollbackPath string    `json:"-"`
+	Name            string                 `json:"name"`
+	Path            string                 `json:"path"`
+	BackupPath      string                 `json:"backup_path,omitempty"`
+	Created         bool                   `json:"created,omitempty"`
+	Managed         []string               `json:"managed,omitempty"`
+	AdditionalFiles []IntegrationFileState `json:"additional_files,omitempty"`
+	InstalledAt     time.Time              `json:"installed_at"`
+	RollbackPath    string                 `json:"-"`
+	RollbackFiles   []IntegrationFileState `json:"-"`
+}
+
+type IntegrationFileState struct {
+	Path       string `json:"path"`
+	BackupPath string `json:"backup_path,omitempty"`
+	Created    bool   `json:"created,omitempty"`
 }
 
 type IntegrationStateFile struct {
