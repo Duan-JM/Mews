@@ -44,6 +44,22 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 	if err := os.WriteFile(codexPath, []byte(codexOriginal), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	codexHooksPath, _ := CodexHooksPath()
+	codexHooksOriginal := `{
+  "description": "User hooks",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {"type": "command", "command": "/usr/local/bin/user-codex-hook"}
+        ]
+      }
+    ]
+  }
+}`
+	if err := os.WriteFile(codexHooksPath, []byte(codexHooksOriginal), 0o600); err != nil {
+		t.Fatal(err)
+	}
 
 	installed, err := InstallAll("/opt/mews/bin/mw")
 	if err != nil {
@@ -74,9 +90,17 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 		t.Fatal(err)
 	}
 	content := string(codexData)
-	if !strings.Contains(content, codexMarkerStart) ||
-		strings.Index(content, codexMarkerStart) > strings.Index(content, "[tui]") {
-		t.Fatalf("Codex notify block was not inserted at top level: %s", content)
+	if !strings.Contains(content, codexTrustStart) ||
+		strings.Contains(content, codexMarkerStart) {
+		t.Fatalf("Codex trust block was not installed cleanly: %s", content)
+	}
+	codexHooksData, err := os.ReadFile(codexHooksPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(codexHooksData), "/usr/local/bin/user-codex-hook") ||
+		!strings.Contains(string(codexHooksData), "'hook' 'codex' 'UserPromptSubmit'") {
+		t.Fatalf("Codex hooks did not preserve user hooks and add Mews: %s", codexHooksData)
 	}
 
 	var claudeSettings map[string]any
@@ -89,6 +113,15 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(codexPath, append(codexData, []byte("\nreview_model = \"gpt-5\"\n")...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var codexHooksDocument map[string]any
+	if err := json.Unmarshal(codexHooksData, &codexHooksDocument); err != nil {
+		t.Fatal(err)
+	}
+	codexHooksDocument["user_edit_after_setup"] = true
+	editedCodexHooks, _ := json.MarshalIndent(codexHooksDocument, "", "  ")
+	if err := os.WriteFile(codexHooksPath, append(editedCodexHooks, '\n'), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.StartCopilotSubagent("session-123", "/tmp/subagent.jsonl"); err != nil {
@@ -112,9 +145,18 @@ func TestInstallAllPreservesUserConfigAndUndoRemovesOnlyMews(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(codexData), codexMarkerStart) ||
+	if strings.Contains(string(codexData), codexTrustStart) ||
 		!strings.Contains(string(codexData), "review_model") {
 		t.Fatalf("Codex undo removed user config or kept Mews block: %s", codexData)
+	}
+	codexHooksData, err = os.ReadFile(codexHooksPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(codexHooksData), "'hook' 'codex'") ||
+		!strings.Contains(string(codexHooksData), "/usr/local/bin/user-codex-hook") ||
+		!strings.Contains(string(codexHooksData), "user_edit_after_setup") {
+		t.Fatalf("Codex undo removed user hooks or kept Mews hooks: %s", codexHooksData)
 	}
 	hookPath, _ := CopilotHookPath()
 	if _, err := os.Stat(hookPath); !os.IsNotExist(err) {
@@ -197,7 +239,31 @@ func TestInstallAllRollsBackWhenClaudeSettingsAreMalformed(t *testing.T) {
 	}
 }
 
-func TestInstallCodexRefusesExistingNotify(t *testing.T) {
+func TestRollbackInstallPreservesBackupWhenRestoreFails(t *testing.T) {
+	root := t.TempDir()
+	backup := filepath.Join(root, "config.bak")
+	if err := os.WriteFile(backup, []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(root, "config.json")
+	if err := os.Symlink(filepath.Join(root, "missing-target"), target); err != nil {
+		t.Fatal(err)
+	}
+
+	err := rollbackInstall([]store.IntegrationState{{
+		Name:       "test",
+		Path:       target,
+		BackupPath: backup,
+	}})
+	if err == nil {
+		t.Fatal("rollbackInstall returned nil for an unresolvable target")
+	}
+	if _, statErr := os.Stat(backup); statErr != nil {
+		t.Fatalf("rollback backup was removed after restore failure: %v", statErr)
+	}
+}
+
+func TestInstallCodexPreservesExistingNotify(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
@@ -210,16 +276,57 @@ func TestInstallCodexRefusesExistingNotify(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := installCodex("/opt/mews/bin/mw", nil); err == nil ||
-		!strings.Contains(err.Error(), "already configured") {
-		t.Fatalf("installCodex error = %v, want existing notify conflict", err)
+	if _, err := installCodex("/opt/mews/bin/mw", nil); err != nil {
+		t.Fatalf("installCodex returned error: %v", err)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != original {
-		t.Fatalf("Codex config changed after refusal: %s", data)
+	if !strings.Contains(string(data), strings.TrimSpace(original)) ||
+		!strings.Contains(string(data), codexTrustStart) {
+		t.Fatalf("Codex config did not preserve user notify and add trust: %s", data)
+	}
+}
+
+func TestInstallCodexMigratesManagedLegacyNotify(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+	configPath, _ := CodexConfigPath()
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := installCodexBlock(
+		[]byte("model = \"gpt-5\"\n"),
+		codexNotifyLine("/opt/mews/bin/mw"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	previous := &store.IntegrationState{
+		Name:    "codex",
+		Path:    configPath,
+		Managed: []string{codexNotifyLine("/opt/mews/bin/mw")},
+	}
+
+	state, err := installCodex("/opt/mews/bin/mw", previous)
+	if err != nil {
+		t.Fatalf("installCodex returned error: %v", err)
+	}
+	if state.Path == configPath || len(state.AdditionalFiles) != 1 {
+		t.Fatalf("migrated state = %#v, want hooks primary plus config state", state)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), codexMarkerStart) ||
+		!strings.Contains(string(data), codexTrustStart) {
+		t.Fatalf("legacy notify was not replaced with trusted hooks: %s", data)
 	}
 }
 
@@ -340,17 +447,35 @@ func TestClaudeSymlinkIsPreserved(t *testing.T) {
 
 func TestInstallCodexRefusesMultilineStrings(t *testing.T) {
 	data := []byte("developer_instructions = \"\"\"\n[section]\nKeep this text\n\"\"\"\n")
-	if _, err := installCodexBlock(data, `notify = ["/opt/mw", "hook", "codex"]`); err == nil ||
+	if _, err := installCodexTrustBlock(data, nil); err == nil ||
 		!strings.Contains(err.Error(), "multiline TOML strings") {
-		t.Fatalf("installCodexBlock error = %v, want multiline refusal", err)
+		t.Fatalf("installCodexTrustBlock error = %v, want multiline refusal", err)
 	}
 }
 
-func TestInstallCodexRefusesQuotedTopLevelKeys(t *testing.T) {
-	data := []byte(`"notify" = ["/usr/local/bin/custom-notify"]` + "\n")
-	if _, err := installCodexBlock(data, `notify = ["/opt/mw", "hook", "codex"]`); err == nil ||
-		!strings.Contains(err.Error(), "quoted top-level TOML keys") {
-		t.Fatalf("installCodexBlock error = %v, want quoted-key refusal", err)
+func TestInstallCodexRefusesMalformedHooks(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
+	path, _ := CodexHooksPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte(`{"hooks":{"Stop":"invalid"}}`)
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := installCodex("/opt/mw", nil); err == nil ||
+		!strings.Contains(err.Error(), "invalid hook structure") {
+		t.Fatalf("installCodex error = %v, want invalid hook structure", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != string(original) {
+		t.Fatalf("malformed Codex hooks changed after refusal: %s", data)
 	}
 }
 

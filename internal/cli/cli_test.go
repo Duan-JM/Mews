@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -439,5 +440,52 @@ func TestNotifyFromHookIncludesTruncatedTaskTitleWhenEnabled(t *testing.T) {
 	}
 	if !strings.Contains(content, `"message":"copilot done: Mews - fix the doctor command`) {
 		t.Fatalf("event log did not include task title in message: %s", content)
+	}
+}
+
+func TestCodexLifecycleHooksMapRunningStopAndSessionEnd(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	payload := `{"cwd":"/tmp/Mews","session_id":"codex-session","hook_event_name":"wrong-event"}`
+	tests := []struct {
+		event  string
+		status string
+	}{
+		{event: "SessionStart", status: "idle"},
+		{event: "UserPromptSubmit", status: "running"},
+		{event: "Stop", status: "done"},
+		{event: "SessionEnd", status: "idle"},
+	}
+	for _, test := range tests {
+		var stdout, stderr bytes.Buffer
+		code := Run(
+			[]string{"hook", "codex", test.event},
+			strings.NewReader(payload),
+			&stdout,
+			&stderr,
+		)
+		if code != 0 {
+			t.Fatalf("Codex %s hook returned %d, stderr: %s", test.event, code, stderr.String())
+		}
+	}
+
+	eventPath := filepath.Join(home, "Library", "Application Support", "Mews", "events.jsonl")
+	data, err := os.ReadFile(eventPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != len(tests) {
+		t.Fatalf("Codex lifecycle wrote %d events, want %d: %s", len(lines), len(tests), data)
+	}
+	for index, test := range tests {
+		var event events.Event
+		if err := json.Unmarshal([]byte(lines[index]), &event); err != nil {
+			t.Fatal(err)
+		}
+		if event.HookEvent != test.event || string(event.Status) != test.status ||
+			event.SessionID != "codex-session" || event.CWD != "/tmp/Mews" {
+			t.Fatalf("Codex %s event = %#v", test.event, event)
+		}
 	}
 }

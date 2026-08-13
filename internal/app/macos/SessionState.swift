@@ -95,8 +95,11 @@ struct CurrentSessionState: Equatable {
         if normalizedHook == "sessionend" {
             return .closed
         }
-        if normalizedHook != nil &&
-            (source == "claude-code" || source == "copilot") {
+        if normalizedHook != nil && (source == "claude-code" || source == "copilot") {
+            return .open
+        }
+        if source == "codex",
+           ["sessionstart", "userpromptsubmit", "stop"].contains(normalizedHook) {
             return .open
         }
         return .unknown

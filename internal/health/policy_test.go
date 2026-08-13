@@ -90,7 +90,7 @@ func TestMissingLaunchAgentOnlyDegradesAutomaticStart(t *testing.T) {
 func TestIntegrationDriftNamesAffectedTool(t *testing.T) {
 	observation := healthyObservation()
 	observation.Integrations[1].Ready = false
-	observation.Integrations[1].Status = "Mews notify integration not installed"
+	observation.Integrations[1].Status = "Mews hooks not installed"
 
 	snapshot := Evaluate(observation, nil)
 

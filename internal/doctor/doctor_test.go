@@ -49,7 +49,7 @@ func TestObservationResultsUseSingleRawProbe(t *testing.T) {
 		Socket:             health.SocketUnresponsive,
 		Notifications:      health.NotificationsStale,
 		Integrations: []health.IntegrationObservation{
-			{Name: "Codex", Status: "notify integration not installed", Ready: false},
+			{Name: "Codex", Status: "hooks not installed", Ready: false},
 		},
 	}
 
@@ -60,7 +60,7 @@ func TestObservationResultsUseSingleRawProbe(t *testing.T) {
 		"Local agent":   "not running",
 		"Socket":        "present but not responding",
 		"Notifications": "stale; Mews.app is not refreshing it",
-		"Codex":         "notify integration not installed",
+		"Codex":         "hooks not installed",
 	}
 	seen := make(map[string]bool, len(want))
 	for _, result := range results {
