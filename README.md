@@ -40,6 +40,34 @@ mw start
 
 `mw setup` previews the local configuration changes. `mw setup --yes` applies them, and `mw start` launches the menu bar app.
 
+### Install a development build with Homebrew
+
+Development builds use the current `dev` branch and a local Homebrew tap. They are ad-hoc signed and intended only for local testing.
+
+For the first installation:
+
+```bash
+git clone --branch dev https://github.com/Duan-JM/Mews.git
+cd Mews
+make cask-local
+brew install --cask duan-jm/mews-local/mews@dev
+
+mw setup
+mw setup --yes
+mw start
+```
+
+To rebuild and install the latest `dev` branch:
+
+```bash
+mw stop
+git switch dev
+git pull --ff-only origin dev
+make cask-local
+brew reinstall --cask duan-jm/mews-local/mews@dev
+mw start
+```
+
 ## Uninstall
 
 Remove Mews-owned integrations before deleting the installed files:
