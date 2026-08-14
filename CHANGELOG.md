@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added validated local IPC, event storage, terminal return actions, and runtime health diagnostics. ([#86](https://github.com/Duan-JM/Mews/pull/86))
 - Added signed and notarized release packaging, checksum generation, and Homebrew Cask installation. ([#86](https://github.com/Duan-JM/Mews/pull/86))
 
+### Fixed
+
+- Added the missing publication gate for the release tag, GitHub assets, and stable Homebrew tap. ([#89](https://github.com/Duan-JM/Mews/issues/89))
+
 ### Security
 
 - Kept core behavior local-only without accounts, telemetry, transcript upload, or terminal scrollback scraping. ([#86](https://github.com/Duan-JM/Mews/pull/86))
