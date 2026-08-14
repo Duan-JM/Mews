@@ -16,4 +16,4 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make lint-tools
-      - run: VERSION=v0.0.0 make release-check
+      - run: VERSION=v0.0.1 make release-check

@@ -54,7 +54,7 @@ if command -v ditto >/dev/null 2>&1; then
 else
   cp -R lib/Mews.app "$OUT/libexec/Mews.app"
 fi
-cp README.md README_zh.md LICENSE SECURITY.md SECURITY_AUDIT.md CONTRIBUTING.md install.sh "$OUT/"
+cp README.md README_zh.md CHANGELOG.md LICENSE SECURITY.md SECURITY_AUDIT.md CONTRIBUTING.md install.sh "$OUT/"
 cp -R docs "$OUT/docs"
 cp -R assets "$OUT/assets"
 

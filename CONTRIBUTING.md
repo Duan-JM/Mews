@@ -56,10 +56,35 @@ live in `.github/instructions/github-workflow.instructions.md`.
 
 ## Changelog policy
 
-Mews does not maintain a changelog file yet. Describe user-visible behavior and
-verification in the pull request. Prepare release notes during an explicit
-release promotion, and do not add version bumps, tags, or release copy to a
-day-to-day change.
+Do not edit `CHANGELOG.md` in day-to-day pull requests. User-visible changes
+must add one typed fragment under `changelog.d/`:
+
+```text
+<issue-or-pr>.added.md
+<issue-or-pr>.changed.md
+<issue-or-pr>.deprecated.md
+<issue-or-pr>.removed.md
+<issue-or-pr>.fixed.md
+<issue-or-pr>.security.md
++short-slug.changed.md
+```
+
+Each fragment contains one concise, user-facing paragraph on one line.
+Internal-only refactors, tests, and documentation corrections may omit a
+fragment when the pull request explains why.
+
+Validate fragments with `make changelog-check` and preview the next release
+section with `make changelog-draft`. During an explicit release promotion,
+consume all fragments and create the target version section:
+
+```bash
+make changelog-build VERSION=vX.Y.Z DATE=YYYY-MM-DD CONFIRM=yes
+```
+
+Review the generated `CHANGELOG.md`, confirm `changelog.d/` has no remaining
+fragments, and run `VERSION=vX.Y.Z make release-check`. A release promotion
+includes the generated changelog; day-to-day changes do not add version bumps,
+tags, or release copy.
 
 ## Release and hotfix policy
 

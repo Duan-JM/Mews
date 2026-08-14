@@ -26,6 +26,8 @@ Contributor commands:
 ```bash
 make lint-tools     # Install pinned Go, Swift, and Shell linters under .tools/bin
 make hooks          # Install pre-commit lint and pre-push test hooks
+make changelog-check # Validate typed changelog.d fragments
+make changelog-draft # Preview fragments grouped by release-note type
 make check          # Run lint, tests, and the build
 make build          # Build the mw CLI and package Mews.app
 make test           # Run Go tests and Swift model tests
@@ -152,12 +154,18 @@ External tools and macOS integration points should be mocked where practical. Do
 
 Update docs with the code change that makes them true.
 
+- `CHANGELOG.md`: release history generated from typed `changelog.d/` fragments.
 - `README.md` and `README_zh.md`: concise user-facing product promise, basic features, install and uninstall paths, safety summary, and practical tips.
 - `docs/architecture.md`: runtime design, integration strategy, storage, IPC, packaging, and rollback.
 - `docs/product-design.md`: product framing, audience, MVP scope, state model, interface previews, roadmap, and risks.
 - `AGENTS.md`: agent workflow, repository structure, commands, and safety rules.
 
 Do not document commands as working until they exist.
+
+User-visible day-to-day changes add a typed fragment under `changelog.d/`
+instead of editing `CHANGELOG.md`. Release promotions consume all fragments
+with the documented `make changelog-build` command, review the generated
+version section, and verify that no fragments remain.
 
 ## AI Engineering Workflow
 
