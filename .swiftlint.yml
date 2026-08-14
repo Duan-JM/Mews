@@ -1,0 +1,48 @@
+included:
+  - internal/app/macos
+  - scripts/generate-icon.swift
+  - scripts/render-screenshots.swift
+  - scripts/screenshot-fixtures.swift
+
+# Portable command-line toolchains do not always expose SourceKit.
+disabled_rules:
+  - statement_position
+
+opt_in_rules:
+  - force_unwrapping
+
+cyclomatic_complexity:
+  warning: 10
+  error: 12
+  ignores_case_statements: true
+
+file_length:
+  warning: 400
+  error: 500
+  ignore_comment_only_lines: true
+
+function_body_length:
+  warning: 50
+  error: 80
+
+function_parameter_count:
+  warning: 5
+  error: 6
+
+line_length:
+  warning: 120
+  error: 140
+  ignores_comments: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 250
+  error: 350
+
+identifier_name:
+  min_length:
+    warning: 2
+  excluded:
+    - id
+
+reporter: xcode

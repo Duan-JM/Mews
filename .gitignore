@@ -1,0 +1,8 @@
+bin/
+dist/
+lib/Mews.app/
+.tools/
+.worktree/
+coverage.out
+*.log
+.DS_Store

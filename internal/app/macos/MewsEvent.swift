@@ -1,0 +1,282 @@
+import Foundation
+
+struct MewsEvent: Decodable {
+    let id: String?
+    let source: String
+    let status: String
+    let hookEvent: String?
+    let agentScope: String?
+    let recoverable: Bool?
+    let sessionID: String?
+    let project: String?
+    let taskTitle: String?
+    let message: String?
+    let cwd: String?
+    let terminal: String?
+    let terminalWindowID: String?
+    let kittyListenOn: String?
+    let tmuxSocket: String?
+    let tmuxPane: String?
+    let tmuxClient: String?
+    let timestamp: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case source
+        case status
+        case hookEvent = "hook_event"
+        case agentScope = "agent_scope"
+        case recoverable
+        case sessionID = "session_id"
+        case project
+        case taskTitle = "task_title"
+        case message
+        case cwd
+        case terminal
+        case terminalWindowID = "terminal_window_id"
+        case kittyListenOn = "kitty_listen_on"
+        case tmuxSocket = "tmux_socket"
+        case tmuxPane = "tmux_pane"
+        case tmuxClient = "tmux_client"
+        case timestamp
+    }
+
+    var affectsPrimaryStatus: Bool {
+        // Older events have no recoverable field and retain their original notification behavior.
+        return agentScope != "subagent" && recoverable != true
+    }
+
+    var shouldNotify: Bool {
+        return affectsPrimaryStatus && ["needs_input", "done", "failed"].contains(status)
+    }
+
+    var cliContext: CLIContextPayload? {
+        return cliContext(cliExecutablePath: bundledCLIExecutablePath())
+    }
+
+    func cliContext(cliExecutablePath: String?) -> CLIContextPayload? {
+        let command = normalizedText(sessionID).map {
+            sessionReturnCommand($0, cliExecutablePath: cliExecutablePath)
+        }
+        return CLIContextPayload(
+            returnCommand: command,
+            workingDirectory: cwd,
+            terminal: terminal,
+            terminalWindowID: terminalWindowID,
+            kittyListenOn: kittyListenOn,
+            tmuxSocket: tmuxSocket,
+            tmuxPane: tmuxPane,
+            tmuxClient: tmuxClient
+        )
+    }
+
+    func notificationUserInfo(including context: CLIContextPayload?) -> [String: String] {
+        var info = context?.userInfo ?? [:]
+        if let id = normalizedText(id) {
+            info["event_id"] = id
+        }
+        if let source = normalizedText(source) {
+            info["source"] = source
+        }
+        if let sessionID = normalizedText(sessionID) {
+            info["session_id"] = sessionID
+        }
+        return info
+    }
+
+    var notificationTitle: String {
+        return mewsNotificationTitle(source: source, status: status)
+    }
+
+    var notificationSubtitle: String {
+        return mewsNotificationSubtitle(project: project, sessionID: sessionID)
+    }
+
+    var notificationBody: String {
+        return mewsNotificationBody(
+            status: status,
+            hookEvent: hookEvent,
+            taskTitle: taskTitle,
+            message: message
+        )
+    }
+
+    var summary: String {
+        let project = normalizedText(project) ?? "unknown project"
+        let message = normalizedText(message) ?? "no message"
+        var text = "\(source) \(status) (\(project)) \(message)"
+        if let session = normalizedText(sessionID) {
+            text += " session \(shortLabel(session, maximum: 8))"
+        }
+        return text
+    }
+
+    var sourceLabel: String {
+        return mewsSourceLabel(source)
+    }
+
+    var statusLabel: String {
+        return mewsStatusLabel(status)
+    }
+}
+
+func mewsNotificationTitle(source: String, status: String) -> String {
+    return "\(mewsSourceLabel(source)): \(mewsStatusLabel(status))"
+}
+
+func mewsNotificationSubtitle(project: String?, sessionID: String?) -> String {
+    var parts: [String] = []
+    let project = normalizedText(project)
+    if let project {
+        parts.append(project)
+    }
+    if let session = normalizedText(sessionID), session != project {
+        parts.append("Session \(shortLabel(session, maximum: 8))")
+    }
+    return parts.joined(separator: " | ")
+}
+
+func mewsNotificationBody(
+    status: String,
+    hookEvent: String?,
+    taskTitle: String?,
+    message: String?
+) -> String {
+    if let taskTitle = normalizedText(taskTitle) {
+        return taskTitle
+    }
+    switch hookEvent {
+    case "PermissionRequest":
+        return "Waiting for permission"
+    case "Stop":
+        return "Agent finished"
+    case "StopFailure":
+        return "Agent failed"
+    case "agentStop":
+        return "Agent stopped"
+    case "subagentRunning":
+        return "Subagents are still running"
+    case "errorOccurred":
+        return "Agent reported an error"
+    case "agent-turn-complete":
+        return "Agent turn completed"
+    default:
+        break
+    }
+    if let message = normalizedText(message) {
+        return message
+    }
+    switch status {
+    case "needs_input":
+        return "Waiting for input"
+    case "done":
+        return "Agent finished"
+    case "failed":
+        return "Agent failed"
+    default:
+        return "Agent status: \(status)"
+    }
+}
+
+func mewsSourceLabel(_ source: String) -> String {
+    switch source {
+    case "claude-code":
+        return "Claude Code"
+    case "codex":
+        return "Codex"
+    case "copilot":
+        return "Copilot CLI"
+    case "runner":
+        return "Command"
+    default:
+        return source.isEmpty ? "Agent" : source
+    }
+}
+
+func mewsStatusLabel(_ status: String) -> String {
+    switch status {
+    case "needs_input":
+        return "Needs Input"
+    case "done":
+        return "Done"
+    case "failed":
+        return "Failed"
+    case "running":
+        return "Running"
+    case "idle":
+        return "Idle"
+    default:
+        return status
+    }
+}
+
+enum EventAlertChannel: Equatable {
+    case none
+    case notch
+    case systemNotification
+}
+
+struct EventAlertRoutingPolicy {
+    static func channel(
+        for event: MewsEvent,
+        notchEvent: MewsEvent?,
+        physicalNotchAvailable: Bool
+    ) -> EventAlertChannel {
+        guard event.shouldNotify else {
+            return .none
+        }
+        guard physicalNotchAvailable,
+              let notchEvent,
+              representsSameEvent(event, notchEvent) else {
+            return .systemNotification
+        }
+        return .notch
+    }
+
+    private static func representsSameEvent(
+        _ event: MewsEvent,
+        _ candidate: MewsEvent
+    ) -> Bool {
+        let eventID = normalizedText(event.id)
+        let candidateID = normalizedText(candidate.id)
+        if let eventID, let candidateID {
+            return eventID == candidateID
+        }
+        guard eventID == nil, candidateID == nil else {
+            return false
+        }
+        return event.source == candidate.source &&
+            event.status == candidate.status &&
+            event.hookEvent == candidate.hookEvent &&
+            event.agentScope == candidate.agentScope &&
+            event.sessionID == candidate.sessionID &&
+            event.timestamp == candidate.timestamp
+    }
+}
+
+func latestPrimaryEvent(in events: [MewsEvent]) -> MewsEvent? {
+    return events.last { $0.affectsPrimaryStatus }
+}
+
+func sessionReturnCommand(_ sessionID: String, cliExecutablePath: String? = nil) -> String {
+    let executable = normalizedText(cliExecutablePath).map(shellQuoteForDisplay) ?? "mw"
+    return "\(executable) history --session \(shellQuoteForDisplay(sessionID))"
+}
+
+private func bundledCLIExecutablePath(bundle: Bundle = .main) -> String? {
+    return bundle.path(forResource: "mw", ofType: nil)
+}
+
+private func shellQuoteForDisplay(_ value: String) -> String {
+    if value.isEmpty {
+        return "''"
+    }
+    return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+}
+
+private func shortLabel(_ value: String, maximum: Int) -> String {
+    guard value.count > maximum else {
+        return value
+    }
+    return String(value.prefix(maximum)) + "..."
+}

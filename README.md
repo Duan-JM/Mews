@@ -1,126 +1,110 @@
 <div align="center">
+  <img src="./assets/mews-logo.svg" width="96" height="96" alt="Mews cat logo">
   <h1>Mews</h1>
-  <p><em>🐈 Never miss your AI agents again.</em></p>
+  <p><em>Never miss your terminal AI agents.</em></p>
 </div>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-local--first-black?style=flat-square" alt="macOS local first">
-  <img src="https://img.shields.io/badge/Homebrew-planned-orange?style=flat-square" alt="Homebrew planned">
-  <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/status-product--draft-lightgrey?style=flat-square" alt="Product draft">
+  <img src="https://img.shields.io/badge/macOS-local--only-black?style=flat-square" alt="macOS local only">
+  <img src="https://img.shields.io/badge/status-release_candidate-green?style=flat-square" alt="Release candidate">
+  <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="GPL v3 license">
 </p>
 
-Mews sits quietly in your menu bar and watches the AI agents you run from terminal.
+[简体中文](./README_zh.md)
 
-When Claude Code, Codex, Copilot CLI, or a long tmux task finishes, fails, or needs you, Mews lets you know. You do not have to keep checking every pane.
+Mews is a local macOS menu bar companion for AI coding agents running in terminals. It lets you know when an agent finishes, fails, or needs input, so you do not have to keep checking every terminal pane.
 
-> This repository is currently a product draft. The README describes the product we want the first public version to feel like.
+## Features
+
+- Shows a compact status near the MacBook notch when available, with Notification Center as the fallback.
+- Shows current sessions in the menu bar and keeps recent event history on your Mac.
+- Supports Claude Code, Codex, Copilot CLI, and long-running commands through `mw run`.
+- Returns to a validated source terminal when possible, and can copy a command for that session's local history.
 
 ## Install
 
-```bash
-brew install mews
-mews start
-```
+> Public downloads are not available yet. Mews is preparing its first signed release.
 
-That is the whole setup.
-
-Mews starts a small menu bar companion, finds the AI CLI tools already on your Mac, enables local notifications where it can, and tells you what it is watching.
-
-```text
-Mews is watching:
-  ✓ Claude Code
-  ✓ Codex
-  ✓ Copilot CLI
-  ✓ tmux
-```
-
-If something cannot be enabled safely, Mews leaves it alone and explains the fix in `mews doctor`.
-
-## Why
-
-AI agents are easy to start and easy to forget.
-
-You ask Claude Code to refactor a file, leave Codex running tests in tmux, or let Copilot CLI work through a command. Then you switch apps. Ten minutes later the agent may be done, stuck, or waiting for permission, but the only signal is buried in a terminal pane.
-
-Mews turns that hidden state into a small local signal.
-
-## What You See
-
-- A menu bar icon that shows whether an agent is running, done, failed, or waiting.
-- A short notification when an agent needs your attention.
-- A recent history list, so missed notifications are not gone forever.
-- A quiet idle state when nothing is happening.
-
-Later, **Mews for Mac** can add the notch cat: a small cat around the MacBook notch that walks while agents run, naps when idle, pounces when something finishes, and gets your attention when a prompt is waiting.
-
-## What Mews Watches
-
-Mews should work out of the box with the tools terminal AI users already have:
-
-- Claude Code
-- Codex
-- Copilot CLI
-- tmux
-- long-running shell commands
-
-You should not need to copy hook JSON, edit config files, or learn a notification protocol before Mews becomes useful.
-
-## Privacy
-
-Mews should be boringly private.
-
-- It runs locally on your Mac.
-- It does not upload code, prompts, transcripts, or terminal output.
-- It does not scan terminal scrollback by default.
-- It only enables integrations you approve.
-- Every automatic change should be reversible.
-
-## Commands
-
-Most users should only need two commands:
+After the first release, download the archive and its `.sha256` file from [GitHub Releases](https://github.com/Duan-JM/Mews/releases), then run:
 
 ```bash
-mews start       # Start Mews and enable supported tools
-mews doctor      # Check setup and fix anything that needs attention
+shasum -a 256 -c mews-vX.Y.Z-darwin.tar.gz.sha256
+tar -xzf mews-vX.Y.Z-darwin.tar.gz
+cd mews-vX.Y.Z-darwin
+sudo ./install.sh
+
+mw setup
+mw setup --yes
+mw start
 ```
 
-For people who want to script Mews directly:
+`mw setup` previews the local configuration changes. `mw setup --yes` applies them, and `mw start` launches the menu bar app.
+
+### Install a development build with Homebrew
+
+Development builds use the current `dev` branch and a local Homebrew tap. They are ad-hoc signed and intended only for local testing.
+
+For the first installation:
 
 ```bash
-mews notify      # Send a custom status event
-mews run -- cmd  # Run a command and notify when it exits
-mews stop        # Stop the menu bar companion
+git clone --branch dev https://github.com/Duan-JM/Mews.git
+cd Mews
+make cask-local
+brew install --cask duan-jm/mews-local/mews@dev
+
+mw setup
+mw setup --yes
+mw start
 ```
 
-## What Mews Is Not
+To rebuild and install the latest `dev` branch:
 
-Mews is not an AI chat app, not a Claude wrapper, not a Codex dashboard, not a Copilot replacement, and not a team monitoring product.
+```bash
+mw stop
+git switch dev
+git pull --ff-only origin dev
+make cask-local
+brew reinstall --cask duan-jm/mews-local/mews@dev
+mw start
+```
 
-It is a small Mac companion for people who run AI agents in terminals and do not want to babysit them.
+## Uninstall
 
-## Roadmap
+Remove Mews-owned integrations before deleting the installed files:
 
-### Open-source Mews
+```bash
+mw undo
 
-- Two-step install
-- Menu bar status
-- Automatic setup for supported tools
-- Local notifications
-- Recent event history
-- Setup doctor
-- Safe uninstall and rollback
-- Homebrew install
+# Optional: delete local event history and logs.
+mw reset --yes
 
-### Mews for Mac
+sudo rm -f /usr/local/bin/mw
+sudo rm -rf /usr/local/libexec/Mews.app
+```
 
-- Notch cat
-- Multi-agent panel
-- Visual setup and repair
-- Themes and sounds
-- Better history and project grouping
-- External display behavior
+Skip `mw reset --yes` if you want to keep local history. If you installed with a custom `PREFIX`, replace `/usr/local` with that prefix.
 
-## Product Notes
+## Security & Safety Design
 
-The pre-App Store product design lives in [pre-app-store-product-design.md](./pre-app-store-product-design.md).
+- Core features run locally without an account, telemetry, or cloud service.
+- Mews does not read or upload code, prompts, transcripts, command output, or terminal scrollback by default.
+- Setup previews planned writes, backs up supported configuration files, and leaves files unchanged when it cannot edit them safely.
+- `mw undo` removes Mews-owned integration changes without deleting unrelated user configuration.
+- Task titles are opt-in, truncated, and stored locally. Return actions use validated local context and never execute command text received from an event.
+
+See the [Security Policy](./SECURITY.md) for reporting and trust boundaries.
+
+## Tips
+
+- Run `mw status` for a quick view of watched tools and current state.
+- Run `mw doctor` when an integration, notification, or the menu bar app is not working.
+- Use `mw history` to review recent events, or `mw history --session <id>` for one session.
+- Use `mw config terminal <name>` to choose where return actions open.
+- Wrap any long command with `mw run -- <command>` to receive a completion notification.
+- Add `--include-task-title` to `mw setup --yes` only if you want short task labels stored locally.
+
+## Documentation
+
+Architecture, product design, interface previews, packaging, release, and rollback details live in the [documentation index](./docs/README.md). Release history is in [CHANGELOG.md](./CHANGELOG.md), and contributor setup is in [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+Mews is licensed under [GPL v3](./LICENSE).
