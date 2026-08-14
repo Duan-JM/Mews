@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+while IFS= read -r variable; do
+  [[ -n "$variable" ]] && unset "$variable"
+done < <(git rev-parse --local-env-vars)
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/mews-publish-test.XXXXXX")"
 
 cleanup() {
