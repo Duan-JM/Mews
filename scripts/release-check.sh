@@ -13,6 +13,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 mews_require_release_version "$VERSION"
+"$ROOT/scripts/changelog.sh" release-check "$VERSION"
 if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
   echo "Release checks require a clean worktree." >&2
   git status --short --branch -uall >&2

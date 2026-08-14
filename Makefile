@@ -1,4 +1,4 @@
-.PHONY: all build check test lint lint-tools hooks screenshots package cask cask-local cask-smoke release-check release install-local clean
+.PHONY: all build check test lint lint-tools hooks changelog-check changelog-draft changelog-build screenshots package cask cask-local cask-smoke release-check release install-local clean
 
 all: build
 
@@ -13,6 +13,7 @@ check:
 test:
 	MEWS_SOCKET_NAMESPACE=test go test ./...
 	./scripts/test-version.sh
+	./scripts/test-changelog.sh
 	./scripts/test-overlay-swift.sh
 	./scripts/test-swift.sh
 
@@ -28,6 +29,18 @@ hooks:
 		exit 1; \
 	}
 	pre-commit install
+
+changelog-check:
+	./scripts/changelog.sh check
+
+changelog-draft:
+	./scripts/changelog.sh draft
+
+changelog-build:
+	@test -n "$(VERSION)" || { echo "VERSION is required" >&2; exit 1; }
+	@test -n "$(DATE)" || { echo "DATE is required" >&2; exit 1; }
+	@test "$(CONFIRM)" = "yes" || { echo "CONFIRM=yes is required because fragments will be consumed" >&2; exit 1; }
+	./scripts/changelog.sh build "$(VERSION)" "$(DATE)" --yes
 
 screenshots:
 	./scripts/generate-screenshots.sh

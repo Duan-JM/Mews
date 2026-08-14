@@ -30,6 +30,15 @@ rm -rf "$SMOKE_DIR"
 mkdir -p "$SMOKE_DIR/home"
 tar -xzf "$ARCHIVE" -C "$SMOKE_DIR"
 
+if [[ ! -f "$PACKAGE_DIR/CHANGELOG.md" ]]; then
+  echo "Package archive is missing CHANGELOG.md" >&2
+  exit 1
+fi
+if ! grep -F "## [$APP_SHORT_VERSION] -" "$PACKAGE_DIR/CHANGELOG.md" >/dev/null; then
+  echo "Package changelog is missing version $APP_SHORT_VERSION" >&2
+  exit 1
+fi
+
 install_output="$(
   PATH="/usr/bin:/bin:/usr/sbin:/sbin" \
   PREFIX="$SMOKE_DIR/prefix" \

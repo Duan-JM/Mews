@@ -105,6 +105,6 @@ sudo rm -rf /usr/local/libexec/Mews.app
 
 ## 文档
 
-架构、产品设计、界面预览、打包、发布和回滚细节见 [文档索引](./docs/README.md)。参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+架构、产品设计、界面预览、打包、发布和回滚细节见 [文档索引](./docs/README.md)。版本记录见 [CHANGELOG.md](./CHANGELOG.md)，参与开发前请阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 Mews 使用 [GPL v3](./LICENSE) 许可证。

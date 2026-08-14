@@ -105,6 +105,6 @@ See the [Security Policy](./SECURITY.md) for reporting and trust boundaries.
 
 ## Documentation
 
-Architecture, product design, interface previews, packaging, release, and rollback details live in the [documentation index](./docs/README.md). Contributor setup is in [CONTRIBUTING.md](./CONTRIBUTING.md).
+Architecture, product design, interface previews, packaging, release, and rollback details live in the [documentation index](./docs/README.md). Release history is in [CHANGELOG.md](./CHANGELOG.md), and contributor setup is in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 Mews is licensed under [GPL v3](./LICENSE).

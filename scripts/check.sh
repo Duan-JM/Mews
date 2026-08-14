@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PATH="$ROOT/.tools/bin:$PATH"
 
+"$ROOT/scripts/changelog.sh" check
+
 gofmt_out="$(gofmt -l cmd internal)"
 if [[ -n "$gofmt_out" ]]; then
   echo "gofmt needed:"
