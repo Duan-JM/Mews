@@ -40,6 +40,34 @@ mw start
 
 `mw setup` 会先展示计划修改的本地配置。`mw setup --yes` 应用这些改动，`mw start` 启动菜单栏应用。
 
+### 使用 Homebrew 安装开发版
+
+开发版从当前 `dev` 分支构建，并通过本地 Homebrew tap 安装。构建产物使用临时签名，只适合本机测试。
+
+首次安装：
+
+```bash
+git clone --branch dev https://github.com/Duan-JM/Mews.git
+cd Mews
+make cask-local
+brew install --cask duan-jm/mews-local/mews@dev
+
+mw setup
+mw setup --yes
+mw start
+```
+
+拉取并安装最新的 `dev` 分支：
+
+```bash
+mw stop
+git switch dev
+git pull --ff-only origin dev
+make cask-local
+brew reinstall --cask duan-jm/mews-local/mews@dev
+mw start
+```
+
 ## 卸载
 
 删除安装文件前，先移除 Mews 管理的接入配置：
