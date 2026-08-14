@@ -90,8 +90,8 @@ tags, or release copy.
 
 A release promotion uses a pull request from `dev` to `main`. After that pull
 request is merged, a maintainer runs the formal release command from a clean
-`main` synchronized with `origin/main`. Creating a tag, GitHub release, or
-published Homebrew Cask remains a separate explicit action.
+`main` synchronized with `origin/main`. Publication is a second explicit,
+confirmation-gated command:
 
 An urgent hotfix starts from `main` and targets `main`. After it is merged, move
 the same fix back to `dev` through a separate pull request. Do not use a direct
@@ -104,7 +104,17 @@ VERSION=vX.Y.Z \
 SIGN_IDENTITY="Developer ID Application: ..." \
 NOTARY_PROFILE=mews-notary \
 make release
+
+VERSION=vX.Y.Z CONFIRM=yes make publish-release
 ```
+
+`make publish-release` verifies the source commit record, archive checksum,
+Developer ID signatures, notarization ticket, Gatekeeper assessment, generated
+Cask URL, and absence of the development quarantine bypass. It then creates or
+resumes the tag and GitHub Release, downloads every public asset for bytewise
+comparison, and publishes the Cask to the public `Duan-JM/homebrew-mews` tap. A
+partial publication can be rerun when the existing tag still points to the
+current `main`; mismatched tags fail closed.
 
 Do not bypass these gates or publish an unsigned artifact as a formal release.
 

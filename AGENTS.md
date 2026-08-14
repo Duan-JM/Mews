@@ -38,6 +38,7 @@ make cask           # Produce a release archive and versioned Homebrew Cask
 make cask-local     # Build a prerelease and prepare an ignored local Homebrew tap
 make cask-smoke     # Exercise isolated Cask install, runtime, and uninstall
 make release        # Sign, notarize, verify, and package a formal release
+make publish-release # Publish a verified release and Homebrew Cask
 make install-local  # Install into a local test prefix
 make clean          # Remove build outputs
 ```
@@ -222,3 +223,14 @@ make release
 ```
 
 The command builds with the requested version, signs the CLI and app with hardened runtime, notarizes and staples the app, verifies it with Gatekeeper, and produces a tarball, SHA-256 checksum, and checksum-pinned Homebrew Cask. Missing credentials or an invalid version must fail. Do not create tags, GitHub releases, or publish the Cask to a tap unless the human explicitly requests that publication action.
+
+After an explicitly authorized release build, publish it from the same clean
+`main` worktree with:
+
+```bash
+VERSION=vX.Y.Z CONFIRM=yes make publish-release
+```
+
+The publication command must verify the signed artifacts again, create or
+resume the matching tag and GitHub Release, read public assets back, and update
+the public Homebrew tap. It must fail when an existing tag points elsewhere.
