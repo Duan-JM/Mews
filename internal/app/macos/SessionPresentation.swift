@@ -15,6 +15,11 @@ enum SessionPresentationPriority: Int, Comparable {
     }
 }
 
+private enum SessionPresentationSlot: Hashable {
+    case tmux(socketPath: String, paneID: String)
+    case kitty(listenOn: String, windowID: String)
+}
+
 struct SessionPresentationRow: Equatable {
     let identity: SessionIdentity
     let status: SessionStatus
@@ -150,7 +155,7 @@ struct SessionPresentationPolicy {
         let attentionByIdentity = Dictionary(
             uniqueKeysWithValues: attentionRecords.map { ($0.identity, $0) }
         )
-        let rows = sessions.filter {
+        let rows = latestSessionsByTerminalSlot(sessions, now: now).filter {
             isDisplayable(session: $0, now: now)
         }.map { session in
             row(
@@ -163,6 +168,39 @@ struct SessionPresentationPolicy {
             rows: rows,
             health: healthSnapshot.flatMap { health(snapshot: $0, now: now) }
         )
+    }
+
+    private static func latestSessionsByTerminalSlot(
+        _ sessions: [CurrentSessionState],
+        now: Date
+    ) -> [CurrentSessionState] {
+        let tolerance = SessionFreshnessPolicy.standard.futureTolerance
+        let eligible = sessions.filter {
+            now.timeIntervalSince($0.evidenceAt) >= -tolerance
+        }
+        let withoutSlot = eligible.filter { presentationSlot(for: $0) == nil }
+        let bySlot = Dictionary(grouping: eligible.compactMap { session in
+            presentationSlot(for: session).map { ($0, session) }
+        }, by: \.0)
+
+        return withoutSlot + bySlot.values.flatMap { entries in
+            let newestEvidenceAt = entries.map(\.1.evidenceAt).max()
+            return entries.compactMap { _, session in
+                session.evidenceAt == newestEvidenceAt ? session : nil
+            }
+        }
+    }
+
+    private static func presentationSlot(
+        for session: CurrentSessionState
+    ) -> SessionPresentationSlot? {
+        if let target = session.returnContext?.tmuxTarget {
+            return .tmux(socketPath: target.socketPath, paneID: target.paneID)
+        }
+        if let target = session.returnContext?.kittyTarget {
+            return .kitty(listenOn: target.listenOn, windowID: target.windowID)
+        }
+        return nil
     }
 
     static func stabilizedRows(
