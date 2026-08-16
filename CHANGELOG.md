@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Added the missing publication gate for the release tag, GitHub assets, and stable Homebrew tap. ([#89](https://github.com/Duan-JM/Mews/issues/89))
+- Hid an interrupted agent session when a newer session takes over the same terminal pane or window, while preserving sessions in other terminals. ([#93](https://github.com/Duan-JM/Mews/issues/93))
 
 ### Security
 
