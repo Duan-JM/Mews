@@ -16,4 +16,16 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make lint-tools
-      - run: VERSION=v0.0.1 make release-check
+      - name: Run release checks
+        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+        run: VERSION=v0.0.1 make release-check
+      - name: Run development package checks
+        if: github.ref != 'refs/heads/main' && github.base_ref != 'main'
+        run: |
+          VERSION=v0.0.1-dev.1 make package
+          (
+            cd dist
+            shasum -a 256 -c "mews-v0.0.1-dev.1-darwin.tar.gz.sha256"
+          )
+          VERSION=v0.0.1-dev.1 ./scripts/smoke-package.sh
+          VERSION=v0.0.1-dev.1 CASK_LOCAL_BUILD=1 SKIP_PACKAGE=1 ./scripts/smoke-cask.sh
