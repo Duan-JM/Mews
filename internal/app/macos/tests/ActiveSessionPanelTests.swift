@@ -10,6 +10,7 @@ extension MewsAppModelTests {
         try testResolvedStoppedPriority()
         try testScrollableActiveSessionPanel()
         try testExpandedActiveSessionStability()
+        try testSupersededTerminalSessionFiltering()
     }
 
     private static func testCodexLifecyclePresence() throws {
@@ -297,6 +298,78 @@ extension MewsAppModelTests {
         try sessionExpect(
             stabilized.map(\.identity.sessionID) == ["first", "urgent"],
             "closed sessions should disappear without moving retained rows"
+        )
+    }
+
+    private static func testSupersededTerminalSessionFiltering() throws {
+        let now = Date(timeIntervalSince1970: 1_900_000_400)
+        let presentation = SessionPresentationPolicy.resolve(
+            sessions: try terminalSlotSessions(now: now),
+            attentionRecords: [],
+            healthSnapshot: nil,
+            now: now
+        )
+
+        try sessionExpect(
+            Set(presentation.rows.map(\.identity.sessionID)) == Set([
+                "tmux-current",
+                "tmux-parallel",
+                "kitty-current",
+                "kitty-parallel"
+            ]),
+            "a newer session should replace only the older row from the same terminal slot"
+        )
+    }
+
+    private static func terminalSlotSessions(
+        now: Date
+    ) throws -> [CurrentSessionState] {
+        return try [
+            terminalSession("tmux-stale", .idle, .done, now.addingTimeInterval(-28_800), "2", "%0"),
+            terminalSession("tmux-current", .running, nil, now, "1", "%0"),
+            terminalSession("tmux-parallel", .running, nil, now.addingTimeInterval(-1), "3", "%1"),
+            terminalSession("kitty-stale", .idle, .done, now.addingTimeInterval(-3_600), "4"),
+            terminalSession("kitty-current", .running, nil, now.addingTimeInterval(-2), "4"),
+            terminalSession("kitty-parallel", .running, nil, now.addingTimeInterval(-3), "5"),
+            terminalSession("tmux-before-close", .idle, .done, now.addingTimeInterval(-7_200), "6", "%2"),
+            terminalSession("tmux-closed", .idle, nil, now.addingTimeInterval(-4), "7", "%2")
+        ]
+    }
+
+    private static func terminalSession(
+        _ id: String,
+        _ status: SessionStatus,
+        _ evidenceStatus: SessionStatus?,
+        _ evidenceAt: Date,
+        _ windowID: String,
+        _ tmuxPane: String? = nil
+    ) throws -> CurrentSessionState {
+        let identity = try sessionRequire(
+            SessionIdentity(source: "copilot", sessionID: id),
+            "terminal session identity should be valid"
+        )
+        let resolvedEvidenceStatus = evidenceStatus ?? status
+        return CurrentSessionState(
+            identity: identity,
+            status: status,
+            evidenceStatus: resolvedEvidenceStatus,
+            statusChangedAt: evidenceAt,
+            evidenceAt: evidenceAt,
+            project: "Mews",
+            hookEvent: status == .running
+                ? "userPromptSubmitted"
+                : (resolvedEvidenceStatus == .idle ? "sessionEnd" : "agentStop"),
+            returnContext: CLIContextPayload(
+                returnCommand: "mw history --session '\(id)'",
+                workingDirectory: "/tmp",
+                terminal: "kitty",
+                terminalWindowID: windowID,
+                kittyListenOn: "unix:/tmp/kitty-control",
+                tmuxSocket: tmuxPane == nil ? nil : "/private/tmp/tmux-501/default",
+                tmuxPane: tmuxPane,
+                tmuxClient: tmuxPane == nil ? nil : "/dev/ttys\(windowID)"
+            ),
+            isFresh: status != .idle
         )
     }
 
