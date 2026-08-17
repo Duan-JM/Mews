@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Mews now hides an interrupted agent session when a newer session takes over the same terminal pane or window, while preserving sessions in other terminals. ([#97](https://github.com/Duan-JM/Mews/issues/97))
+- Fixed automated release publication when GitHub Actions uses an installation token. ([#104](https://github.com/Duan-JM/Mews/issues/104))
 
 
 ## [0.0.1] - 2026-08-14

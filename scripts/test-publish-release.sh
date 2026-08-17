@@ -155,6 +155,7 @@ case "$1 $2" in
     fi
     ;;
   "api user")
+    [[ "${FAIL_API_USER:-false}" != "true" ]] || exit 1
     printf 'Duan-JM\n'
     ;;
   "api repos/"*)
@@ -194,6 +195,8 @@ fi
   cd "$PROJECT"
   PATH="$FAKE_BIN:$PATH" \
     TAP_GITHUB_TOKEN=test-token \
+    FAIL_API_USER=true \
+    GITHUB_ACTOR='github-actions[bot]' \
     GITHUB_ACTIONS=true \
     GITHUB_REF=refs/heads/main \
     GITHUB_SHA="$(git -C "$PROJECT" rev-parse HEAD)" \
@@ -204,6 +207,10 @@ fi
 test -f "$GH_STATE/smoke"
 test "$(git --git-dir="$ORIGIN" rev-list -n 1 v0.0.2)" = \
   "$(git -C "$PROJECT" rev-parse HEAD)"
+test "$(git --git-dir="$ORIGIN" for-each-ref \
+  --format='%(taggername)' refs/tags/v0.0.2)" = 'github-actions[bot]'
+test "$(git --git-dir="$TAP_ORIGIN" log -1 --format=%an main)" = \
+  'github-actions[bot]'
 cmp "$PROJECT/dist/mews.rb" \
   <(git --git-dir="$TAP_ORIGIN" show main:Casks/mews.rb)
 
