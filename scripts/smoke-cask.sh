@@ -18,9 +18,12 @@ export HOMEBREW_NO_AUTO_UPDATE=1
 
 VERSION="${VERSION:-v0.1.0-dev.1}"
 CASK_LOCAL_BUILD="${CASK_LOCAL_BUILD:-1}"
+CASK_ALLOW_ADHOC="${CASK_ALLOW_ADHOC:-0}"
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
 mews_require_release_version "$VERSION"
+CASK_TOKEN="mews-smoke-$$"
+CASK_FILENAME="${CASK_TOKEN}.rb"
 
 if [[ "${SKIP_PACKAGE:-0}" != "1" ]]; then
   VERSION="$VERSION" "$ROOT/scripts/package.sh"
@@ -31,6 +34,7 @@ if [[ ! -f "$ARCHIVE" ]]; then
   echo "Package archive not found: $ARCHIVE" >&2
   exit 1
 fi
+CASK_URL="${CASK_URL:-file://${ARCHIVE}}"
 
 SMOKE_DIR="$ROOT/dist/.cask-smoke-${VERSION}-$$"
 TAP_DIR="$SMOKE_DIR/tap"
@@ -118,18 +122,19 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$TAP_DIR/Casks" "$HOME_DIR" "$APP_DIR" "$BIN_DIR"
-CASK_URL="file://${ARCHIVE}" \
+CASK_URL="$CASK_URL" \
   CASK_BINARY_TARGET="$MW" \
   CASK_LOCAL_BUILD="$CASK_LOCAL_BUILD" \
   CASK_OUTPUT="$TAP_DIR/Casks/$CASK_FILENAME" \
+  CASK_TOKEN_OVERRIDE="$CASK_TOKEN" \
   VERSION="$VERSION" \
   "$ROOT/scripts/homebrew-cask.sh"
 if [[ "$CASK_LOCAL_BUILD" == "1" ]]; then
-  if ! grep -F "com.apple.quarantine" "$TAP_DIR/Casks/$CASK_FILENAME" >/dev/null; then
+  if ! grep -F 'system_command "/usr/bin/xattr"' "$TAP_DIR/Casks/$CASK_FILENAME" >/dev/null; then
     echo "Local Cask does not contain the quarantine-removal postflight." >&2
     exit 1
   fi
-elif grep -F "com.apple.quarantine" "$TAP_DIR/Casks/$CASK_FILENAME" >/dev/null; then
+elif grep -F 'system_command "/usr/bin/xattr"' "$TAP_DIR/Casks/$CASK_FILENAME" >/dev/null; then
   echo "Release Cask unexpectedly contains the local quarantine bypass." >&2
   exit 1
 fi
@@ -154,6 +159,8 @@ if [[ "$CASK_LOCAL_BUILD" == "1" ]]; then
     echo "Local Cask installation unexpectedly quarantined Mews.app." >&2
     exit 1
   fi
+elif [[ "$CASK_ALLOW_ADHOC" == "1" ]]; then
+  xattr -dr com.apple.quarantine "$APP"
 else
   spctl --assess --type execute --verbose=4 "$APP"
 fi

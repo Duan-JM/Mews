@@ -1,4 +1,4 @@
-.PHONY: all build check test lint lint-tools hooks changelog-check changelog-draft changelog-build screenshots package cask cask-local cask-smoke release-check release install-local clean
+.PHONY: all build check test lint lint-tools hooks changelog-check changelog-draft changelog-build screenshots package cask cask-local cask-smoke release-check preflight-release release publish-release install-local clean
 
 all: build
 
@@ -14,6 +14,8 @@ test:
 	MEWS_SOCKET_NAMESPACE=test go test ./...
 	./scripts/test-version.sh
 	./scripts/test-changelog.sh
+	./scripts/test-preflight-release.sh
+	./scripts/test-publish-release.sh
 	./scripts/test-overlay-swift.sh
 	./scripts/test-swift.sh
 
@@ -62,8 +64,14 @@ cask-smoke:
 release-check:
 	./scripts/release-check.sh
 
+preflight-release:
+	./scripts/preflight-release.sh
+
 release:
 	./scripts/release.sh
+
+publish-release:
+	./scripts/publish-release.sh
 
 install-local:
 	./scripts/install-local.sh

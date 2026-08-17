@@ -88,16 +88,30 @@ tags, or release copy.
 
 ## Release and hotfix policy
 
-A release promotion uses a pull request from `dev` to `main`. After that pull
-request is merged, a maintainer runs the formal release command from a clean
-`main` synchronized with `origin/main`. Creating a tag, GitHub release, or
-published Homebrew Cask remains a separate explicit action.
+A preflight release promotion uses a pull request from `dev` to `main`. The
+release pull request consumes changelog fragments into a new `v0.0.N` section.
+Merging that pull request is the publication approval: the `release` workflow
+reads the newest changelog version, builds the artifacts, creates the tag and
+GitHub Prerelease, reads the public assets back, runs the remote Cask smoke, and
+updates `Duan-JM/homebrew-mews`.
 
 An urgent hotfix starts from `main` and targets `main`. After it is merged, move
 the same fix back to `dev` through a separate pull request. Do not use a direct
 push for either direction.
 
-Formal release validation requires macOS Developer ID and notarization credentials:
+The automated workflow uses the `HOMEBREW_TAP_DEPLOY_KEY` Actions secret. Its
+matching public deploy key has write access only to `Duan-JM/homebrew-mews`.
+The workflow fails closed when the version is not `v0.0.N`, the existing tag
+points elsewhere, a public asset differs from the local artifact, or the tap
+smoke fails.
+
+For local recovery of a partially completed publication:
+
+```bash
+VERSION=vX.Y.Z CONFIRM=yes make publish-release
+```
+
+Formal signed releases remain credential-gated and use:
 
 ```bash
 VERSION=vX.Y.Z \
@@ -106,7 +120,7 @@ NOTARY_PROFILE=mews-notary \
 make release
 ```
 
-Do not bypass these gates or publish an unsigned artifact as a formal release.
+Do not describe an ad-hoc signed preflight artifact as a formal signed release.
 
 ## Safety expectations
 

@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  preflight:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: make lint-tools
+      - name: Read release version
+        run: echo "VERSION=$(./scripts/changelog.sh current-version)" >>"$GITHUB_ENV"
+      - name: Build preflight release
+        run: make preflight-release
+      - name: Configure Homebrew tap deploy key
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: |
+          test -n "$TAP_DEPLOY_KEY"
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$TAP_DEPLOY_KEY" >"$HOME/.ssh/mews-homebrew"
+          chmod 0600 "$HOME/.ssh/mews-homebrew"
+          gh api meta --jq '.ssh_keys[] | "github.com " + .' >"$HOME/.ssh/known_hosts"
+          cat >>"$HOME/.ssh/config" <<'EOF'
+          Host github.com
+            IdentityFile ~/.ssh/mews-homebrew
+            IdentitiesOnly yes
+          EOF
+      - name: Publish GitHub prerelease and Homebrew Cask
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_CLONE_URL: git@github.com:Duan-JM/homebrew-mews.git
+        run: make publish-release
