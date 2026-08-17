@@ -14,6 +14,7 @@ test:
 	MEWS_SOCKET_NAMESPACE=test go test ./...
 	./scripts/test-version.sh
 	./scripts/test-changelog.sh
+	./scripts/test-workflows.sh
 	./scripts/test-preflight-release.sh
 	./scripts/test-publish-release.sh
 	./scripts/test-overlay-swift.sh
