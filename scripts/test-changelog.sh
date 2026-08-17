@@ -39,6 +39,7 @@ fi
 "$TEMP_ROOT/scripts/changelog.sh" build v0.0.1 2026-08-14 --yes
 "$TEMP_ROOT/scripts/changelog.sh" release-check v0.0.1
 "$TEMP_ROOT/scripts/changelog.sh" release-check v0.0.1-dev.1
+test "$("$TEMP_ROOT/scripts/changelog.sh" current-version)" = "v0.0.1"
 grep -F "## [0.0.1] - 2026-08-14" "$TEMP_ROOT/CHANGELOG.md" >/dev/null
 if find "$TEMP_ROOT/changelog.d" -type f -name '*.md' | grep -q .; then
   echo "Expected changelog fragments to be consumed" >&2

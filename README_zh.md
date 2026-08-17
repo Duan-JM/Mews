@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-local--only-black?style=flat-square" alt="仅在 macOS 本地运行">
-  <img src="https://img.shields.io/badge/status-release_candidate-green?style=flat-square" alt="发布候选版本">
+  <img src="https://img.shields.io/badge/status-preflight-orange?style=flat-square" alt="Preflight 版本">
   <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="GPL v3 许可证">
 </p>
 
@@ -23,9 +23,19 @@ Mews 是一个运行在 macOS 菜单栏的本地小工具，用来查看终端 A
 
 ## 安装
 
-> Mews 目前还没有公开下载，首个签名版本正在准备中。
+使用 Homebrew 安装当前公开的 preflight 版本：
 
-首个版本发布后，从 [GitHub Releases](https://github.com/Duan-JM/Mews/releases) 下载压缩包和对应的 `.sha256` 文件，然后运行：
+```bash
+brew install --cask duan-jm/mews/mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
+
+mw setup
+mw setup --yes
+mw start
+```
+
+不使用 Homebrew 时，从 [GitHub Releases](https://github.com/Duan-JM/Mews/releases)
+下载压缩包和对应的 `.sha256` 文件，然后运行：
 
 ```bash
 shasum -a 256 -c mews-vX.Y.Z-darwin.tar.gz.sha256
@@ -39,6 +49,18 @@ mw start
 ```
 
 `mw setup` 会先展示计划修改的本地配置。`mw setup --yes` 应用这些改动，`mw start` 启动菜单栏应用。
+
+### 升级
+
+Preflight 构建使用临时签名。请先核对 GitHub Release 和 checksum，每次安装或升级后移除 quarantine。
+
+```bash
+mw stop
+brew update
+brew upgrade --cask mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
+mw start
+```
 
 ### 使用 Homebrew 安装开发版
 
@@ -78,6 +100,12 @@ mw undo
 # 可选：删除本地事件历史和日志。
 mw reset --yes
 
+brew uninstall --cask duan-jm/mews/mews
+```
+
+使用压缩包安装时，改为删除对应文件：
+
+```bash
 sudo rm -f /usr/local/bin/mw
 sudo rm -rf /usr/local/libexec/Mews.app
 ```

@@ -42,6 +42,7 @@ assert_invalid() {
 assert_version "dev" "0.0.0" "0" "0.0.0-dev" "mews@dev" "mews@dev.rb"
 assert_version "v0.1.0-dev" "0.1.0" "0.1.0" "0.1.0-dev" "mews@dev" "mews@dev.rb"
 assert_version "v0.1.0-dev.1" "0.1.0" "0.1.0" "0.1.0-dev.1" "mews@dev" "mews@dev.rb"
+assert_version "v0.0.2" "0.0.2" "0.0.2" "0.0.2" "mews" "mews.rb"
 assert_version "v1.2.3" "1.2.3" "1.2.3" "1.2.3" "mews" "mews.rb"
 
 assert_invalid ""

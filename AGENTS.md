@@ -37,7 +37,9 @@ make package        # Produce local release artifacts
 make cask           # Produce a release archive and versioned Homebrew Cask
 make cask-local     # Build a prerelease and prepare an ignored local Homebrew tap
 make cask-smoke     # Exercise isolated Cask install, runtime, and uninstall
+make preflight-release # Build a publishable ad-hoc signed preflight release
 make release        # Sign, notarize, verify, and package a formal release
+make publish-release # Publish or resume the current main release
 make install-local  # Install into a local test prefix
 make clean          # Remove build outputs
 ```
@@ -212,7 +214,13 @@ For day-to-day agent work:
 Release promotions and urgent hotfix pull requests targeting `main` require an
 explicit current-turn request and must follow `CONTRIBUTING.md`.
 
-Formal releases run only on macOS and require:
+Preflight release promotions consume changelog fragments into a new `v0.0.N`
+section. Merging the `dev` to `main` release pull request is the publication
+approval. The main-branch release workflow derives the version from
+`CHANGELOG.md`, creates the tag and GitHub Prerelease, verifies the public
+assets, runs the remote Cask smoke, and updates `Duan-JM/homebrew-mews`.
+
+Formal signed releases run only on macOS and require:
 
 ```bash
 VERSION=vX.Y.Z \
@@ -221,4 +229,4 @@ NOTARY_PROFILE=mews-notary \
 make release
 ```
 
-The command builds with the requested version, signs the CLI and app with hardened runtime, notarizes and staples the app, verifies it with Gatekeeper, and produces a tarball, SHA-256 checksum, and checksum-pinned Homebrew Cask. Missing credentials or an invalid version must fail. Do not create tags, GitHub releases, or publish the Cask to a tap unless the human explicitly requests that publication action.
+The command builds with the requested version, signs the CLI and app with hardened runtime, notarizes and staples the app, verifies it with Gatekeeper, and produces a tarball, SHA-256 checksum, and checksum-pinned Homebrew Cask. Missing credentials or an invalid version must fail. Preflight artifacts remain explicitly ad-hoc signed until those credentials are configured.

@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-local--only-black?style=flat-square" alt="macOS local only">
-  <img src="https://img.shields.io/badge/status-release_candidate-green?style=flat-square" alt="Release candidate">
+  <img src="https://img.shields.io/badge/status-preflight-orange?style=flat-square" alt="Preflight release">
   <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="GPL v3 license">
 </p>
 
@@ -23,9 +23,19 @@ Mews is a local macOS menu bar companion for AI coding agents running in termina
 
 ## Install
 
-> Public downloads are not available yet. Mews is preparing its first signed release.
+Install the current public preflight with Homebrew:
 
-After the first release, download the archive and its `.sha256` file from [GitHub Releases](https://github.com/Duan-JM/Mews/releases), then run:
+```bash
+brew install --cask duan-jm/mews/mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
+
+mw setup
+mw setup --yes
+mw start
+```
+
+To install without Homebrew, download the archive and its `.sha256` file from
+[GitHub Releases](https://github.com/Duan-JM/Mews/releases), then run:
 
 ```bash
 shasum -a 256 -c mews-vX.Y.Z-darwin.tar.gz.sha256
@@ -39,6 +49,19 @@ mw start
 ```
 
 `mw setup` previews the local configuration changes. `mw setup --yes` applies them, and `mw start` launches the menu bar app.
+
+### Upgrade
+
+Preflight builds are ad-hoc signed. Review the GitHub Release and checksum, then
+remove quarantine after every installation or upgrade.
+
+```bash
+mw stop
+brew update
+brew upgrade --cask mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
+mw start
+```
 
 ### Install a development build with Homebrew
 
@@ -78,6 +101,12 @@ mw undo
 # Optional: delete local event history and logs.
 mw reset --yes
 
+brew uninstall --cask duan-jm/mews/mews
+```
+
+For an archive installation, remove the installed files instead:
+
+```bash
 sudo rm -f /usr/local/bin/mw
 sudo rm -rf /usr/local/libexec/Mews.app
 ```

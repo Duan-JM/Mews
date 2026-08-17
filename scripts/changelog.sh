@@ -12,6 +12,7 @@ usage() {
 Usage:
   scripts/changelog.sh check
   scripts/changelog.sh draft
+  scripts/changelog.sh current-version
   scripts/changelog.sh release-check <version>
   scripts/changelog.sh build <version> <YYYY-MM-DD> --yes
 EOF
@@ -124,6 +125,28 @@ release_check() {
   fi
 }
 
+current_version() {
+  local version
+  validate_all
+  version="$(
+    awk '
+      /^## \[[0-9]+\.[0-9]+\.[0-9]+\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$/ {
+        value = $0
+        sub(/^## \[/, "", value)
+        sub(/\] - .*/, "", value)
+        print value
+        exit
+      }
+    ' "$CHANGELOG"
+  )"
+  if [[ -z "$version" ]]; then
+    echo "CHANGELOG.md does not contain a released version" >&2
+    return 1
+  fi
+  normalize_version "$version" >/dev/null
+  printf 'v%s\n' "$version"
+}
+
 build_changelog() {
   local version date confirm temp file
   version="$(normalize_version "$1")"
@@ -182,6 +205,10 @@ case "${1:-}" in
     validate_all
     require_fragments
     render_entries "Unreleased" "$(date +%F)"
+    ;;
+  current-version)
+    [[ "$#" -eq 1 ]] || usage
+    current_version
     ;;
   release-check)
     [[ "$#" -eq 2 ]] || usage
