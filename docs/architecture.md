@@ -541,7 +541,7 @@ libexec/Mews.app
 
 The fallback installer writes only beneath `PREFIX` and does not edit shell startup files. Users of a custom prefix must expose `PREFIX/bin` through their shell configuration.
 
-The Homebrew Cask moves the signed app to `/Applications/Mews.app` and links its bundled `Contents/Resources/mw` executable into Homebrew's `bin` directory. The CLI resolves the containing app bundle after following that symlink, so setup hooks keep a stable path across Cask upgrades.
+The Homebrew Cask moves the app to `/Applications/Mews.app` and links its bundled `Contents/Resources/mw` executable into Homebrew's `bin` directory. The CLI resolves the containing app bundle after following that symlink, so setup hooks keep a stable path across Cask upgrades. Public preflight builds are ad-hoc signed and require an explicit quarantine removal after each install or upgrade; the Cask never performs that bypass automatically.
 
 `mw setup`:
 
@@ -563,7 +563,7 @@ This keeps the install path simple while still using a proper app bundle for men
 
 `VERSION=vX.Y.Z make release-check` runs tests, lint, checksum verification, the isolated package runtime smoke, and a real Homebrew Cask install/runtime/uninstall smoke. Formal `make release` must run from a clean `main` synchronized with `origin/main` and requires a Developer ID identity and notarization keychain profile. It replaces the local signature with Developer ID signatures, submits the app for notarization, staples the ticket, verifies with Gatekeeper, creates the release archive, verifies the normally quarantined Cask installation with Gatekeeper, and generates a checksum-pinned Cask for tap publication.
 
-`VERSION=vX.Y.Z CONFIRM=yes make publish-release` is the separate public-distribution gate. It requires the release artifacts to record the current `main` commit, then rechecks the checksum, Developer ID signatures, stapled ticket, Gatekeeper result, release URL, Cask syntax, and quarantine policy before creating the tag and GitHub Release. It downloads every published asset for bytewise comparison, then creates or updates the public `Duan-JM/homebrew-mews` tap with `Casks/mews.rb`. Publication is resumable after a partial network failure, but an existing tag that does not point to the current `main` is a hard failure.
+`make preflight-release` accepts only `v0.0.N`, runs from the exact public `main` commit, builds the ad-hoc signed archive, and generates a checksum-pinned `mews.rb` without a quarantine-removal stanza. A push to `main` runs `.github/workflows/release.yml`, derives that version from the newest `CHANGELOG.md` release section, and calls `make publish-release`. Publication creates or resumes the matching tag and GitHub Prerelease, downloads every public asset for bytewise comparison, installs the remote Cask with explicit test-only quarantine removal, and updates `Duan-JM/homebrew-mews`. An existing tag that points elsewhere is a hard failure. Tap publication uses an SSH deploy key whose write scope is limited to that tap.
 
 `make screenshots` is a developer-only documentation path. It compiles an explicit set of production UI model and view sources together with synthetic fixtures and a renderer under `scripts/`, writes into temporary directories, and renders fixed 420-by-220-point scenes at 2x resolution. The fixtures cover physical-notch and top-center placement in light and dark appearance. The command validates the fixture manifest, dimensions, file set, current username and HOME exclusions, prohibited sensitive-text markers, and expected visible labels through the macOS Vision framework. It renders twice and requires byte-identical PNG output before replacing `assets/screenshots` through a rollback-protected directory swap. The app build still compiles only `internal/app/macos/*.swift`, and the release package does not copy `scripts/`, so the fixture and renderer never enter Mews.app or the installed runtime. Only the validated documentation PNGs remain under `assets/`.
 
@@ -664,8 +664,9 @@ make package        # Produce local release artifact
 make cask           # Produce a release archive and versioned Homebrew Cask
 make cask-local     # Build a prerelease and prepare an ignored local tap
 make cask-smoke     # Install, run, and uninstall an isolated local Cask
+make preflight-release # Build publishable preflight artifacts
 make release        # Sign, notarize, verify, and package a release
-make publish-release # Publish the tag, GitHub Release, assets, and Homebrew tap
+make publish-release # Publish or resume the current main release
 make install-local  # Install into a local test prefix
 make clean          # Remove build outputs
 ```

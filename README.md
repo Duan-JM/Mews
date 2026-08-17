@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-local--only-black?style=flat-square" alt="macOS local only">
-  <img src="https://img.shields.io/badge/status-stable-green?style=flat-square" alt="Stable release">
+  <img src="https://img.shields.io/badge/status-preflight-orange?style=flat-square" alt="Preflight release">
   <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="GPL v3 license">
 </p>
 
@@ -23,10 +23,11 @@ Mews is a local macOS menu bar companion for AI coding agents running in termina
 
 ## Install
 
-Install the signed and notarized release with Homebrew:
+Install the current public preflight with Homebrew:
 
 ```bash
 brew install --cask duan-jm/mews/mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
 
 mw setup
 mw setup --yes
@@ -51,9 +52,14 @@ mw start
 
 ### Upgrade
 
+Preflight builds are ad-hoc signed. Review the GitHub Release and checksum, then
+remove quarantine after every installation or upgrade.
+
 ```bash
 mw stop
-brew upgrade --cask duan-jm/mews/mews
+brew update
+brew upgrade --cask mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
 mw start
 ```
 

@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-local--only-black?style=flat-square" alt="仅在 macOS 本地运行">
-  <img src="https://img.shields.io/badge/status-stable-green?style=flat-square" alt="稳定版本">
+  <img src="https://img.shields.io/badge/status-preflight-orange?style=flat-square" alt="Preflight 版本">
   <img src="https://img.shields.io/badge/license-GPL_v3-blue.svg?style=flat-square" alt="GPL v3 许可证">
 </p>
 
@@ -23,10 +23,11 @@ Mews 是一个运行在 macOS 菜单栏的本地小工具，用来查看终端 A
 
 ## 安装
 
-使用 Homebrew 安装经过签名和公证的正式版本：
+使用 Homebrew 安装当前公开的 preflight 版本：
 
 ```bash
 brew install --cask duan-jm/mews/mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
 
 mw setup
 mw setup --yes
@@ -51,9 +52,13 @@ mw start
 
 ### 升级
 
+Preflight 构建使用临时签名。请先核对 GitHub Release 和 checksum，每次安装或升级后移除 quarantine。
+
 ```bash
 mw stop
-brew upgrade --cask duan-jm/mews/mews
+brew update
+brew upgrade --cask mews
+xattr -dr com.apple.quarantine /Applications/Mews.app
 mw start
 ```
 

@@ -4,42 +4,65 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-: "${VERSION:?VERSION is required (for example v1.2.3)}"
-: "${CONFIRM:?CONFIRM=yes is required for public release publication}"
-if [[ "$CONFIRM" != "yes" ]]; then
-  echo "CONFIRM=yes is required for public release publication." >&2
-  exit 1
-fi
+VERSION="${VERSION:-$("$ROOT/scripts/changelog.sh" current-version)}"
 
 REPOSITORY="${REPOSITORY:-Duan-JM/Mews}"
 TAP_REPOSITORY="${TAP_REPOSITORY:-Duan-JM/homebrew-mews}"
+IS_PREFLIGHT=0
+if [[ "$VERSION" =~ ^v0\.0\.[1-9][0-9]*$ ]]; then
+  IS_PREFLIGHT=1
+fi
+
+if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
+  if [[ "${GITHUB_REF:-}" != "refs/heads/main" || "${GITHUB_SHA:-}" != "$(git rev-parse HEAD)" ]]; then
+    echo "Automated publication requires the triggering main commit." >&2
+    exit 1
+  fi
+  if [[ -z "${TAP_CLONE_URL:-}" && -z "${TAP_GITHUB_TOKEN:-}" ]]; then
+    echo "A Homebrew tap clone credential is required for automated publication." >&2
+    exit 1
+  fi
+elif [[ "${CONFIRM:-}" != "yes" ]]; then
+  echo "CONFIRM=yes is required for manual public release publication." >&2
+  exit 1
+fi
 
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
 mews_require_release_version "$VERSION"
 if [[ "$CASK_TOKEN" != "mews" ]]; then
-  echo "Public release publication requires a stable version (got: $VERSION)." >&2
+  echo "Public release publication requires the canonical mews Cask (got: $VERSION)." >&2
   exit 1
 fi
 
-for tool in codesign curl gh git ruby shasum spctl tar xcrun; do
+for tool in codesign curl gh git ruby shasum tar; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "$tool is required for release publication." >&2
     exit 1
   fi
 done
+if ((IS_PREFLIGHT == 0)); then
+  for tool in spctl xcrun; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      echo "$tool is required for stable release publication." >&2
+      exit 1
+    fi
+  done
+fi
 
 ARCHIVE="$ROOT/dist/mews-${VERSION}-darwin.tar.gz"
 CHECKSUM="$ARCHIVE.sha256"
 CASK="$ROOT/dist/$CASK_FILENAME"
 SOURCE="$ROOT/dist/mews-${VERSION}-source.txt"
 EXPECTED_URL="https://github.com/${REPOSITORY}/releases/download/${VERSION}/$(basename "$ARCHIVE")"
+EXPECTED_CASK_URL="https://github.com/${REPOSITORY}/releases/download/v#{version}/mews-v#{version}-darwin.tar.gz"
 HEAD_COMMIT="$(git rev-parse HEAD)"
 
 cleanup_paths=()
 cleanup() {
   local path
-  for path in "${cleanup_paths[@]}"; do
+  for path in "${cleanup_paths[@]:-}"; do
+    [[ -z "$path" ]] && continue
     case "$path" in
       "${TMPDIR:-/tmp}"/mews-publish.*) rm -rf -- "$path" ;;
       *) echo "Refusing to remove unexpected publish path: $path" >&2 ;;
@@ -53,7 +76,12 @@ require_release_source() {
     echo "Release publication requires macOS." >&2
     return 1
   fi
-  if [[ "$(git branch --show-current)" != "main" ]]; then
+  if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
+    if [[ "${GITHUB_REF:-}" != "refs/heads/main" || "${GITHUB_SHA:-}" != "$HEAD_COMMIT" ]]; then
+      echo "Automated publication requires the triggering main commit." >&2
+      return 1
+    fi
+  elif [[ "$(git branch --show-current)" != "main" ]]; then
     echo "Release publication must run from main." >&2
     return 1
   fi
@@ -85,13 +113,13 @@ verify_artifacts() {
 
   (cd "$ROOT/dist" && shasum -a 256 -c "$(basename "$CHECKSUM")")
   ruby -c "$CASK" >/dev/null
-  if grep -F "com.apple.quarantine" "$CASK" >/dev/null; then
+  if grep -F 'system_command "/usr/bin/xattr"' "$CASK" >/dev/null; then
     echo "Formal release Cask must not bypass Gatekeeper quarantine." >&2
     return 1
   fi
   expected_sha="$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')"
   grep -F "sha256 \"$expected_sha\"" "$CASK" >/dev/null
-  grep -F "url \"$EXPECTED_URL\"" "$CASK" >/dev/null
+  grep -F "url \"$EXPECTED_CASK_URL\"" "$CASK" >/dev/null
 
   verify_dir="$(mktemp -d "${TMPDIR:-/tmp}/mews-publish.XXXXXX")"
   cleanup_paths+=("$verify_dir")
@@ -103,16 +131,34 @@ verify_artifacts() {
   fi
 
   cli="$verify_dir/mews-${VERSION}-darwin/bin/mw"
+  if [[ ! -x "$cli" ]]; then
+    echo "Release archive does not contain an executable mw CLI." >&2
+    return 1
+  fi
+  if [[ "$("$cli" --version)" != "mw $VERSION" ]]; then
+    echo "Release archive contains an unexpected mw version." >&2
+    return 1
+  fi
   codesign --verify --deep --strict --verbose=2 "$app"
   details="$(codesign -dv --verbose=4 "$app" 2>&1)"
-  grep -F "Authority=Developer ID Application:" <<<"$details" >/dev/null
-  grep -E '^TeamIdentifier=[A-Z0-9]+$' <<<"$details" >/dev/null
-  xcrun stapler validate "$app"
-  spctl --assess --type execute --verbose=2 "$app"
-  codesign --verify --strict --verbose=2 "$cli"
-  details="$(codesign -dv --verbose=4 "$cli" 2>&1)"
-  grep -F "Authority=Developer ID Application:" <<<"$details" >/dev/null
-  grep -E '^TeamIdentifier=[A-Z0-9]+$' <<<"$details" >/dev/null
+  if ((IS_PREFLIGHT != 0)); then
+    grep -F "Signature=adhoc" <<<"$details" >/dev/null
+    if grep -F "Authority=Developer ID Application:" <<<"$details" >/dev/null; then
+      echo "Preflight app unexpectedly contains a Developer ID signature." >&2
+      return 1
+    fi
+  else
+    grep -F "Authority=Developer ID Application:" <<<"$details" >/dev/null
+    grep -E '^TeamIdentifier=[A-Z0-9]+$' <<<"$details" >/dev/null
+    xcrun stapler validate "$app"
+    spctl --assess --type execute --verbose=2 "$app"
+  fi
+  if ((IS_PREFLIGHT == 0)); then
+    codesign --verify --strict --verbose=2 "$cli"
+    details="$(codesign -dv --verbose=4 "$cli" 2>&1)"
+    grep -F "Authority=Developer ID Application:" <<<"$details" >/dev/null
+    grep -E '^TeamIdentifier=[A-Z0-9]+$' <<<"$details" >/dev/null
+  fi
 }
 
 remote_tag_commit() {
@@ -126,8 +172,38 @@ remote_tag_commit() {
   printf '%s\n' "$direct"
 }
 
+require_monotonic_preflight_version() {
+  local current_patch latest_patch
+  if ((IS_PREFLIGHT == 0)); then
+    return
+  fi
+  current_patch="${VERSION##*.}"
+  latest_patch="$(
+    git ls-remote --tags origin 'refs/tags/v0.0.*' |
+      awk '
+        {
+          tag = $2
+          sub(/^refs\/tags\/v0\.0\./, "", tag)
+          sub(/\^\{\}$/, "", tag)
+          if (tag ~ /^[1-9][0-9]*$/ && tag + 0 > latest) {
+            latest = tag + 0
+          }
+        }
+        END {
+          if (latest > 0) {
+            print latest
+          }
+        }
+      '
+  )"
+  if [[ -n "$latest_patch" ]] && ((current_patch < latest_patch)); then
+    echo "Preflight version $VERSION is older than remote v0.0.$latest_patch." >&2
+    return 1
+  fi
+}
+
 publish_tag() {
-  local remote_commit
+  local remote_commit actor
   remote_commit="$(remote_tag_commit)"
   if [[ -n "$remote_commit" ]]; then
     if [[ "$remote_commit" != "$HEAD_COMMIT" ]]; then
@@ -143,7 +219,11 @@ publish_tag() {
       return 1
     fi
   else
-    git tag -a "$VERSION" -m "Mews $VERSION"
+    actor="$(gh api user --jq .login)"
+    git \
+      -c user.name="$actor" \
+      -c user.email="${actor}@users.noreply.github.com" \
+      tag -a "$VERSION" -m "Mews $VERSION"
   fi
   git push origin "refs/tags/$VERSION"
 }
@@ -157,7 +237,11 @@ release_state() {
 }
 
 publish_github_release() {
-  local state notes verify_dir asset
+  local state notes verify_dir asset expected_prerelease
+  expected_prerelease="false"
+  if ((IS_PREFLIGHT != 0)); then
+    expected_prerelease="true"
+  fi
   state="$(release_state || true)"
   if [[ -z "$state" ]]; then
     notes="$(mktemp "${TMPDIR:-/tmp}/mews-publish.XXXXXX")"
@@ -168,18 +252,28 @@ publish_github_release() {
       found { print }
       END { if (!found) exit 1 }
     ' CHANGELOG.md >"$notes"
-    gh release create "$VERSION" \
-      "$ARCHIVE" "$CHECKSUM" "$CASK" "$SOURCE" \
-      --repo "$REPOSITORY" \
-      --verify-tag \
-      --title "Mews ${VERSION#v}" \
-      --notes-file "$notes"
+    if ((IS_PREFLIGHT != 0)); then
+      gh release create "$VERSION" \
+        "$ARCHIVE" "$CHECKSUM" "$CASK" "$SOURCE" \
+        --repo "$REPOSITORY" \
+        --verify-tag \
+        --title "Mews ${VERSION#v}" \
+        --prerelease \
+        --notes-file "$notes"
+    else
+      gh release create "$VERSION" \
+        "$ARCHIVE" "$CHECKSUM" "$CASK" "$SOURCE" \
+        --repo "$REPOSITORY" \
+        --verify-tag \
+        --title "Mews ${VERSION#v}" \
+        --notes-file "$notes"
+    fi
     state="$(release_state)"
   fi
 
   IFS=$'\t' read -r tag draft prerelease assets <<<"$state"
-  if [[ "$tag" != "$VERSION" || "$draft" != "false" || "$prerelease" != "false" ]]; then
-    echo "GitHub Release $VERSION is not a published stable release." >&2
+  if [[ "$tag" != "$VERSION" || "$draft" != "false" || "$prerelease" != "$expected_prerelease" ]]; then
+    echo "GitHub Release $VERSION has unexpected publication state." >&2
     return 1
   fi
   for asset in \
@@ -214,26 +308,39 @@ publish_github_release() {
   done
 }
 
+verify_published_cask() {
+  local allow_adhoc=0
+  if ((IS_PREFLIGHT != 0)); then
+    allow_adhoc=1
+  fi
+  VERSION="$VERSION" \
+    CASK_URL="$EXPECTED_URL" \
+    CASK_LOCAL_BUILD=0 \
+    CASK_PREFLIGHT="$IS_PREFLIGHT" \
+    CASK_ALLOW_ADHOC="$allow_adhoc" \
+    SKIP_PACKAGE=1 \
+    "$ROOT/scripts/smoke-cask.sh"
+}
+
 publish_tap() {
-  local tap_dir tap_created=0 actor remote_cask visibility
+  local tap_dir actor remote_cask visibility clone_url
   tap_dir="$(mktemp -d "${TMPDIR:-/tmp}/mews-publish.XXXXXX")"
   cleanup_paths+=("$tap_dir")
 
   if ! gh repo view "$TAP_REPOSITORY" >/dev/null 2>&1; then
-    gh repo create "$TAP_REPOSITORY" \
-      --public \
-      --description "Homebrew tap for Mews"
-    tap_created=1
+    echo "Homebrew tap repository is unavailable: $TAP_REPOSITORY" >&2
+    return 1
   fi
   visibility="$(gh repo view "$TAP_REPOSITORY" --json visibility --jq .visibility)"
   if [[ "$visibility" != "PUBLIC" ]]; then
     echo "Homebrew tap must be public (got: $visibility)." >&2
     return 1
   fi
-  gh repo clone "$TAP_REPOSITORY" "$tap_dir/tap"
-  if ! git -C "$tap_dir/tap" rev-parse --verify HEAD >/dev/null 2>&1; then
-    git -C "$tap_dir/tap" checkout -b main
+  clone_url="${TAP_CLONE_URL:-https://github.com/${TAP_REPOSITORY}.git}"
+  if [[ -n "${TAP_GITHUB_TOKEN:-}" && -z "${TAP_CLONE_URL:-}" ]]; then
+    clone_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/${TAP_REPOSITORY}.git"
   fi
+  git clone --quiet "$clone_url" "$tap_dir/tap"
 
   mkdir -p "$tap_dir/tap/Casks"
   cp "$CASK" "$tap_dir/tap/Casks/mews.rb"
@@ -256,10 +363,6 @@ EOF
       commit -m "mews ${VERSION#v}"
     git -C "$tap_dir/tap" push origin HEAD:main
   fi
-  if ((tap_created != 0)); then
-    gh repo edit "$TAP_REPOSITORY" --default-branch main
-  fi
-
   remote_cask="$(mktemp "${TMPDIR:-/tmp}/mews-publish.XXXXXX")"
   cleanup_paths+=("$remote_cask")
   gh api "repos/${TAP_REPOSITORY}/contents/Casks/mews.rb" \
@@ -270,8 +373,10 @@ EOF
 require_release_source
 verify_artifacts
 gh auth status >/dev/null
+require_monotonic_preflight_version
 publish_tag
 publish_github_release
+verify_published_cask
 publish_tap
 
 echo "Published $VERSION and ${TAP_REPOSITORY}/mews"

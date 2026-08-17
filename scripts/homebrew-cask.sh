@@ -9,6 +9,8 @@ REPOSITORY="${REPOSITORY:-Duan-JM/Mews}"
 # shellcheck source=scripts/version.sh
 source "$ROOT/scripts/version.sh"
 mews_require_release_version "$VERSION"
+CASK_TOKEN="${CASK_TOKEN_OVERRIDE:-$CASK_TOKEN}"
+CASK_FILENAME="${CASK_TOKEN}.rb"
 
 ARCHIVE="dist/mews-${VERSION}-darwin.tar.gz"
 if [[ ! -f "$ARCHIVE" ]]; then
@@ -17,10 +19,13 @@ if [[ ! -f "$ARCHIVE" ]]; then
 fi
 
 SHA256="$(shasum -a 256 "$ARCHIVE" | awk '{print $1}')"
-CASK_URL="${CASK_URL:-https://github.com/${REPOSITORY}/releases/download/${VERSION}/mews-${VERSION}-darwin.tar.gz}"
+if [[ -z "${CASK_URL:-}" ]]; then
+  CASK_URL="https://github.com/${REPOSITORY}/releases/download/v#{version}/mews-v#{version}-darwin.tar.gz"
+fi
 CASK_OUTPUT="${CASK_OUTPUT:-dist/${CASK_FILENAME}}"
 CASK_BINARY_TARGET="${CASK_BINARY_TARGET:-mw}"
 CASK_LOCAL_BUILD="${CASK_LOCAL_BUILD:-0}"
+CASK_PREFLIGHT="${CASK_PREFLIGHT:-0}"
 mkdir -p "$(dirname "$CASK_OUTPUT")"
 
 cat > "$CASK_OUTPUT" <<RUBY
@@ -52,6 +57,17 @@ fi
 cat >> "$CASK_OUTPUT" <<RUBY
 
   caveats <<~EOS
+RUBY
+
+if [[ "$CASK_PREFLIGHT" == "1" ]]; then
+  cat >>"$CASK_OUTPUT" <<'RUBY'
+    This is an ad-hoc signed preflight build. After every install or upgrade:
+      xattr -dr com.apple.quarantine /Applications/Mews.app
+
+RUBY
+fi
+
+cat >>"$CASK_OUTPUT" <<RUBY
     Mews does not modify agent configuration during Homebrew installation.
     Review and apply the local setup plan:
       mw setup

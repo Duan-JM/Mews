@@ -15,5 +15,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: make lint-tools
-      - run: VERSION=v0.0.1 make release-check
+      - run: VERSION=v0.0.1 make package
+      - run: cd dist && shasum -a 256 -c mews-v0.0.1-darwin.tar.gz.sha256
+      - run: VERSION=v0.0.1 ./scripts/smoke-package.sh
+      - run: VERSION=v0.0.1 CASK_LOCAL_BUILD=1 SKIP_PACKAGE=1 ./scripts/smoke-cask.sh

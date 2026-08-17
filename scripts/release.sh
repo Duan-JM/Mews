@@ -78,7 +78,7 @@ VERSION="$VERSION" "$ROOT/scripts/smoke-package.sh"
 VERSION="$VERSION" CASK_LOCAL_BUILD=0 SKIP_PACKAGE=1 "$ROOT/scripts/smoke-cask.sh"
 CASK_PATH="$ROOT/dist/$CASK_FILENAME"
 SOURCE_PATH="$ROOT/dist/mews-${VERSION}-source.txt"
-RELEASE_CASK_URL="https://github.com/${REPOSITORY}/releases/download/${VERSION}/mews-${VERSION}-darwin.tar.gz"
+RELEASE_CASK_URL="https://github.com/${REPOSITORY}/releases/download/v#{version}/mews-v#{version}-darwin.tar.gz"
 VERSION="$VERSION" \
   REPOSITORY="$REPOSITORY" \
   CASK_URL="$RELEASE_CASK_URL" \
@@ -86,7 +86,7 @@ VERSION="$VERSION" \
   CASK_BINARY_TARGET="mw" \
   CASK_LOCAL_BUILD=0 \
   "$ROOT/scripts/homebrew-cask.sh"
-if grep -F "com.apple.quarantine" "$CASK_PATH" >/dev/null; then
+if grep -F 'system_command "/usr/bin/xattr"' "$CASK_PATH" >/dev/null; then
   echo "Formal release Cask must not bypass Gatekeeper quarantine." >&2
   exit 1
 fi
