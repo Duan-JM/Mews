@@ -71,6 +71,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
+release_actor() {
+  if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
+    if [[ -z "${GITHUB_ACTOR:-}" ]]; then
+      echo "GITHUB_ACTOR is required for automated publication." >&2
+      return 1
+    fi
+    printf '%s\n' "$GITHUB_ACTOR"
+    return
+  fi
+  gh api user --jq .login
+}
+
 require_release_source() {
   if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "Release publication requires macOS." >&2
@@ -219,7 +231,7 @@ publish_tag() {
       return 1
     fi
   else
-    actor="$(gh api user --jq .login)"
+    actor="$(release_actor)"
     git \
       -c user.name="$actor" \
       -c user.email="${actor}@users.noreply.github.com" \
@@ -356,7 +368,7 @@ EOF
 
   git -C "$tap_dir/tap" add Casks/mews.rb README.md
   if ! git -C "$tap_dir/tap" diff --cached --quiet; then
-    actor="$(gh api user --jq .login)"
+    actor="$(release_actor)"
     git -C "$tap_dir/tap" \
       -c user.name="$actor" \
       -c user.email="${actor}@users.noreply.github.com" \
