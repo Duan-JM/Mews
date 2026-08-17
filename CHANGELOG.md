@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- changelog release notes start -->
 
+## [0.0.2] - 2026-08-17
+
+### Changed
+
+- Automated approved preflight releases and standardized Homebrew installation on the `mews` Cask. ([#95](https://github.com/Duan-JM/Mews/issues/95))
+
+### Fixed
+
+- Mews now hides an interrupted agent session when a newer session takes over the same terminal pane or window, while preserving sessions in other terminals. ([#97](https://github.com/Duan-JM/Mews/issues/97))
+
+
 ## [0.0.1] - 2026-08-14
 
 ### Added
