@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -186,6 +187,76 @@ func TestCodexHookDetectsCurrentAppLaunchContext(t *testing.T) {
 	}
 	if recent[0].LaunchContext != events.LaunchContextCodexApp {
 		t.Fatalf("launch context = %q, want %q", recent[0].LaunchContext, events.LaunchContextCodexApp)
+	}
+}
+
+func TestCodexAppProcessAncestryDetectsEnvironmentlessHook(t *testing.T) {
+	processes := map[int]struct {
+		parent     int
+		executable string
+	}{
+		400: {parent: 300, executable: "/bin/zsh"},
+		300: {
+			parent:     200,
+			executable: "/Applications/ChatGPT.app/Contents/Resources/codex",
+		},
+		200: {
+			parent:     1,
+			executable: "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+		},
+	}
+	lookup := func(pid int) (int, string, error) {
+		process, ok := processes[pid]
+		if !ok {
+			return 0, "", errors.New("process not found")
+		}
+		return process.parent, process.executable, nil
+	}
+
+	if !isCodexAppProcessAncestry(400, lookup) {
+		t.Fatal("Codex App ancestry was not detected")
+	}
+
+	event := events.Event{
+		Source: "codex",
+		CWD:    "/tmp",
+	}
+	enrichRuntimeContextWith(&event, runtimeContextSource{
+		getenv:      func(string) string { return "" },
+		pid:         500,
+		parentPID:   400,
+		processInfo: lookup,
+	})
+	if event.LaunchContext != events.LaunchContextCodexApp {
+		t.Fatalf("launch context = %q, want %q", event.LaunchContext, events.LaunchContextCodexApp)
+	}
+}
+
+func TestCodexAppProcessAncestryRejectsBundledCLIWithoutMainAppParent(t *testing.T) {
+	processes := map[int]struct {
+		parent     int
+		executable string
+	}{
+		400: {parent: 300, executable: "/bin/zsh"},
+		300: {
+			parent:     200,
+			executable: "/Applications/ChatGPT.app/Contents/Resources/codex",
+		},
+		200: {
+			parent:     1,
+			executable: "/Applications/ChatGPT.app/Contents/MacOS/Helper",
+		},
+	}
+	lookup := func(pid int) (int, string, error) {
+		process, ok := processes[pid]
+		if !ok {
+			return 0, "", errors.New("process not found")
+		}
+		return process.parent, process.executable, nil
+	}
+
+	if isCodexAppProcessAncestry(400, lookup) {
+		t.Fatal("bundled Codex CLI without its main App parent was detected as Codex App")
 	}
 }
 
