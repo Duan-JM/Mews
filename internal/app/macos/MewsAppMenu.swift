@@ -101,7 +101,7 @@ extension MewsApp {
             )
         }
         let item = NSMenuItem(
-            title: "\(row.menuTitle) [return to CLI]",
+            title: "\(row.menuTitle) [\(row.returnActionDescription.lowercased())]",
             action: #selector(openCLIContextClicked(_:)),
             keyEquivalent: ""
         )
@@ -131,7 +131,7 @@ extension MewsApp {
             return NSMenuItem(title: event.summary, action: nil, keyEquivalent: "")
         }
         let item = NSMenuItem(
-            title: "\(event.summary) [return to CLI]",
+            title: "\(event.summary) [\(context.codexAppURL == nil ? "return to CLI" : "open in Codex")]",
             action: #selector(openCLIContextClicked(_:)),
             keyEquivalent: ""
         )

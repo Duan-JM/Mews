@@ -1,6 +1,17 @@
 import Foundation
 
 extension MewsAppModelTests {
+    static func testSessionCommandQuoting() throws {
+        try sessionExpect(
+            sessionReturnCommand(
+                "session'1",
+                cliExecutablePath: "/tmp/Mews' App/Contents/Resources/mw"
+            ) ==
+                "'/tmp/Mews'\\'' App/Contents/Resources/mw' history --session 'session'\\''1'",
+            "session command should quote executable and session paths independently"
+        )
+    }
+
     static func testMetadataRetentionAndReplacement() throws {
         let start = Date(timeIntervalSince1970: 1_800_000_150)
         var index = SessionStateIndex()
@@ -36,6 +47,45 @@ extension MewsAppModelTests {
         try applyReplacementMetadata(to: &index, start: start)
         try testPartialContextMerge()
         try testTerminalProfileChangeSanitizesTarget()
+        try testCodexAppDeepLinkValidation()
+        try testCodexAppContextRetention()
+    }
+
+    private static func testCodexAppDeepLinkValidation() throws {
+        let codexEvent = try sessionEvent(
+            id: "event-codex-app",
+            source: "codex",
+            sessionID: "67C4E708-30C2-4B6D-B6EF-93385DFE64AE",
+            status: "done",
+            project: "Mews",
+            hookEvent: "Stop",
+            launchContext: "codex_app",
+            cwd: "/tmp",
+            timestamp: Date()
+        )
+        let codexContext = try sessionRequire(
+            codexEvent.cliContext(cliExecutablePath: "/tmp/Mews App/Contents/Resources/mw"),
+            "Codex App event should have a return context"
+        )
+        try sessionExpect(
+            codexContext.codexAppURL?.absoluteString ==
+                "codex://threads/67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            "Codex App context should build the official thread deep link"
+        )
+
+        let invalidCodexContext = try sessionRequire(
+            CLIContextPayload(
+                returnCommand: nil,
+                workingDirectory: nil,
+                launchContext: "codex_app",
+                codexSessionID: "not-a-thread-id"
+            ),
+            "the launch marker should remain available for safe fallback"
+        )
+        try sessionExpect(
+            invalidCodexContext.codexAppURL == nil,
+            "invalid Codex thread identifiers should not create app links"
+        )
     }
 
     private static func applyReplacementMetadata(
@@ -116,6 +166,126 @@ extension MewsAppModelTests {
         try sessionExpect(context.sourceTerminalProfile == .terminal, "new terminal profile should replace kitty")
         try sessionExpect(context.workingDirectory == "/Users/example/terminal", "omitted cwd should remain available")
         try sessionExpect(context.kittyTarget == nil, "terminal change should remove incompatible kitty metadata")
+    }
+
+    private static func testCodexAppContextRetention() throws {
+        let start = Date(timeIntervalSince1970: 1_800_000_180)
+        var index = try codexAppContextIndex(start: start)
+        let tmuxEvent = try sessionEvent(
+            id: "codex-tmux-resume",
+            source: "codex",
+            sessionID: "67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            status: "running",
+            hookEvent: "UserPromptSubmit",
+            launchContext: "tmux",
+            tmuxSocket: "/private/tmp/tmux-501/default",
+            tmuxPane: "%6",
+            timestamp: start.addingTimeInterval(2)
+        )
+        try sessionExpect(
+            tmuxEvent.cliContext?.tmuxTarget?.paneID == "%6",
+            "tmux fixture should decode its return target"
+        )
+        _ = index.apply(tmuxEvent, now: tmuxEvent.timestamp)
+        let tmuxContext = try sessionRequire(
+            index.currentSessions(now: tmuxEvent.timestamp).first?.returnContext,
+            "resumed tmux context should remain available"
+        )
+        try sessionExpect(
+            tmuxContext.codexAppURL == nil,
+            "new tmux evidence should clear the older Codex App target"
+        )
+        try sessionExpect(
+            tmuxContext.tmuxTarget?.paneID == "%6",
+            "new tmux evidence should preserve the tmux target: \(tmuxContext.userInfo)"
+        )
+
+        try applyCodexAppAndLegacyTransitions(to: &index, start: start)
+    }
+
+    private static func codexAppContextIndex(start: Date) throws -> SessionStateIndex {
+        var index = SessionStateIndex()
+        let appEvent = try sessionEvent(
+            id: "codex-app-start",
+            source: "codex",
+            sessionID: "67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            status: "running",
+            hookEvent: "UserPromptSubmit",
+            launchContext: "codex_app",
+            timestamp: start
+        )
+        let laterEvent = try sessionEvent(
+            id: "codex-app-stop",
+            source: "codex",
+            sessionID: "67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            status: "done",
+            hookEvent: "Stop",
+            launchContext: "codex_app",
+            timestamp: start.addingTimeInterval(1)
+        )
+        _ = index.apply([appEvent, laterEvent], now: laterEvent.timestamp)
+        let context = try sessionRequire(
+            index.currentSessions(now: laterEvent.timestamp).first?.returnContext,
+            "Codex App context should remain available"
+        )
+
+        try sessionExpect(
+            context.codexAppURL?.absoluteString ==
+                "codex://threads/67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            "later lifecycle events should retain the Codex App target"
+        )
+        return index
+    }
+
+    private static func applyCodexAppAndLegacyTransitions(
+        to index: inout SessionStateIndex,
+        start: Date
+    ) throws {
+        let resumedAppEvent = try sessionEvent(
+            id: "codex-app-resume",
+            source: "codex",
+            sessionID: "67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            status: "running",
+            hookEvent: "UserPromptSubmit",
+            launchContext: "codex_app",
+            timestamp: start.addingTimeInterval(3)
+        )
+        _ = index.apply(resumedAppEvent, now: resumedAppEvent.timestamp)
+        let resumedAppContext = try sessionRequire(
+            index.currentSessions(now: resumedAppEvent.timestamp).first?.returnContext,
+            "resumed Codex App context should remain available"
+        )
+        try sessionExpect(
+            resumedAppContext.codexAppURL?.absoluteString ==
+                "codex://threads/67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            "new Codex App evidence should restore its direct target"
+        )
+        try sessionExpect(
+            resumedAppContext.tmuxTarget == nil,
+            "new Codex App evidence should clear the older tmux target"
+        )
+
+        let legacyEvent = try sessionEvent(
+            id: "codex-legacy-resume",
+            source: "codex",
+            sessionID: "67c4e708-30c2-4b6d-b6ef-93385dfe64ae",
+            status: "running",
+            hookEvent: "UserPromptSubmit",
+            timestamp: start.addingTimeInterval(4)
+        )
+        _ = index.apply(legacyEvent, now: legacyEvent.timestamp)
+        let legacyContext = try sessionRequire(
+            index.currentSessions(now: legacyEvent.timestamp).first?.returnContext,
+            "legacy Codex context should retain a safe fallback"
+        )
+        try sessionExpect(
+            legacyContext.launchContext == "unknown",
+            "missing Codex launch evidence should be stored as unknown"
+        )
+        try sessionExpect(
+            legacyContext.codexAppURL == nil,
+            "missing Codex launch evidence should clear the older App target"
+        )
     }
 
     private static func metadataEvent(

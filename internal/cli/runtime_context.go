@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -37,6 +38,26 @@ func enrichRuntimeContext(event *events.Event) {
 		event.TmuxPane = context.TmuxPane
 		event.TmuxClient = context.TmuxClient
 	}
+	if event.Source == "codex" {
+		switch {
+		case context.TmuxSocket != "":
+			event.LaunchContext = events.LaunchContextTmux
+		case isCodexAppEnvironment(os.Getenv):
+			event.LaunchContext = events.LaunchContextCodexApp
+		default:
+			event.LaunchContext = events.LaunchContextUnknown
+		}
+	}
+}
+
+func isCodexAppEnvironment(getenv func(string) string) bool {
+	originator := strings.TrimSpace(getenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE"))
+	if originator != "Codex" && originator != "codex_desktop" {
+		return false
+	}
+	resources := filepath.Clean(strings.TrimSpace(getenv("CODEX_ELECTRON_RESOURCES_PATH")))
+	return filepath.IsAbs(resources) &&
+		strings.HasSuffix(resources, ".app/Contents/Resources")
 }
 
 func resolveTmuxClient(context terminal.RuntimeContext) string {

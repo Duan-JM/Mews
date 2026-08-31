@@ -33,6 +33,7 @@ enum MewsAppModelTests {
             source: "copilot",
             status: "done",
             hookEvent: "agentStop",
+            launchContext: nil,
             agentScope: "main",
             recoverable: nil,
             sessionID: "session'1",
@@ -76,17 +77,6 @@ enum MewsAppModelTests {
             "notification metadata should decode"
         )
         try expect(decoded == context, "notification metadata should preserve CLI context")
-    }
-
-    private static func testSessionCommandQuoting() throws {
-        try expect(
-            sessionReturnCommand(
-                "session'1",
-                cliExecutablePath: "/tmp/Mews' App/Contents/Resources/mw"
-            ) ==
-                "'/tmp/Mews'\\'' App/Contents/Resources/mw' history --session 'session'\\''1'",
-            "return command should quote executable and session paths independently"
-        )
     }
 
     private static func testTerminalPreference() throws {

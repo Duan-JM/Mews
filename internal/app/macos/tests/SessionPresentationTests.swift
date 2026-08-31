@@ -8,6 +8,7 @@ extension MewsAppModelTests {
         try testConfirmedHealthPresentation()
         try testExpandedSessionOrderStability()
         try testSessionAccessibilityCopy()
+        try testCodexAppActionCopy()
     }
 
     private static func testActionableSessionOrdering() throws {
@@ -270,6 +271,52 @@ extension MewsAppModelTests {
             notchDisplayColumnCount(row.primaryLabel) <= 30 &&
                 !row.primaryLabel.contains("…"),
             "the fixed session identity slot should hard-bound text without an ellipsis"
+        )
+    }
+
+    private static func testCodexAppActionCopy() throws {
+        let now = Date(timeIntervalSince1970: 1_900_000_700)
+        let identity = try presentationRequire(
+            SessionIdentity(
+                source: "codex",
+                sessionID: "67c4e708-30c2-4b6d-b6ef-93385dfe64ae"
+            ),
+            "Codex session identity should be valid"
+        )
+        let context = try presentationRequire(
+            CLIContextPayload(
+                returnCommand: "mw history --session '67c4e708-30c2-4b6d-b6ef-93385dfe64ae'",
+                workingDirectory: "/tmp",
+                launchContext: "codex_app",
+                codexSessionID: identity.sessionID
+            ),
+            "Codex App return context should be valid"
+        )
+        let session = CurrentSessionState(
+            identity: identity,
+            status: .done,
+            evidenceStatus: .done,
+            statusChangedAt: now,
+            evidenceAt: now,
+            project: "Mews",
+            hookEvent: "Stop",
+            returnContext: context,
+            isFresh: true
+        )
+        let row = try presentationRequire(
+            SessionPresentationPolicy.resolve(
+                sessions: [session],
+                attentionRecords: [],
+                healthSnapshot: nil,
+                now: now
+            ).rows.first,
+            "Codex App presentation row should exist"
+        )
+
+        try presentationExpect(
+            row.returnActionLabel == "OPEN" &&
+                row.returnActionDescription == "Open in Codex",
+            "Codex App sessions should expose a direct-open action"
         )
     }
 
