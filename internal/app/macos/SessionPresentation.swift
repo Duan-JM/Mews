@@ -36,6 +36,16 @@ struct SessionPresentationRow: Equatable {
         return returnContext?.returnCommand
     }
 
+    var returnActionLabel: String {
+        return returnContext?.codexAppURL == nil ? "RETURN" : "OPEN"
+    }
+
+    var returnActionDescription: String {
+        return returnContext?.codexAppURL == nil
+            ? "Return to CLI"
+            : "Open in Codex"
+    }
+
     var primaryLabel: String {
         let source = sourceLabel.uppercased()
         guard let projectLabel else {
@@ -75,7 +85,7 @@ struct SessionPresentationRow: Equatable {
         parts.append(
             returnContext == nil
                 ? "Return to CLI unavailable"
-                : "Return to CLI available"
+                : "\(returnActionDescription) available"
         )
         return parts.joined(separator: ", ")
     }

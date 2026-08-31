@@ -97,6 +97,7 @@ extension MewsAppModelTests {
             source: "copilot",
             status: "needs_input",
             hookEvent: nil,
+            launchContext: nil,
             agentScope: "main",
             recoverable: nil,
             sessionID: sessionID,

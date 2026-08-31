@@ -54,7 +54,7 @@ struct NotchSessionContentView: View {
     }
 
     private func returnButton(_ row: SessionPresentationRow) -> some View {
-        Button("RETURN") {
+        Button(row.returnActionLabel) {
             if let context = row.returnContext {
                 onReturnToCLI(context, row.identity)
             }
@@ -69,8 +69,12 @@ struct NotchSessionContentView: View {
         )
         .frame(width: 62)
         .disabled(row.returnContext == nil)
-        .accessibilityLabel("Return to \(row.sourceLabel) session \(row.sessionLabel)")
-        .accessibilityHint("Returns to the validated terminal context")
+        .accessibilityLabel("\(row.returnActionDescription) session \(row.sessionLabel)")
+        .accessibilityHint(
+            row.returnContext?.codexAppURL == nil
+                ? "Returns to the validated terminal context"
+                : "Opens the matching session in Codex"
+        )
     }
 
     private func copyButton(_ row: SessionPresentationRow) -> some View {

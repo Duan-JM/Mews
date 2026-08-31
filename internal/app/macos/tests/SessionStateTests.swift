@@ -333,12 +333,16 @@ extension MewsAppModelTests {
         status: String,
         project: String? = nil,
         hookEvent: String? = nil,
+        launchContext: String? = nil,
         agentScope: String = "main",
         recoverable: Bool? = nil,
         cwd: String? = nil,
         terminal: String? = nil,
         terminalWindowID: String? = nil,
         kittyListenOn: String? = nil,
+        tmuxSocket: String? = nil,
+        tmuxPane: String? = nil,
+        tmuxClient: String? = nil,
         timestamp: Date
     ) throws -> MewsEvent {
         var object: [String: Any] = [
@@ -351,11 +355,15 @@ extension MewsAppModelTests {
         object["session_id"] = sessionID
         object["project"] = project
         object["hook_event"] = hookEvent
+        object["launch_context"] = launchContext
         object["recoverable"] = recoverable
         object["cwd"] = cwd
         object["terminal"] = terminal
         object["terminal_window_id"] = terminalWindowID
         object["kitty_listen_on"] = kittyListenOn
+        object["tmux_socket"] = tmuxSocket
+        object["tmux_pane"] = tmuxPane
+        object["tmux_client"] = tmuxClient
         let data = try JSONSerialization.data(withJSONObject: object)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

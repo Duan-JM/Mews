@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Duan-JM/mews/internal/events"
 	"github.com/Duan-JM/mews/internal/store"
 	"github.com/Duan-JM/mews/internal/terminal"
 )
@@ -119,6 +120,71 @@ func TestNotifyCapturesKittyAndTmuxContext(t *testing.T) {
 	}, "\n")
 	if string(args) != wantArgs {
 		t.Fatalf("tmux lookup args = %q, want %q", args, wantArgs)
+	}
+}
+
+func TestCodexHookDetectsAppLaunchContext(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("TMUX", "")
+	t.Setenv("TMUX_PANE", "")
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex")
+	t.Setenv("CODEX_ELECTRON_RESOURCES_PATH", "/Applications/ChatGPT.app/Contents/Resources")
+
+	var stdout, stderr bytes.Buffer
+	code := Run(
+		[]string{"hook", "codex", "SessionStart"},
+		strings.NewReader(`{"session_id":"67c4e708-30c2-4b6d-b6ef-93385dfe64ae","cwd":"/tmp"}`),
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("Codex hook returned %d, stderr: %s", code, stderr.String())
+	}
+
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("events = %#v, err=%v", recent, err)
+	}
+	if recent[0].LaunchContext != events.LaunchContextCodexApp {
+		t.Fatalf("launch context = %q, want %q", recent[0].LaunchContext, events.LaunchContextCodexApp)
+	}
+}
+
+func TestCodexHookPrefersTmuxOverAppLaunchContext(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex")
+	t.Setenv("CODEX_ELECTRON_RESOURCES_PATH", "/Applications/ChatGPT.app/Contents/Resources")
+	socketPath := newOwnedUnixSocket(t)
+	t.Setenv("TMUX", socketPath+",9336,2")
+	t.Setenv("TMUX_PANE", "%6")
+
+	var stdout, stderr bytes.Buffer
+	code := Run(
+		[]string{"hook", "codex", "SessionStart"},
+		strings.NewReader(`{"session_id":"67c4e708-30c2-4b6d-b6ef-93385dfe64ae","cwd":"/tmp"}`),
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("Codex hook returned %d, stderr: %s", code, stderr.String())
+	}
+
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("events = %#v, err=%v", recent, err)
+	}
+	if recent[0].LaunchContext != events.LaunchContextTmux ||
+		recent[0].TmuxSocket != socketPath {
+		t.Fatalf("tmux Codex event = %#v", recent[0])
 	}
 }
 
