@@ -56,8 +56,13 @@ func isCodexAppEnvironment(getenv func(string) string) bool {
 		return false
 	}
 	resources := filepath.Clean(strings.TrimSpace(getenv("CODEX_ELECTRON_RESOURCES_PATH")))
-	return filepath.IsAbs(resources) &&
-		strings.HasSuffix(resources, ".app/Contents/Resources")
+	if filepath.IsAbs(resources) &&
+		strings.HasSuffix(resources, ".app/Contents/Resources") {
+		return true
+	}
+	node := filepath.Clean(strings.TrimSpace(getenv("CODEX_MCP_NODE_PATH")))
+	return filepath.IsAbs(node) &&
+		strings.HasSuffix(node, ".app/Contents/Resources/cua_node/bin/node")
 }
 
 func resolveTmuxClient(context terminal.RuntimeContext) string {
