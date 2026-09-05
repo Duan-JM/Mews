@@ -170,11 +170,15 @@ struct SessionStateRecord: Codable, Equatable {
         return copy
     }
 
-    func mergingPersistedMetadata(from prior: SessionStateRecord) -> SessionStateRecord {
+    func mergingPersistedMetadata(
+        from prior: SessionStateRecord,
+        replayProvesStatusTransition: Bool
+    ) -> SessionStateRecord {
+        let preservesStatusChange = prior.status == status && !replayProvesStatusTransition
         return SessionStateRecord(
             identity: identity,
             status: status,
-            statusChangedAt: prior.status == status ? prior.statusChangedAt : statusChangedAt,
+            statusChangedAt: preservesStatusChange ? prior.statusChangedAt : statusChangedAt,
             evidenceAt: evidenceAt,
             project: project ?? prior.project,
             hookEvent: hookEvent,

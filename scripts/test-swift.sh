@@ -24,6 +24,7 @@ swiftc \
   "$ROOT/internal/app/macos/TerminalProfile.swift" \
   "$ROOT/internal/app/macos/CLIContext.swift" \
   "$ROOT/internal/app/macos/MewsEvent.swift" \
+  "$ROOT/internal/app/macos/EventLogFileIO.swift" \
   "$ROOT/internal/app/macos/EventLogReader.swift" \
   "$ROOT/internal/app/macos/SessionEvidenceReader.swift" \
   "$ROOT/internal/app/macos/SessionReturnContext.swift" \
@@ -60,6 +61,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateFoundationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRecoveryTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateRegressionTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionReconcilerTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionPresentationTests.swift" \

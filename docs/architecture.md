@@ -199,7 +199,9 @@ folds and store writes, and publishes a new snapshot only after the copy-on-writ
 save succeeds. It also owns a reconciliation anchor for the event log. The
 controller scans from that uncommitted anchor on every reconciliation, so a
 failed save retries the same evidence on the next refresh. The anchor advances
-only with a stable, complete-line scan and a successful fold transaction.
+only with a stable, complete-line scan and a successful fold transaction. Each
+controller scan stops at the foreground reader's published boundary so
+attention, notifications, and presentation consume one event generation.
 
 Evidence ordering is append-stable. Persisted records retain an optional global
 evidence ordinal and a bounded same-timestamp/same-precedence tie set. Older
@@ -214,13 +216,13 @@ unproven replay. This prevents rotation or restart from changing a winner.
 
 `EventLogReader` opens the log, stats the same descriptor, reads only complete
 JSONL records, and revalidates the descriptor and pathname before publishing a
-reload. Its cursor includes observed file mutation metadata and the final
-complete-line byte digest, so non-growing same-inode rewrites and ordinary
-truncate/rewrite are treated as replacement. Replacement, truncation, and
-anchor mismatch provide a full session resync batch while preserving the
-existing notification `newEvents` semantics. Read and decode failures are
-explicit, leave the previous cursor unchanged, and keep presenting the last
-valid persisted Session snapshot.
+reload. Its cursor includes observed file mutation metadata plus complete-line
+and consumed-prefix digests, so same-inode rewrites are distinguished from
+append-only growth. Replacement, truncation, and anchor mismatch provide a full
+session resync batch while preserving the existing notification `newEvents`
+semantics. Read, decode, reconciliation, and save failures are explicit, leave
+the previous cursor unchanged, and keep presenting the last valid persisted
+Session snapshot.
 `SessionEvidenceReader` uses the same descriptor-bound scanner for controller
 ordered scans without advancing the notification reader.
 

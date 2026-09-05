@@ -7,6 +7,20 @@ struct SessionControllerSnapshot: Equatable {
     let orderingKnown: Bool
 }
 
+enum SessionControllerReconciliation {
+    case success(SessionControllerSnapshot)
+    case failure(Error, SessionControllerSnapshot)
+
+    func get() throws -> SessionControllerSnapshot {
+        switch self {
+        case let .success(snapshot):
+            return snapshot
+        case let .failure(error, _):
+            throw error
+        }
+    }
+}
+
 final class SessionStateController {
     private let queue = DispatchQueue(
         label: "dev.mews.session-state",
@@ -37,30 +51,14 @@ final class SessionStateController {
 
     func reconcile(
         _ reload: EventReload,
-        completion: @escaping (Result<SessionControllerSnapshot, Error>) -> Void
+        completion: @escaping (SessionControllerReconciliation) -> Void
     ) {
         queue.async {
-            completion(Result {
-                let scan: SessionEvidenceScan
-                do {
-                    scan = try self.evidenceReader.scan(anchor: self.anchor)
-                } catch EventLogReadError.missingFile {
-                    self.revision += 1
-                    return self.makeSnapshot()
-                }
-                let sessionReload = EventReload(
-                    events: reload.events,
-                    newEvents: scan.didResync ? [] : scan.events,
-                    recoveryEvents: scan.events,
-                    sessionResyncEvents: scan.didResync ? scan.events : [],
-                    sessionCandidateAnchor: scan.candidateAnchor,
-                    sessionDidResync: scan.didResync
-                )
-                _ = try self.repository.apply(sessionReload)
-                self.anchor = scan.candidateAnchor
-                self.revision += 1
-                return self.makeSnapshot()
-            })
+            do {
+                completion(.success(try self.reconcileSynchronously(reload)))
+            } catch {
+                completion(.failure(error, self.makeSnapshot()))
+            }
         }
     }
 
@@ -89,5 +87,31 @@ final class SessionStateController {
             reconciliationAnchor: anchor,
             orderingKnown: repository.orderingKnown
         )
+    }
+
+    private func reconcileSynchronously(
+        _ reload: EventReload
+    ) throws -> SessionControllerSnapshot {
+        guard let boundary = reload.sessionCandidateAnchor else {
+            revision += 1
+            return makeSnapshot()
+        }
+        let scan = try evidenceReader.scan(
+            anchor: anchor,
+            through: boundary,
+            forceFull: reload.sessionDidResync
+        )
+        let sessionReload = EventReload(
+            events: reload.events,
+            newEvents: scan.didResync ? [] : scan.events,
+            recoveryEvents: scan.events,
+            sessionResyncEvents: scan.didResync ? scan.events : [],
+            sessionCandidateAnchor: scan.candidateAnchor,
+            sessionDidResync: scan.didResync
+        )
+        _ = try repository.apply(sessionReload)
+        anchor = scan.candidateAnchor
+        revision += 1
+        return makeSnapshot()
     }
 }

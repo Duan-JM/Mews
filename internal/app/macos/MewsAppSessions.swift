@@ -13,9 +13,43 @@ extension MewsApp {
             newEvents: [],
             recoveryEvents: events
         )
+        finishReloadUsingPersistedSessions(
+            reload,
+            now: now,
+            reconcilesAttention: true
+        )
+    }
+
+    func finishReloadAfterSessionReconciliationFailure(
+        snapshot: SessionControllerSnapshot,
+        now: Date
+    ) {
+        let reload = EventReload(
+            events: events,
+            newEvents: [],
+            recoveryEvents: events
+        )
+        finishReload(
+            reload,
+            sessionSnapshot: snapshot,
+            now: now,
+            reconcilesAttention: false
+        )
+    }
+
+    private func finishReloadUsingPersistedSessions(
+        _ reload: EventReload,
+        now: Date,
+        reconcilesAttention: Bool
+    ) {
         configureSessionState()
         guard let sessionStateController else {
-            finishReload(reload, sessionSnapshot: nil, now: now)
+            finishReload(
+                reload,
+                sessionSnapshot: nil,
+                now: now,
+                reconcilesAttention: reconcilesAttention
+            )
             return
         }
         sessionStateController.snapshot { [weak self] snapshot in
@@ -23,7 +57,12 @@ extension MewsApp {
                 guard let self, self.started else {
                     return
                 }
-                self.finishReload(reload, sessionSnapshot: snapshot, now: now)
+                self.finishReload(
+                    reload,
+                    sessionSnapshot: snapshot,
+                    now: now,
+                    reconcilesAttention: reconcilesAttention
+                )
             }
         }
     }

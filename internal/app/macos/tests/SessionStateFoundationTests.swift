@@ -358,7 +358,7 @@ extension MewsAppModelTests {
         reload: EventReload
     ) throws -> SessionControllerSnapshot {
         let semaphore = DispatchSemaphore(value: 0)
-        var outcome: Result<SessionControllerSnapshot, Error>?
+        var outcome: SessionControllerReconciliation?
         var callbackWasOnMainThread = true
         controller.reconcile(reload) {
             callbackWasOnMainThread = Thread.isMainThread

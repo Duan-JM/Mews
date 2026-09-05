@@ -223,17 +223,74 @@ extension SessionStateIndex {
         cliExecutablePath: String? = nil
     ) -> Bool {
         let compacted = compactEvidenceOrdinalsIfNeeded()
-        var projected = SessionStateIndex()
-        projected.nextEvidenceOrdinal = nextEvidenceOrdinal
-        _ = projected.apply(
+        let replay = replayProjection(
             events,
             now: now,
             policy: policy,
             cliExecutablePath: cliExecutablePath
         )
+        let merged = mergingReplay(
+            replay,
+            now: now,
+            policy: policy
+        )
+        let changed = compacted || merged != records || orderingNeedsRebuild
+        records = merged
+        nextEvidenceOrdinal = max(
+            replay.index.nextEvidenceOrdinal,
+            records.values.compactMap(\.evidenceOrdinal).max().map { $0 + 1 } ?? 1
+        )
+        orderingNeedsRebuild = records.values.contains { !$0.orderingKnown }
+        return changed
+    }
+
+    private func replayProjection(
+        _ events: [MewsEvent],
+        now: Date,
+        policy: SessionFreshnessPolicy,
+        cliExecutablePath: String?
+    ) -> SessionReplayProjection {
+        var projection = SessionStateIndex()
+        projection.nextEvidenceOrdinal = nextEvidenceOrdinal
+        var acceptedEvidence: [SessionIdentity: [SessionReplayEvidence]] = [:]
+        for event in events {
+            let identity = SessionIdentity(source: event.source, sessionID: event.sessionID)
+            let status = SessionStatus(rawValue: event.status)
+            guard projection.apply(
+                event,
+                now: now,
+                policy: policy,
+                cliExecutablePath: cliExecutablePath
+            ), let identity, let status else {
+                continue
+            }
+            let evidence = SessionEvidence(event: event, status: status)
+            acceptedEvidence[identity, default: []].append(
+                SessionReplayEvidence(
+                    status: status,
+                    orderingKey: evidence.orderingKey,
+                    id: evidence.id
+                )
+            )
+        }
+        return SessionReplayProjection(
+            index: projection,
+            acceptedEvidence: acceptedEvidence
+        )
+    }
+
+    private func mergingReplay(
+        _ replay: SessionReplayProjection,
+        now: Date,
+        policy: SessionFreshnessPolicy
+    ) -> [SessionIdentity: SessionStateRecord] {
         var merged = records
-        for (identity, candidate) in projected.records {
+        for (identity, candidate) in replay.index.records {
             guard let existing = records[identity] else {
+                merged[identity] = candidate
+                continue
+            }
+            if !policy.acceptsEvidence(evidenceAt: existing.evidenceAt, now: now) {
                 merged[identity] = candidate
                 continue
             }
@@ -244,25 +301,63 @@ extension SessionStateIndex {
                 continue
             }
             if candidate.orderingKey > existing.orderingKey {
-                merged[identity] = candidate.mergingPersistedMetadata(from: existing)
+                merged[identity] = candidate.mergingPersistedMetadata(
+                    from: existing,
+                    replayProvesStatusTransition: replay.provesStatusTransition(
+                        for: identity,
+                        after: existing
+                    )
+                )
+                continue
+            }
+            if candidate.orderingKey == existing.orderingKey,
+               existing.equivalentEvidenceOverflow {
                 continue
             }
             if candidate.orderingKey == existing.orderingKey,
                candidate.equivalentEvidenceIDs?.contains(existing.evidenceID) == true {
-                merged[identity] = candidate.mergingPersistedMetadata(from: existing)
+                merged[identity] = candidate.mergingPersistedMetadata(
+                    from: existing,
+                    replayProvesStatusTransition: replay.provesStatusTransition(
+                        for: identity,
+                        after: existing
+                    )
+                )
                 continue
             }
             if candidate.orderingKey == existing.orderingKey {
                 merged[identity] = existing.withUnknownOrdering()
             }
         }
-        let changed = compacted || merged != records || orderingNeedsRebuild
-        records = merged
-        nextEvidenceOrdinal = max(
-            projected.nextEvidenceOrdinal,
-            records.values.compactMap(\.evidenceOrdinal).max().map { $0 + 1 } ?? 1
-        )
-        orderingNeedsRebuild = records.values.contains { !$0.orderingKnown }
-        return changed
+        return merged
     }
+}
+
+private struct SessionReplayProjection {
+    let index: SessionStateIndex
+    let acceptedEvidence: [SessionIdentity: [SessionReplayEvidence]]
+
+    func provesStatusTransition(
+        for identity: SessionIdentity,
+        after existing: SessionStateRecord
+    ) -> Bool {
+        var passedExistingEvidence = false
+        for evidence in acceptedEvidence[identity] ?? [] {
+            if evidence.id == existing.evidenceID {
+                passedExistingEvidence = true
+                continue
+            }
+            if passedExistingEvidence || evidence.orderingKey > existing.orderingKey,
+               evidence.status != existing.status {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+private struct SessionReplayEvidence {
+    let status: SessionStatus
+    let orderingKey: SessionEvidenceOrderingKey
+    let id: String
 }

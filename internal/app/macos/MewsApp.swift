@@ -113,11 +113,14 @@ final class MewsApp: NSObject, NSApplicationDelegate {
                 case let .success(snapshot):
                     self.clearSessionStateError()
                     self.finishReload(reload, sessionSnapshot: snapshot, now: now)
-                case let .failure(error):
+                case let .failure(error, snapshot):
                     self.recordSessionStateError(
                         "Could not reconcile session state: \(error)"
                     )
-                    self.finishReload(reload, sessionSnapshot: nil, now: now)
+                    self.finishReloadAfterSessionReconciliationFailure(
+                        snapshot: snapshot,
+                        now: now
+                    )
                 }
             }
         }
@@ -126,15 +129,15 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     func finishReload(
         _ reload: EventReload,
         sessionSnapshot: SessionControllerSnapshot?,
-        now: Date
+        now: Date,
+        reconcilesAttention: Bool = true
     ) {
         events = reload.events
         let current = currentPrimaryEvent(in: events, now: now)
         let physicalNotchAvailable = notchPanelController?.canPresentNotchAlert == true
-        let attentionUpdate = reconcileAttention(
-            reload,
-            sessions: sessionSnapshot?.sessions
-        )
+        let attentionUpdate = reconcilesAttention
+            ? reconcileAttention(reload, sessions: sessionSnapshot?.sessions)
+            : nil
         let presentationInput = sessionPresentationInput(
             attentionUpdate: attentionUpdate,
             sessionSnapshot: sessionSnapshot,

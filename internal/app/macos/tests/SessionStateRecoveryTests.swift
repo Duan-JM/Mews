@@ -7,6 +7,7 @@ extension MewsAppModelTests {
         try testSameSizeRewriteForcesResync()
         try testExhaustedOrdinalIsRejected()
         try testSnapshotSurvivesEventReadFailure()
+        try testSessionStateReviewRegressions()
     }
 
     private static func testControllerRetriesEvidenceAfterSaveFailure() throws {
@@ -50,6 +51,10 @@ extension MewsAppModelTests {
         guard case SessionStateStoreError.writeFailed = try failure(from: failed) else {
             throw SessionRecoveryTestFailure(message: "session save should fail")
         }
+        try sessionExpect(
+            try sessionStateSnapshot(controller).sessions.first?.evidenceID == "retry-a",
+            "the controller snapshot should retain the last successfully persisted evidence"
+        )
 
         try FileManager.default.removeItem(at: storeURL)
         let recovered = try reconcileSessionState(controller, reload: reader.reload())
@@ -267,26 +272,32 @@ private extension MewsAppModelTests {
     private static func reconcileSessionStateOutcome(
         _ controller: SessionStateController,
         reload: EventReload
-    ) -> Result<SessionControllerSnapshot, Error> {
+    ) -> SessionControllerReconciliation {
         let semaphore = DispatchSemaphore(value: 0)
-        var outcome: Result<SessionControllerSnapshot, Error>?
+        var outcome: SessionControllerReconciliation?
         controller.reconcile(reload) {
             outcome = $0
             semaphore.signal()
         }
         semaphore.wait()
         return outcome ?? .failure(
-            SessionRecoveryTestFailure(message: "session reconciliation did not complete")
+            SessionRecoveryTestFailure(message: "session reconciliation did not complete"),
+            SessionControllerSnapshot(
+                revision: 0,
+                sessions: [],
+                reconciliationAnchor: nil,
+                orderingKnown: false
+            )
         )
     }
 
     private static func failure(
-        from outcome: Result<SessionControllerSnapshot, Error>
+        from outcome: SessionControllerReconciliation
     ) throws -> Error {
         switch outcome {
         case .success:
             throw SessionRecoveryTestFailure(message: "expected reconciliation to fail")
-        case let .failure(error):
+        case let .failure(error, _):
             return error
         }
     }
