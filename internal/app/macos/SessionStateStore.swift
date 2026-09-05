@@ -52,6 +52,7 @@ final class SessionStateStore {
 
         let snapshot: SessionStateSnapshot
         do {
+            try validateSchema(data)
             snapshot = try Self.decoder.decode(SessionStateSnapshot.self, from: data)
         } catch {
             throw SessionStateStoreError.corruptData(error.localizedDescription)
@@ -61,16 +62,21 @@ final class SessionStateStore {
         }
 
         do {
-            return try SessionStateIndex(restoring: snapshot.sessions)
+            return try SessionStateIndex(
+                restoring: snapshot.sessions,
+                nextEvidenceOrdinal: snapshot.nextEvidenceOrdinal,
+                orderingNeedsRebuild: snapshot.nextEvidenceOrdinal == nil
+            )
         } catch {
-            throw SessionStateStoreError.corruptData("duplicate or invalid session identity")
+            throw SessionStateStoreError.corruptData(error.localizedDescription)
         }
     }
 
     func save(_ index: SessionStateIndex) throws {
         let snapshot = SessionStateSnapshot(
             version: Self.currentVersion,
-            sessions: index.persistedRecords
+            sessions: index.persistedRecords,
+            nextEvidenceOrdinal: index.nextEvidenceOrdinal
         )
         let data: Data
         do {
@@ -107,6 +113,25 @@ final class SessionStateStore {
     }
 
     @discardableResult
+    func rebuildOrdering(
+        from events: [MewsEvent],
+        existing index: SessionStateIndex,
+        now: Date,
+        policy: SessionFreshnessPolicy = .standard,
+        cliExecutablePath: String? = nil
+    ) throws -> SessionStateIndex {
+        var rebuilt = index
+        _ = rebuilt.rebuildOrdering(
+            from: events,
+            now: now,
+            policy: policy,
+            cliExecutablePath: cliExecutablePath
+        )
+        try save(rebuilt)
+        return rebuilt
+    }
+
+    @discardableResult
     func recover(
         from reload: EventReload,
         now: Date,
@@ -128,6 +153,38 @@ final class SessionStateStore {
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
+    }
+
+    private func validateSchema(_ data: Data) throws {
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data)
+        } catch {
+            throw SessionStateStoreError.corruptData(error.localizedDescription)
+        }
+        guard let snapshot = object as? [String: Any],
+              ["version", "sessions"].allSatisfy({ snapshot[$0] != nil }),
+              Set(snapshot.keys).isSubset(of: [
+                "version", "sessions", "nextEvidenceOrdinal"
+              ]),
+              snapshot["version"] is NSNumber,
+              let sessions = snapshot["sessions"] as? [[String: Any]] else {
+            throw SessionStateStoreError.corruptData("unexpected snapshot schema")
+        }
+        if let next = snapshot["nextEvidenceOrdinal"] as? NSNumber,
+           next.uint64Value == 0 {
+            throw SessionStateStoreError.corruptData("invalid next evidence ordinal")
+        }
+        for record in sessions {
+            guard Set(record.keys).isSubset(of: [
+                "identity", "status", "statusChangedAt", "evidenceAt",
+                "project", "hookEvent", "context", "evidencePrecedence",
+                "evidenceID", "evidenceOrdinal", "equivalentEvidenceIDs",
+                "equivalentEvidenceOverflow"
+            ]) else {
+                throw SessionStateStoreError.corruptData("unexpected session record schema")
+            }
+        }
     }
 
     private func writeAtomically(_ data: Data) throws {
@@ -212,21 +269,48 @@ final class SessionStateRepository {
     }
 
     @discardableResult
-    func apply(_ reload: EventReload) throws -> Bool {
-        let events = needsStartupReconciliation ? reload.recoveryEvents : reload.newEvents
+    func rebuildOrdering(from events: [MewsEvent]) throws -> Bool {
+        guard !events.isEmpty else {
+            return false
+        }
         var updated = index
-        let changed = updated.apply(
+        let changed = updated.rebuildOrdering(
+            from: events,
+            now: clock(),
+            policy: policy,
+            cliExecutablePath: cliExecutablePath
+        )
+        guard changed else {
+            return false
+        }
+        try store.save(updated)
+        index = updated
+        return true
+    }
+
+    @discardableResult
+    func apply(_ reload: EventReload) throws -> Bool {
+        if reload.sessionDidResync {
+            let changed = try rebuildOrdering(from: reload.sessionResyncEvents)
+            needsStartupReconciliation = false
+            return changed
+        }
+        let events = needsStartupReconciliation
+            ? reload.recoveryEvents
+            : reload.newEvents
+        var updated = index
+        let applied = updated.apply(
             events,
             now: clock(),
             policy: policy,
             cliExecutablePath: cliExecutablePath
         )
-        if changed {
+        if applied {
             try store.save(updated)
             index = updated
         }
         needsStartupReconciliation = false
-        return changed
+        return applied
     }
 
     func currentSessions() -> [CurrentSessionState] {
@@ -244,9 +328,19 @@ final class SessionStateRepository {
     var sessionCount: Int {
         index.count
     }
+
+    var orderingKnown: Bool {
+        !index.orderingNeedsRebuild &&
+            index.persistedRecords.allSatisfy(\.orderingKnown)
+    }
+
+    func snapshot() -> [CurrentSessionState] {
+        currentSessions()
+    }
 }
 
 private struct SessionStateSnapshot: Codable {
     let version: Int
     let sessions: [SessionStateRecord]
+    let nextEvidenceOrdinal: UInt64?
 }

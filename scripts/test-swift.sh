@@ -24,10 +24,17 @@ swiftc \
   "$ROOT/internal/app/macos/TerminalProfile.swift" \
   "$ROOT/internal/app/macos/CLIContext.swift" \
   "$ROOT/internal/app/macos/MewsEvent.swift" \
+  "$ROOT/internal/app/macos/EventLogFileIO.swift" \
   "$ROOT/internal/app/macos/EventLogReader.swift" \
+  "$ROOT/internal/app/macos/SessionEvidenceReader.swift" \
   "$ROOT/internal/app/macos/SessionReturnContext.swift" \
+  "$ROOT/internal/app/macos/SessionEvidence.swift" \
+  "$ROOT/internal/app/macos/SessionModels.swift" \
   "$ROOT/internal/app/macos/SessionState.swift" \
+  "$ROOT/internal/app/macos/SessionStateRecord.swift" \
   "$ROOT/internal/app/macos/SessionStateStore.swift" \
+  "$ROOT/internal/app/macos/SessionStateController.swift" \
+  "$ROOT/internal/app/macos/SessionVisibility.swift" \
   "$ROOT/internal/app/macos/AttentionReconciler.swift" \
   "$ROOT/internal/app/macos/AttentionStateStore.swift" \
   "$ROOT/internal/app/macos/AttentionController.swift" \
@@ -52,6 +59,9 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateTests.swift" \
   "$ROOT/internal/app/macos/tests/ActiveSessionPanelTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateFoundationTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateRecoveryTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateRegressionTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionReconcilerTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionPresentationTests.swift" \

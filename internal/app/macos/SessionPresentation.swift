@@ -166,7 +166,7 @@ struct SessionPresentationPolicy {
             uniqueKeysWithValues: attentionRecords.map { ($0.identity, $0) }
         )
         let rows = latestSessionsByTerminalSlot(sessions, now: now).filter {
-            isDisplayable(session: $0, now: now)
+            SessionVisibilityPolicy.isDisplayable(session: $0, now: now)
         }.map { session in
             row(
                 session: session,
@@ -262,25 +262,6 @@ struct SessionPresentationPolicy {
                 attention: matchingAttention
             )
         )
-    }
-
-    private static func isDisplayable(
-        session: CurrentSessionState,
-        now: Date
-    ) -> Bool {
-        let age = now.timeIntervalSince(session.evidenceAt)
-        let policy = SessionFreshnessPolicy.standard
-        guard age >= -policy.futureTolerance else {
-            return false
-        }
-        switch session.presence {
-        case .closed:
-            return false
-        case .open:
-            return age <= policy.activeLifetime
-        case .unknown:
-            return session.isFresh && session.status != .idle
-        }
     }
 
     private static func priority(

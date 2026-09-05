@@ -6,21 +6,9 @@ struct AttentionRuntimeUpdate {
 }
 
 final class AttentionController {
-    private let sessions: SessionStateRepository
     private let attention: AttentionStateRepository
 
-    init(
-        storeDirectory: URL,
-        clock: @escaping () -> Date = Date.init,
-        cliExecutablePath: String? = nil
-    ) throws {
-        sessions = try SessionStateRepository(
-            store: SessionStateStore(
-                url: storeDirectory.appendingPathComponent("sessions.json")
-            ),
-            clock: clock,
-            cliExecutablePath: cliExecutablePath
-        )
+    init(storeDirectory: URL) throws {
         attention = try AttentionStateRepository(
             store: AttentionStateStore(
                 url: storeDirectory.appendingPathComponent("attention.json")
@@ -28,17 +16,18 @@ final class AttentionController {
         )
     }
 
-    func reconcile(_ reload: EventReload) throws -> AttentionRuntimeUpdate {
-        _ = try sessions.apply(reload)
-        let currentSessions = sessions.currentSessions()
-        let candidates = currentSessions.compactMap { session in
+    func reconcile(
+        _ reload: EventReload,
+        sessions: [CurrentSessionState]
+    ) throws -> AttentionRuntimeUpdate {
+        let candidates = sessions.compactMap { session in
             SessionAttentionCandidate(
                 session: session,
                 event: matchingEvent(for: session, in: reload.events)
             )
         }
         return AttentionRuntimeUpdate(
-            sessions: currentSessions,
+            sessions: sessions,
             reconciliation: try attention.reconcile(candidates: candidates)
         )
     }
@@ -47,6 +36,14 @@ final class AttentionController {
         for session: CurrentSessionState,
         in events: [MewsEvent]
     ) -> MewsEvent? {
+        if !session.evidenceID.isEmpty,
+           let matchingEvidence = events.last(where: { event in
+               event.id == session.evidenceID &&
+                   event.source == session.identity.source &&
+                   event.sessionID == session.identity.sessionID
+           }) {
+            return matchingEvidence
+        }
         return events.last { event in
             event.affectsPrimaryStatus &&
                 event.source == session.identity.source &&

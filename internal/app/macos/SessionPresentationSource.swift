@@ -1,35 +1,45 @@
 import Foundation
 
-struct SessionPresentationSource {
-    let storeDirectory: URL
-    let clock: () -> Date
-    let cliExecutablePath: String?
+final class SessionPresentationSource {
+    private let clock: () -> Date
+    private let cliExecutablePath: String?
+    private var index = SessionStateIndex()
+    private var didReconcile = false
 
     init(
-        storeDirectory: URL,
         clock: @escaping () -> Date = Date.init,
         cliExecutablePath: String? = nil
     ) {
-        self.storeDirectory = storeDirectory
         self.clock = clock
         self.cliExecutablePath = cliExecutablePath
     }
 
-    func sessions(reconciling reload: EventReload) throws -> [CurrentSessionState] {
-        let repository = try SessionStateRepository(
-            store: SessionStateStore(
-                url: storeDirectory.appendingPathComponent("sessions.json")
-            ),
-            clock: clock,
+    func sessions(reconciling reload: EventReload) -> [CurrentSessionState] {
+        let events: [MewsEvent]
+        if reload.sessionDidResync {
+            events = reload.sessionResyncEvents
+        } else if didReconcile {
+            events = reload.newEvents
+        } else {
+            events = reload.recoveryEvents
+        }
+        if reload.sessionDidResync {
+            _ = index.rebuildOrdering(
+                from: events,
+                now: clock(),
+                cliExecutablePath: cliExecutablePath
+            )
+        } else {
+            _ = index.apply(
+                events,
+                now: clock(),
+                cliExecutablePath: cliExecutablePath
+            )
+        }
+        didReconcile = true
+        return index.currentSessions(
+            now: clock(),
             cliExecutablePath: cliExecutablePath
         )
-        _ = try repository.apply(
-            EventReload(
-                events: reload.events,
-                newEvents: reload.newEvents,
-                recoveryEvents: reload.newEvents + reload.recoveryEvents
-            )
-        )
-        return repository.currentSessions()
     }
 }

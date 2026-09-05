@@ -192,7 +192,41 @@ The session index uses `source` plus a non-empty `session_id` as its stable iden
 
 The fold is incremental and deterministic. Older evidence and duplicate event IDs are ignored; legacy events without IDs include their exact timestamp in the fallback evidence identity. Equal-time evidence uses a centralized precedence policy so explicit session end, idle, and runner process-exit evidence cannot be replaced by a less conclusive update merely because it arrived later. Persisted precedence must match that same policy for the stored identity, status, and hook. Main-agent, subagent, and recoverable rules remain the same as notification and primary presentation rules: subagent and recoverable events stay in history and do not replace current primary state.
 
-`sessions.json` is written through a private `0600` staging file followed by an atomic rename. Missing storage starts with an empty index. On every repository start, the first `EventLogReader` scan reconciles its full recovery event set into the persisted index, including events appended while the app was offline; sessions absent from the bounded scan remain intact. Invalid JSON, unsupported versions, duplicate identities, and invalid persisted records return explicit errors without deleting the damaged file. Persisted return metadata must round-trip exactly through `CLIContextPayload`; forbidden commands, unknown keys, or values that validation would drop make the record corrupt rather than silently reducing its context. Corrupt storage recovery is an explicit rebuild from validated `MewsEvent` values followed by another atomic write.
+`SessionStateController` is the only runtime owner of `SessionStateRepository`.
+It produces immutable snapshots for attention and presentation consumers; those
+consumers never construct or save `sessions.json`. The controller serializes
+folds and store writes, and publishes a new snapshot only after the copy-on-write
+save succeeds. It also owns a reconciliation anchor for the event log. The
+controller scans from that uncommitted anchor on every reconciliation, so a
+failed save retries the same evidence on the next refresh. The anchor advances
+only with a stable, complete-line scan and a successful fold transaction. Each
+controller scan stops at the foreground reader's published boundary so
+attention, notifications, and presentation consume one event generation.
+
+Evidence ordering is append-stable. Persisted records retain an optional global
+evidence ordinal and a bounded same-timestamp/same-precedence tie set. Older
+snapshots without ordering metadata enter a rebuild gate and remain usable for
+display, but ordering-dependent operations fail open until a complete event-log
+scan proves their order. If the tie set exceeds its bounded capacity, the
+record freezes that ordering key; only strictly newer evidence can establish a
+new order. Full resyncs fold into a separate ordered projection before merging
+with persisted records; an equal-key winner absent from the available log
+remains visible with unknown ordering rather than being replaced by an
+unproven replay. This prevents rotation or restart from changing a winner.
+
+`EventLogReader` opens the log, stats the same descriptor, reads only complete
+JSONL records, and revalidates the descriptor and pathname before publishing a
+reload. Its cursor includes observed file mutation metadata plus complete-line
+and consumed-prefix digests, so same-inode rewrites are distinguished from
+append-only growth. Replacement, truncation, and anchor mismatch provide a full
+session resync batch while preserving the existing notification `newEvents`
+semantics. Read, decode, reconciliation, and save failures are explicit, leave
+the previous cursor unchanged, and keep presenting the last valid persisted
+Session snapshot.
+`SessionEvidenceReader` uses the same descriptor-bound scanner for controller
+ordered scans without advancing the notification reader.
+
+`sessions.json` is written through a private `0600` staging file followed by an atomic rename. Missing storage starts with an empty index. On every controller start, its first independent evidence scan reconciles the complete available event log into the persisted index, including events appended while the app was offline; sessions absent from the scan remain intact. Invalid JSON, unsupported versions, duplicate identities, and invalid persisted records return explicit errors without deleting the damaged file. Persisted return metadata must round-trip exactly through `CLIContextPayload`; forbidden commands, unknown keys, or values that validation would drop make the record corrupt rather than silently reducing its context. Corrupt storage recovery is an explicit rebuild from validated `MewsEvent` values followed by another atomic write.
 
 `attention.json` stores only the latest round key and its delivered, acknowledged, or resolved disposition for each session. It uses the same private staging-file and atomic-rename pattern. Missing state starts empty; invalid JSON, unsupported versions, unknown schema keys, duplicate identities, and inconsistent round identities fail explicitly without deleting or silently rebuilding the file. The app logs the failure, leaves attention routing disabled, and retries the unchanged file on each refresh so a corrected store recovers without restarting Mews.
 
