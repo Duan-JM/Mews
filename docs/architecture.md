@@ -112,7 +112,7 @@ The agent is packaged as a small app bundle so macOS menu bar identity, notifica
 
 The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separate from AppKit timers and event monitors. On a physical notch, `closed` is a persistent compact strip below a hardware-width neck, `peek` is a bounded wider status preview, and `expanded` is the existing full panel. The top-center fallback still renders only `expanded`. AppKit owns the fixed 420×220 nonactivating panel, display placement, passive local/global mouse observation, and teardown. Hit testing derives from the current rendered shell frame rather than the transparent maximum panel, so the visible compact strip, preview, and expanded surface match their click and hover targets. Outside clicks close an expanded panel without consuming or synthesizing the target event. SwiftUI keeps the solid black shell for a physical notch and uses rounded adaptive material with a native window shadow for top-center placement. The fallback sits six points below the visible menu-bar edge. Left-clicking the status item toggles the shell, while right-click and Control-click preserve the existing event, Refresh, and Quit menu. Physical-notch hover is optional: if global hover monitoring is unavailable, the app logs the degradation and keeps the status-item click and top-center fallback paths.
 
-Display placement is recalculated on `NSApplication.didChangeScreenParametersNotification`. The resolver prefers any available physical notch, otherwise uses the main display's `visibleFrame` top center so the shell stays below the menu bar. This covers external-display, clamshell, resolution, coordinate, and main-screen changes. A transient empty screen list clears placement and orders the panel out; the next display notification restores it. The panel remains stationary, joins all Spaces, and participates as a full-screen auxiliary window.
+Display placement is recalculated on `NSApplication.didChangeScreenParametersNotification`. The resolver prefers any available physical notch, otherwise uses the main display's `visibleFrame` top center so the shell stays below the menu bar. This covers external-display, clamshell, resolution, coordinate, and main-screen changes. A transient empty screen list clears placement, closes the interaction state, and orders the panel out; the next display notification restores compact placement without reopening the expanded panel. The panel remains stationary, joins all Spaces, and participates as a full-screen auxiliary window.
 
 Alert routing reads that live placement for every newly alertable semantic session transition. Only the current transition that the physical notch will actually present suppresses its system notification; other transitions keep Notification Center fallback so a two-second reload batch cannot silently drop an earlier completion. Without a physical notch, presentation state still updates the menu bar and top-center shell content, but the shell does not auto-open for the transition.
 
@@ -223,6 +223,29 @@ dismissal transaction, saves the folded index before advancing its anchor, and
 publishes the resulting immutable snapshot. Strictly newer primary evidence
 clears the dismissal; replayed, older, subagent, and recoverable evidence does
 not.
+
+The expanded session list keeps SwiftUI row content inside its AppKit-backed
+`NSScrollView`. A custom mouse recognizer delays primary-button delivery only
+for dismissible rows, preserving ordinary Return and Copy clicks below the
+eight-point drag slop. Precise trackpad events are buffered until the same
+eight-point and 1.25 direction lock resolves. Horizontal sequences drive the
+swipe state machine; vertical sequences replay their complete buffered events
+to native scrolling. Physical deltas are normalized against the user's Natural
+Scrolling preference, and momentum never commits a dismissal.
+
+`SessionListPresentationModel` owns one interactive row plus independent
+removal tokens. Rows are keyed by stable session identity and evidence ID, so a
+refresh cannot redirect a gesture to a replacement row; replacement evidence
+keeps the prior identity's expanded-list position. Controller revisions reject
+pre-dismissal snapshots, while a changed identity/evidence target cancels the
+gesture and adopts the latest state. Successful writes animate the captured row
+from its current offset before compacting its height. An animatable observer
+finalizes the normal path at the visual endpoint, with a bounded 380 ms
+watchdog only for interrupted callbacks; failures keep the row visible and
+retryable. Panel close, `orderOut`, placement loss, and app shutdown advance the
+interaction epoch and cancel pending visual callbacks. Drag updates change
+only row transform, clipping, and opacity; event scanning, JSON work, and atomic
+persistence remain on the session controller queue.
 
 `EventLogReader` opens the log, stats the same descriptor, reads only complete
 JSONL records, and revalidates the descriptor and pathname before publishing a

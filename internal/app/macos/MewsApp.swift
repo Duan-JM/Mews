@@ -147,7 +147,8 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             sessions: presentationInput.sessions,
             attentionRecords: presentationInput.attentionRecords,
             healthSnapshot: loadRuntimeHealth(),
-            now: now
+            now: now,
+            sessionRevision: presentationInput.revision
         )
         let notchSession = attentionUpdate.flatMap {
             currentSession(for: current, in: $0.sessions)
@@ -382,6 +383,12 @@ extension MewsApp {
             },
             onCopyCommand: { [weak self] command in
                 self?.contextOpener.copy(command)
+            },
+            onHideSession: { [weak self] request, completion in
+                self?.dismissSession(request, completion: completion)
+            },
+            log: { [weak self] message in
+                self?.appendAppLog(message)
             }
         )
         notchPanelController = panelController
@@ -395,6 +402,9 @@ extension MewsApp {
                 self?.appendAppLog(message)
             }
         )
+        panelController.setPlacementUnavailableHandler { [weak coordinator] in
+            coordinator?.placementDidBecomeUnavailable()
+        }
         interactionCoordinator = coordinator
         statusItemController = StatusItemController { [weak coordinator] in
             coordinator?.logoPrimaryClicked()

@@ -32,6 +32,8 @@ struct SessionListScrollConfiguration: Equatable {
 
 final class SessionListScrollView: NSScrollView {
     private(set) var hostedDocumentView: NSView?
+    private weak var swipeInputRouter: SessionSwipeInputRouter?
+    private var swipeMouseRecognizer: SessionMouseSwipeRecognizer?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -43,10 +45,19 @@ final class SessionListScrollView: NSScrollView {
         configure()
     }
 
-    // Keep the AppKit event path open for the later gesture foundation.
-    // swiftlint:disable:next unneeded_override
     override func scrollWheel(with event: NSEvent) {
-        super.scrollWheel(with: event)
+        guard let swipeInputRouter else {
+            super.scrollWheel(with: event)
+            return
+        }
+        switch swipeInputRouter.routeScrollWheel(event) {
+        case .consume:
+            return
+        case let .forward(events):
+            for forwardedEvent in events {
+                super.scrollWheel(with: forwardedEvent)
+            }
+        }
     }
 
     func installDocumentView(_ view: NSView) {
@@ -62,6 +73,25 @@ final class SessionListScrollView: NSScrollView {
             view.topAnchor.constraint(equalTo: contentView.topAnchor),
             view.widthAnchor.constraint(equalTo: contentView.widthAnchor)
         ])
+    }
+
+    func installSwipeInputRouter(_ inputRouter: SessionSwipeInputRouter?) {
+        guard swipeInputRouter !== inputRouter else {
+            return
+        }
+        swipeInputRouter?.cancelAllInput()
+        if let swipeMouseRecognizer {
+            removeGestureRecognizer(swipeMouseRecognizer)
+        }
+        swipeInputRouter = inputRouter
+        guard let inputRouter else {
+            swipeMouseRecognizer = nil
+            return
+        }
+        let recognizer = SessionMouseSwipeRecognizer(inputRouter: inputRouter)
+        addGestureRecognizer(recognizer)
+        swipeMouseRecognizer = recognizer
+        inputRouter.attach(mouseRecognizer: recognizer)
     }
 
     @discardableResult
@@ -106,9 +136,14 @@ final class SessionListHostingView<Content: View>: NSHostingView<Content> {
 }
 
 struct SessionListScrollContainer<Content: View>: NSViewRepresentable {
+    private let swipeInputRouter: SessionSwipeInputRouter?
     private let content: () -> Content
 
-    init(@ViewBuilder content: @escaping () -> Content) {
+    init(
+        swipeInputRouter: SessionSwipeInputRouter? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.swipeInputRouter = swipeInputRouter
         self.content = content
     }
 
@@ -116,10 +151,19 @@ struct SessionListScrollContainer<Content: View>: NSViewRepresentable {
         let scrollView = SessionListScrollView()
         let hostingView = SessionListHostingView(rootView: content())
         scrollView.installDocumentView(hostingView)
+        scrollView.installSwipeInputRouter(swipeInputRouter)
         return scrollView
     }
 
     func updateNSView(_ scrollView: SessionListScrollView, context: Context) {
         _ = scrollView.updateDocumentView(with: content())
+        scrollView.installSwipeInputRouter(swipeInputRouter)
+    }
+
+    static func dismantleNSView(
+        _ scrollView: SessionListScrollView,
+        coordinator: Void
+    ) {
+        scrollView.installSwipeInputRouter(nil)
     }
 }
