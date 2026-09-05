@@ -114,6 +114,32 @@ enum EventLogFileIO {
         }
     }
 
+    static func matchesCurrentFile(
+        _ anchor: SessionReconciliationAnchor,
+        at url: URL
+    ) throws -> Bool {
+        let descriptor = try openDescriptor(url)
+        defer { close(descriptor) }
+
+        var status = stat()
+        guard fstat(descriptor, &status) == 0 else {
+            throw EventLogReadError.statFailed(String(cString: strerror(errno)))
+        }
+        let metadata = metadata(of: status)
+        guard identity(of: status) == anchor.fileIdentity,
+              metadata == anchor.fileMetadata else {
+            return false
+        }
+        try validate(anchor: anchor, descriptor: descriptor)
+        try validateStableFile(
+            descriptor: descriptor,
+            url: url,
+            initialStatus: status,
+            initialMetadata: metadata
+        )
+        return true
+    }
+
     static func digest(
         _ data: Data,
         startingAt initialHash: UInt64 = 14_695_981_039_346_656_037

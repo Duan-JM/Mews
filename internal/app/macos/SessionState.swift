@@ -213,6 +213,44 @@ struct SessionStateIndex: Equatable {
     var persistedRecords: [SessionStateRecord] {
         return records.values.sorted { $0.identity < $1.identity }
     }
+
+    @discardableResult
+    mutating func dismiss(
+        _ request: SessionDismissalRequest,
+        now: Date,
+        policy: SessionFreshnessPolicy = .standard,
+        cliExecutablePath: String? = nil
+    ) -> SessionDismissalResult {
+        guard let record = records[request.identity],
+              record.evidenceID == request.evidenceID else {
+            return .staleEvidence
+        }
+        if record.dismissedEvidenceID == request.evidenceID {
+            return .alreadyDismissed
+        }
+        let sessions = currentSessions(
+            now: now,
+            policy: policy,
+            cliExecutablePath: cliExecutablePath
+        )
+        guard let current = sessions.first(where: { $0.identity == request.identity }) else {
+            return .staleEvidence
+        }
+        switch SessionDismissalPolicy.eligibility(
+            for: current,
+            among: sessions,
+            now: now,
+            policy: policy
+        ) {
+        case .eligible:
+            records[request.identity]?.dismissedEvidenceID = request.evidenceID
+            return .dismissed
+        case .orderingUnavailable:
+            return .orderingUnavailable
+        case .ineligibleState:
+            return .ineligibleState
+        }
+    }
 }
 
 extension SessionStateIndex {

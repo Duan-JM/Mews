@@ -18,6 +18,7 @@ struct SessionStateRecord: Codable, Equatable {
     var evidenceOrdinal: UInt64?
     var equivalentEvidenceIDs: [String]?
     var equivalentEvidenceOverflow: Bool
+    var dismissedEvidenceID: String?
 
     enum CodingKeys: String, CodingKey {
         case identity
@@ -32,6 +33,7 @@ struct SessionStateRecord: Codable, Equatable {
         case evidenceOrdinal
         case equivalentEvidenceIDs
         case equivalentEvidenceOverflow
+        case dismissedEvidenceID
     }
 
     init(from decoder: Decoder) throws {
@@ -54,6 +56,10 @@ struct SessionStateRecord: Codable, Equatable {
             Bool.self,
             forKey: .equivalentEvidenceOverflow
         ) ?? false
+        dismissedEvidenceID = try container.decodeIfPresent(
+            String.self,
+            forKey: .dismissedEvidenceID
+        )
     }
 
     init(
@@ -66,7 +72,8 @@ struct SessionStateRecord: Codable, Equatable {
         context: SessionReturnContext?,
         evidenceOrdinal: UInt64,
         equivalentEvidenceIDs: [String],
-        equivalentEvidenceOverflow: Bool
+        equivalentEvidenceOverflow: Bool,
+        dismissedEvidenceID: String? = nil
     ) {
         self.identity = identity
         self.status = status
@@ -87,6 +94,7 @@ struct SessionStateRecord: Codable, Equatable {
         self.evidenceOrdinal = evidenceOrdinal
         self.equivalentEvidenceIDs = equivalentEvidenceIDs
         self.equivalentEvidenceOverflow = equivalentEvidenceOverflow
+        self.dismissedEvidenceID = dismissedEvidenceID
     }
 
     var isValid: Bool {
@@ -109,7 +117,8 @@ struct SessionStateRecord: Codable, Equatable {
         guard orderingKnown else {
             return evidenceOrdinal == nil &&
                 equivalentEvidenceIDs == nil &&
-                !equivalentEvidenceOverflow
+                !equivalentEvidenceOverflow &&
+                dismissedEvidenceID == nil
         }
         guard let equivalentEvidenceIDs,
               equivalentEvidenceIDs.count <= SessionEvidence.maximumEquivalentIDs,
@@ -120,7 +129,10 @@ struct SessionStateRecord: Codable, Equatable {
               evidenceOrdinal ?? 0 > 0 else {
             return false
         }
-        return true
+        guard dismissedEvidenceID == nil || dismissedEvidenceID == evidenceID else {
+            return false
+        }
+        return !equivalentEvidenceOverflow || dismissedEvidenceID == nil
     }
 
     var orderingKnown: Bool {
@@ -139,34 +151,7 @@ struct SessionStateRecord: Codable, Equatable {
         copy.evidenceOrdinal = nil
         copy.equivalentEvidenceIDs = nil
         copy.equivalentEvidenceOverflow = false
-        return copy
-    }
-
-    func attachingOrdering(from projected: SessionStateRecord) -> SessionStateRecord {
-        var copy = self
-        copy.evidenceOrdinal = projected.evidenceOrdinal
-        copy.equivalentEvidenceIDs = projected.equivalentEvidenceIDs
-        copy.equivalentEvidenceOverflow = projected.equivalentEvidenceOverflow
-        return copy
-    }
-
-    func mergingEquivalentEvidence(from projected: SessionStateRecord) -> SessionStateRecord {
-        guard evidenceID == projected.evidenceID else {
-            return self
-        }
-        let prior = equivalentEvidenceIDs ?? [evidenceID]
-        let replayed = projected.equivalentEvidenceIDs ?? [evidenceID]
-        var seen = Set<String>()
-        let predecessors = (prior.dropLast() + replayed.dropLast()).filter {
-            seen.insert($0).inserted
-        }
-        let capacity = SessionEvidence.maximumEquivalentIDs - 1
-        var copy = self
-        copy.equivalentEvidenceIDs = Array(predecessors.suffix(capacity)) + [evidenceID]
-        copy.equivalentEvidenceOverflow =
-            equivalentEvidenceOverflow ||
-            projected.equivalentEvidenceOverflow ||
-            predecessors.count > capacity
+        copy.dismissedEvidenceID = nil
         return copy
     }
 
@@ -190,7 +175,8 @@ struct SessionStateRecord: Codable, Equatable {
             evidenceID: evidenceID,
             evidenceOrdinal: evidenceOrdinal,
             equivalentEvidenceIDs: equivalentEvidenceIDs,
-            equivalentEvidenceOverflow: equivalentEvidenceOverflow
+            equivalentEvidenceOverflow: equivalentEvidenceOverflow,
+            dismissedEvidenceID: nil
         )
     }
 
@@ -217,7 +203,9 @@ struct SessionStateRecord: Codable, Equatable {
             evidenceID: evidenceID,
             evidencePrecedence: evidencePrecedence,
             evidenceOrdinal: evidenceOrdinal,
-            orderingKnown: orderingKnown
+            orderingKnown: orderingKnown,
+            equivalentEvidenceOverflow: equivalentEvidenceOverflow,
+            dismissedEvidenceID: dismissedEvidenceID
         )
     }
 
@@ -233,7 +221,8 @@ struct SessionStateRecord: Codable, Equatable {
         evidenceID: String,
         evidenceOrdinal: UInt64?,
         equivalentEvidenceIDs: [String]?,
-        equivalentEvidenceOverflow: Bool
+        equivalentEvidenceOverflow: Bool,
+        dismissedEvidenceID: String?
     ) {
         self.identity = identity
         self.status = status
@@ -247,5 +236,42 @@ struct SessionStateRecord: Codable, Equatable {
         self.evidenceOrdinal = evidenceOrdinal
         self.equivalentEvidenceIDs = equivalentEvidenceIDs
         self.equivalentEvidenceOverflow = equivalentEvidenceOverflow
+        self.dismissedEvidenceID = dismissedEvidenceID
+    }
+}
+
+extension SessionStateRecord {
+    func attachingOrdering(from projected: SessionStateRecord) -> SessionStateRecord {
+        var copy = self
+        copy.evidenceOrdinal = projected.evidenceOrdinal
+        copy.equivalentEvidenceIDs = projected.equivalentEvidenceIDs
+        copy.equivalentEvidenceOverflow = projected.equivalentEvidenceOverflow
+        copy.dismissedEvidenceID = copy.equivalentEvidenceOverflow
+            ? nil
+            : dismissedEvidenceID
+        return copy
+    }
+
+    func mergingEquivalentEvidence(from projected: SessionStateRecord) -> SessionStateRecord {
+        guard evidenceID == projected.evidenceID else {
+            return self
+        }
+        let prior = equivalentEvidenceIDs ?? [evidenceID]
+        let replayed = projected.equivalentEvidenceIDs ?? [evidenceID]
+        var seen = Set<String>()
+        let predecessors = (prior.dropLast() + replayed.dropLast()).filter {
+            seen.insert($0).inserted
+        }
+        let capacity = SessionEvidence.maximumEquivalentIDs - 1
+        var copy = self
+        copy.equivalentEvidenceIDs = Array(predecessors.suffix(capacity)) + [evidenceID]
+        copy.equivalentEvidenceOverflow =
+            equivalentEvidenceOverflow ||
+            projected.equivalentEvidenceOverflow ||
+            predecessors.count > capacity
+        copy.dismissedEvidenceID = copy.equivalentEvidenceOverflow
+            ? nil
+            : dismissedEvidenceID
+        return copy
     }
 }

@@ -17,6 +17,7 @@ enum MewsAppModelTests {
         try testPresentationFreshness()
         try testRecoverableSessionState()
         try testSessionStateFoundation()
+        try testSessionDismissal()
         try testSemanticAttentionReconciliation()
         try testAgentRestartBackoff()
         try testNotificationStatusRecord()

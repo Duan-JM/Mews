@@ -214,6 +214,16 @@ with persisted records; an equal-key winner absent from the available log
 remains visible with unknown ordering rather than being replaced by an
 unproven replay. This prevents rotation or restart from changing a winner.
 
+Active-session dismissal is an evidence-scoped compare-and-set. A record may
+persist `dismissedEvidenceID` only when it matches the current ordered,
+non-overflow evidence; missing, stale, running, closed, expired, or
+ambiguous-order records remain visible or return an explicit non-success
+result. The controller scans unseen evidence to stable EOF before each
+dismissal transaction, saves the folded index before advancing its anchor, and
+publishes the resulting immutable snapshot. Strictly newer primary evidence
+clears the dismissal; replayed, older, subagent, and recoverable evidence does
+not.
+
 `EventLogReader` opens the log, stats the same descriptor, reads only complete
 JSONL records, and revalidates the descriptor and pathname before publishing a
 reload. Its cursor includes observed file mutation metadata plus complete-line
