@@ -7,8 +7,30 @@ struct SessionPresentationInput {
 
 @MainActor
 extension MewsApp {
+    func finishReloadAfterEventReadFailure(now: Date) {
+        let reload = EventReload(
+            events: events,
+            newEvents: [],
+            recoveryEvents: events
+        )
+        configureSessionState()
+        guard let sessionStateController else {
+            finishReload(reload, sessionSnapshot: nil, now: now)
+            return
+        }
+        sessionStateController.snapshot { [weak self] snapshot in
+            DispatchQueue.main.async {
+                guard let self, self.started else {
+                    return
+                }
+                self.finishReload(reload, sessionSnapshot: snapshot, now: now)
+            }
+        }
+    }
+
     func sessionPresentationInput(
         attentionUpdate: AttentionRuntimeUpdate?,
+        sessionSnapshot: SessionControllerSnapshot?,
         reload: EventReload
     ) -> SessionPresentationInput {
         if let attentionUpdate {
@@ -18,25 +40,19 @@ extension MewsApp {
                 attentionRecords: attentionUpdate.reconciliation.state.persistedRecords
             )
         }
-        do {
-            let sessions = try SessionPresentationSource(
-                storeDirectory: storeDirectoryURL,
-                cliExecutablePath: helperPath()
-            ).sessions(reconciling: reload)
+        if let sessionSnapshot {
             clearSessionPresentationError()
             return SessionPresentationInput(
-                sessions: sessions,
-                attentionRecords: []
-            )
-        } catch {
-            recordSessionPresentationError(
-                "Could not recover session presentation: \(error)"
-            )
-            return SessionPresentationInput(
-                sessions: [],
+                sessions: sessionSnapshot.sessions,
                 attentionRecords: []
             )
         }
+        let sessions = sessionPresentationSource.sessions(reconciling: reload)
+        clearSessionPresentationError()
+        return SessionPresentationInput(
+            sessions: sessions,
+            attentionRecords: []
+        )
     }
 
     private func recordSessionPresentationError(_ message: String) {

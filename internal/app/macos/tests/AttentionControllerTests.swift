@@ -10,7 +10,7 @@ extension MewsAppModelTests {
         let directory = try sessionScratchDirectory("attention-controller")
         defer { try? FileManager.default.removeItem(at: directory) }
         let now = attentionControllerTime(200)
-        let controller = try AttentionController(
+        let controller = try AttentionControllerHarness(
             storeDirectory: directory,
             clock: { now.addingTimeInterval(30) }
         )
@@ -33,7 +33,11 @@ extension MewsAppModelTests {
             status: "done",
             timestamp: now.addingTimeInterval(3)
         )
-        let rotatedReplay = try reconcileRotatedAttention(directory: directory, now: now)
+        let rotatedReplay = try reconcileRotatedAttention(
+            directory: directory,
+            now: now,
+            prior: controller
+        )
 
         try controllerExpect(first.reconciliation.newlyAlertable.count == 1, "initial attention should alert")
         try controllerExpect(replay.reconciliation.newlyAlertable.isEmpty, "duplicate evidence should stay silent")
@@ -53,7 +57,7 @@ extension MewsAppModelTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let eventTime = attentionControllerTime(300)
         var currentTime = eventTime
-        let controller = try AttentionController(
+        let controller = try AttentionControllerHarness(
             storeDirectory: directory,
             clock: { currentTime }
         )
@@ -76,7 +80,7 @@ extension MewsAppModelTests {
     }
 
     private static func reconcileInitialAttention(
-        _ controller: AttentionController,
+        _ controller: AttentionControllerHarness,
         now: Date
     ) throws -> AttentionRuntimeUpdate {
         let events = [
@@ -103,11 +107,14 @@ extension MewsAppModelTests {
 
     private static func reconcileRotatedAttention(
         directory: URL,
-        now: Date
+        now: Date,
+        prior: AttentionControllerHarness
     ) throws -> AttentionRuntimeUpdate {
-        let restarted = try AttentionController(
+        let restarted = try AttentionControllerHarness(
             storeDirectory: directory,
-            clock: { now.addingTimeInterval(30) }
+            clock: { now.addingTimeInterval(30) },
+            index: prior.index,
+            didReconcile: true
         )
         return try reconcileStartupAttentionEvent(
             restarted,
@@ -118,7 +125,7 @@ extension MewsAppModelTests {
     }
 
     private static func reconcileAttentionEvent(
-        _ controller: AttentionController,
+        _ controller: AttentionControllerHarness,
         id: String,
         sessionID: String = "controller",
         status: String,
@@ -139,7 +146,7 @@ extension MewsAppModelTests {
     }
 
     private static func reconcileStartupAttentionEvent(
-        _ controller: AttentionController,
+        _ controller: AttentionControllerHarness,
         id: String,
         sessionID: String = "controller",
         status: String,
@@ -157,6 +164,46 @@ extension MewsAppModelTests {
                 newEvents: [],
                 recoveryEvents: [event]
             )
+        )
+    }
+}
+
+private final class AttentionControllerHarness {
+    let controller: AttentionController
+    var index: SessionStateIndex
+    private let clock: () -> Date
+    private var didReconcile: Bool
+
+    init(
+        storeDirectory: URL,
+        clock: @escaping () -> Date,
+        index: SessionStateIndex = SessionStateIndex(),
+        didReconcile: Bool = false
+    ) throws {
+        controller = try AttentionController(storeDirectory: storeDirectory)
+        self.clock = clock
+        self.index = index
+        self.didReconcile = didReconcile
+    }
+
+    func reconcile(_ reload: EventReload) throws -> AttentionRuntimeUpdate {
+        let events: [MewsEvent]
+        if reload.sessionDidResync {
+            events = reload.sessionResyncEvents
+        } else if didReconcile {
+            events = reload.newEvents
+        } else {
+            events = reload.recoveryEvents
+        }
+        if reload.sessionDidResync {
+            _ = index.rebuildOrdering(from: events, now: clock())
+        } else {
+            _ = index.apply(events, now: clock())
+        }
+        didReconcile = true
+        return try controller.reconcile(
+            reload,
+            sessions: index.currentSessions(now: clock())
         )
     }
 }

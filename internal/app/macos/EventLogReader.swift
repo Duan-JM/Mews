@@ -4,15 +4,24 @@ struct EventReload {
     let events: [MewsEvent]
     let newEvents: [MewsEvent]
     let recoveryEvents: [MewsEvent]
+    let sessionResyncEvents: [MewsEvent]
+    let sessionCandidateAnchor: SessionReconciliationAnchor?
+    let sessionDidResync: Bool
 
     init(
         events: [MewsEvent],
         newEvents: [MewsEvent],
-        recoveryEvents: [MewsEvent]? = nil
+        recoveryEvents: [MewsEvent]? = nil,
+        sessionResyncEvents: [MewsEvent] = [],
+        sessionCandidateAnchor: SessionReconciliationAnchor? = nil,
+        sessionDidResync: Bool = false
     ) {
         self.events = events
         self.newEvents = newEvents
         self.recoveryEvents = recoveryEvents ?? events
+        self.sessionResyncEvents = sessionResyncEvents
+        self.sessionCandidateAnchor = sessionCandidateAnchor
+        self.sessionDidResync = sessionDidResync
     }
 }
 
@@ -22,24 +31,46 @@ final class EventLogReader {
     private var eventOffset: UInt64 = 0
     private var eventFileNumber: UInt64?
     private var lastEventID: String?
+    private var eventAnchor: SessionReconciliationAnchor?
     private var didInitialEventScan = false
 
     init(url: URL) {
         self.url = url
     }
 
-    func reload() -> EventReload {
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-              let fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value,
-              let fileSize = (attributes[.size] as? NSNumber)?.uint64Value else {
+    func reload() throws -> EventReload {
+        if !FileManager.default.fileExists(atPath: url.path) {
             resetForMissingFile()
             return EventReload(events: [], newEvents: [])
         }
 
         if eventFileNumber == nil {
-            return loadFirstChunk(fileNumber: fileNumber)
+            let scan = try EventLogFileScanner.scan(
+                url: url,
+                from: 0,
+                anchor: nil,
+                forceFull: true
+            )
+            return installInitial(scan: scan)
         }
-        return loadChangedFile(fileNumber: fileNumber, fileSize: fileSize)
+
+        do {
+            let scan = try EventLogFileScanner.scan(
+                url: url,
+                from: eventOffset,
+                anchor: eventAnchor,
+                forceFull: false
+            )
+            return installAppend(scan: scan)
+        } catch EventLogReadError.anchorMismatch {
+            let scan = try EventLogFileScanner.scan(
+                url: url,
+                from: 0,
+                anchor: nil,
+                forceFull: true
+            )
+            return installReplacement(scan: scan)
+        }
     }
 
     private func resetForMissingFile() {
@@ -47,85 +78,64 @@ final class EventLogReader {
         eventOffset = 0
         eventFileNumber = nil
         lastEventID = nil
+        eventAnchor = nil
         didInitialEventScan = true
     }
 
-    private func loadFirstChunk(fileNumber: UInt64) -> EventReload {
-        let chunk = readEventChunk(from: 0)
-        let newEvents = didInitialEventScan ? chunk.events : []
-        events = Array(chunk.events.suffix(10))
-        eventOffset = chunk.offset
-        eventFileNumber = fileNumber
-        lastEventID = chunk.events.last?.id
+    private func installInitial(scan: EventLogFileScan) -> EventReload {
+        let allEvents = scan.records.map(\.event)
+        events = Array(allEvents.suffix(10))
+        eventOffset = scan.completeOffset
+        eventFileNumber = scan.fileIdentity
+        lastEventID = allEvents.last?.id
+        eventAnchor = scan.anchor
+        let newEvents = didInitialEventScan ? allEvents : []
         didInitialEventScan = true
         return EventReload(
             events: events,
             newEvents: newEvents,
-            recoveryEvents: chunk.events
+            recoveryEvents: allEvents,
+            sessionResyncEvents: allEvents,
+            sessionCandidateAnchor: eventAnchor,
+            sessionDidResync: true
         )
     }
 
-    private func loadChangedFile(fileNumber: UInt64, fileSize: UInt64) -> EventReload {
-        let newEvents: [MewsEvent]
-        if eventFileNumber != fileNumber || fileSize < eventOffset {
-            newEvents = reloadRotatedFile()
-        } else {
-            newEvents = appendLatestChunk()
-        }
-
-        eventFileNumber = fileNumber
-        if let newestID = events.last?.id {
-            lastEventID = newestID
-        }
-        return EventReload(events: events, newEvents: newEvents)
+    private func installAppend(scan: EventLogFileScan) -> EventReload {
+        let newEvents = scan.records.map(\.event)
+        events.append(contentsOf: newEvents)
+        events = Array(events.suffix(10))
+        eventOffset = scan.completeOffset
+        eventFileNumber = scan.fileIdentity
+        lastEventID = events.last?.id
+        eventAnchor = scan.anchor
+        return EventReload(
+            events: events,
+            newEvents: newEvents,
+            sessionCandidateAnchor: eventAnchor
+        )
     }
 
-    private func reloadRotatedFile() -> [MewsEvent] {
-        let chunk = readEventChunk(from: 0)
+    private func installReplacement(scan: EventLogFileScan) -> EventReload {
+        let allEvents = scan.records.map(\.event)
         let newEvents: [MewsEvent]
         if let lastEventID,
-           let cursor = chunk.events.lastIndex(where: { $0.id == lastEventID }) {
-            newEvents = Array(chunk.events.suffix(from: chunk.events.index(after: cursor)))
+           let index = allEvents.lastIndex(where: { $0.id == lastEventID }) {
+            newEvents = Array(allEvents.suffix(from: allEvents.index(after: index)))
         } else {
             newEvents = []
         }
-        events = Array(chunk.events.suffix(10))
-        eventOffset = chunk.offset
-        return newEvents
-    }
-
-    private func appendLatestChunk() -> [MewsEvent] {
-        let chunk = readEventChunk(from: eventOffset)
-        eventOffset = chunk.offset
-        events.append(contentsOf: chunk.events)
-        events = Array(events.suffix(10))
-        return chunk.events
-    }
-
-    private func readEventChunk(from offset: UInt64) -> (events: [MewsEvent], offset: UInt64) {
-        guard let handle = try? FileHandle(forReadingFrom: url) else {
-            return ([], offset)
-        }
-        defer { try? handle.close() }
-
-        try? handle.seek(toOffset: offset)
-        let data = handle.readDataToEndOfFile()
-        guard let newline = data.lastIndex(of: 0x0A) else {
-            return ([], offset)
-        }
-        let complete = data.prefix(through: newline)
-        guard let content = String(data: complete, encoding: .utf8) else {
-            return ([], offset)
-        }
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let events = content.split(separator: "\n").compactMap { line -> MewsEvent? in
-            guard let data = String(line).data(using: .utf8) else {
-                return nil
-            }
-            return try? decoder.decode(MewsEvent.self, from: data)
-        }
-        return (events, offset + UInt64(complete.count))
+        events = Array(allEvents.suffix(10))
+        eventOffset = scan.completeOffset
+        eventFileNumber = scan.fileIdentity
+        self.lastEventID = allEvents.last?.id
+        eventAnchor = scan.anchor
+        return EventReload(
+            events: events,
+            newEvents: newEvents,
+            sessionResyncEvents: allEvents,
+            sessionCandidateAnchor: eventAnchor,
+            sessionDidResync: true
+        )
     }
 }

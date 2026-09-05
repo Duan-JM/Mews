@@ -11,7 +11,9 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private var agentProcessCoordinator = AgentProcessCoordinator()
     private var agentProbeInFlight = false
     var events: [MewsEvent] = []
-    private var started = false
+    var started = false
+    var sessionStateController: SessionStateController?
+    var sessionStateErrorMessage: String?
     var attentionController: AttentionController?
     var attentionErrorMessage: String?
     var runtimeHealthErrorMessage: String?
@@ -19,6 +21,9 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private let homeURL: URL
 
     private lazy var eventReader = EventLogReader(url: eventsURL)
+    lazy var sessionPresentationSource = SessionPresentationSource(
+        cliExecutablePath: helperPath()
+    )
     private lazy var agentSocketProbe = AgentSocketProbe(
         path: AgentSocketPath.resolve(homeURL: homeURL)
     )
@@ -57,6 +62,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         started = true
         NSApp.setActivationPolicy(.accessory)
         configureInteractionShell()
+        configureSessionState()
         configureAttention()
         notifications.configure()
         reloadEvents()
@@ -85,13 +91,53 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     func reloadEvents() {
         let now = Date()
         ensureAgentRunning(at: ProcessInfo.processInfo.systemUptime)
-        let reload = eventReader.reload()
+        let reload: EventReload
+        do {
+            reload = try eventReader.reload()
+        } catch {
+            recordSessionStateError("Could not read event log: \(error)")
+            finishReloadAfterEventReadFailure(now: now)
+            return
+        }
+        configureSessionState()
+        guard let sessionStateController else {
+            finishReload(reload, sessionSnapshot: nil, now: now)
+            return
+        }
+        sessionStateController.reconcile(reload) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self, self.started else {
+                    return
+                }
+                switch result {
+                case let .success(snapshot):
+                    self.clearSessionStateError()
+                    self.finishReload(reload, sessionSnapshot: snapshot, now: now)
+                case let .failure(error):
+                    self.recordSessionStateError(
+                        "Could not reconcile session state: \(error)"
+                    )
+                    self.finishReload(reload, sessionSnapshot: nil, now: now)
+                }
+            }
+        }
+    }
+
+    func finishReload(
+        _ reload: EventReload,
+        sessionSnapshot: SessionControllerSnapshot?,
+        now: Date
+    ) {
         events = reload.events
         let current = currentPrimaryEvent(in: events, now: now)
         let physicalNotchAvailable = notchPanelController?.canPresentNotchAlert == true
-        let attentionUpdate = reconcileAttention(reload)
+        let attentionUpdate = reconcileAttention(
+            reload,
+            sessions: sessionSnapshot?.sessions
+        )
         let presentationInput = sessionPresentationInput(
             attentionUpdate: attentionUpdate,
+            sessionSnapshot: sessionSnapshot,
             reload: reload
         )
         let sessionPresentation = SessionPresentationPolicy.resolve(
@@ -186,6 +232,39 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             .appendingPathComponent("Library")
             .appendingPathComponent("Logs")
             .appendingPathComponent("Mews")
+    }
+
+    func configureSessionState() {
+        guard sessionStateController == nil else {
+            return
+        }
+        do {
+            sessionStateController = try SessionStateController(
+                storeDirectory: storeDirectoryURL,
+                eventsURL: eventsURL,
+                cliExecutablePath: helperPath()
+            )
+            clearSessionStateError()
+        } catch {
+            sessionStateController = nil
+            recordSessionStateError("Could not configure session state: \(error)")
+        }
+    }
+
+    private func recordSessionStateError(_ message: String) {
+        guard sessionStateErrorMessage != message else {
+            return
+        }
+        sessionStateErrorMessage = message
+        appendAppLog(message)
+    }
+
+    private func clearSessionStateError() {
+        guard sessionStateErrorMessage != nil else {
+            return
+        }
+        sessionStateErrorMessage = nil
+        appendAppLog("Session state recovered")
     }
 
 }
