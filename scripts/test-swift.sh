@@ -48,6 +48,7 @@ swiftc \
   "$ROOT/internal/app/macos/PixelStatusLogo.swift" \
   "$ROOT/internal/app/macos/NotchShellGeometry.swift" \
   "$ROOT/internal/app/macos/NotchExpandedContentView.swift" \
+  "$ROOT/internal/app/macos/SessionListScrollContainer.swift" \
   "$ROOT/internal/app/macos/NotchSessionContentView.swift" \
   "$ROOT/internal/app/macos/NotchShellView.swift" \
   "$ROOT/internal/app/macos/NotchPanelController.swift" \
@@ -67,6 +68,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionPresentationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionPresentationSourceTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchInteractionTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionListScrollContainerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \
