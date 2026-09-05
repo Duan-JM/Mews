@@ -85,6 +85,8 @@ struct CurrentSessionState: Equatable {
     let evidencePrecedence: Int
     let evidenceOrdinal: UInt64?
     let orderingKnown: Bool
+    let equivalentEvidenceOverflow: Bool
+    let dismissedEvidenceID: String?
 
     init(
         identity: SessionIdentity,
@@ -99,7 +101,9 @@ struct CurrentSessionState: Equatable {
         evidenceID: String = "",
         evidencePrecedence: Int = 0,
         evidenceOrdinal: UInt64? = nil,
-        orderingKnown: Bool = false
+        orderingKnown: Bool = false,
+        equivalentEvidenceOverflow: Bool = false,
+        dismissedEvidenceID: String? = nil
     ) {
         self.identity = identity
         self.status = status
@@ -114,6 +118,8 @@ struct CurrentSessionState: Equatable {
         self.evidencePrecedence = evidencePrecedence
         self.evidenceOrdinal = evidenceOrdinal
         self.orderingKnown = orderingKnown
+        self.equivalentEvidenceOverflow = equivalentEvidenceOverflow
+        self.dismissedEvidenceID = dismissedEvidenceID
     }
 
     var source: String {
@@ -122,6 +128,10 @@ struct CurrentSessionState: Equatable {
 
     var sessionID: String {
         identity.sessionID
+    }
+
+    var isDismissed: Bool {
+        dismissedEvidenceID == evidenceID
     }
 
     var presence: SessionPresence {

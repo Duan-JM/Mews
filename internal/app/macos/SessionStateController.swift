@@ -80,6 +80,26 @@ final class SessionStateController {
         }
     }
 
+    func dismiss(
+        _ request: SessionDismissalRequest,
+        completion: @escaping (Result<SessionDismissalResponse, Error>) -> Void
+    ) {
+        queue.async {
+            do {
+                let scan = try self.evidenceReader.scan(anchor: self.anchor)
+                let result = try self.repository.dismiss(request, after: scan)
+                self.anchor = scan.candidateAnchor
+                self.revision += 1
+                completion(.success(SessionDismissalResponse(
+                    result: result,
+                    snapshot: self.makeSnapshot()
+                )))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     private func makeSnapshot() -> SessionControllerSnapshot {
         return SessionControllerSnapshot(
             revision: revision,
@@ -93,6 +113,13 @@ final class SessionStateController {
         _ reload: EventReload
     ) throws -> SessionControllerSnapshot {
         guard let boundary = reload.sessionCandidateAnchor else {
+            revision += 1
+            return makeSnapshot()
+        }
+        if let anchor,
+           anchor.fileIdentity == boundary.fileIdentity,
+           boundary.offset < anchor.offset,
+           try !evidenceReader.matchesCurrentFile(boundary) {
             revision += 1
             return makeSnapshot()
         }

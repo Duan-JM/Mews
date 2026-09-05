@@ -35,6 +35,7 @@ swiftc \
   "$ROOT/internal/app/macos/SessionStateStore.swift" \
   "$ROOT/internal/app/macos/SessionStateController.swift" \
   "$ROOT/internal/app/macos/SessionVisibility.swift" \
+  "$ROOT/internal/app/macos/SessionDismissal.swift" \
   "$ROOT/internal/app/macos/AttentionReconciler.swift" \
   "$ROOT/internal/app/macos/AttentionStateStore.swift" \
   "$ROOT/internal/app/macos/AttentionController.swift" \
@@ -60,6 +61,10 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateTests.swift" \
   "$ROOT/internal/app/macos/tests/ActiveSessionPanelTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionDismissalTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionDismissalBoundaryTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionDismissalControllerTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionDismissalTestSupport.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateFoundationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRecoveryTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRegressionTests.swift" \

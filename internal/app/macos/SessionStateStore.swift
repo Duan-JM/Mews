@@ -180,7 +180,7 @@ final class SessionStateStore {
                 "identity", "status", "statusChangedAt", "evidenceAt",
                 "project", "hookEvent", "context", "evidencePrecedence",
                 "evidenceID", "evidenceOrdinal", "equivalentEvidenceIDs",
-                "equivalentEvidenceOverflow"
+                "equivalentEvidenceOverflow", "dismissedEvidenceID"
             ]) else {
                 throw SessionStateStoreError.corruptData("unexpected session record schema")
             }
@@ -336,6 +336,59 @@ final class SessionStateRepository {
 
     func snapshot() -> [CurrentSessionState] {
         currentSessions()
+    }
+
+    @discardableResult
+    func dismiss(_ request: SessionDismissalRequest) throws -> SessionDismissalResult {
+        var updated = index
+        let result = updated.dismiss(
+            request,
+            now: clock(),
+            policy: policy,
+            cliExecutablePath: cliExecutablePath
+        )
+        guard result == .dismissed else {
+            return result
+        }
+        try store.save(updated)
+        index = updated
+        return result
+    }
+
+    @discardableResult
+    func dismiss(
+        _ request: SessionDismissalRequest,
+        after scan: SessionEvidenceScan
+    ) throws -> SessionDismissalResult {
+        var updated = index
+        if scan.didResync {
+            _ = updated.rebuildOrdering(
+                from: scan.events,
+                now: clock(),
+                policy: policy,
+                cliExecutablePath: cliExecutablePath
+            )
+        } else {
+            _ = updated.apply(
+                scan.events,
+                now: clock(),
+                policy: policy,
+                cliExecutablePath: cliExecutablePath
+            )
+        }
+        let reconciled = updated != index
+        let result = updated.dismiss(
+            request,
+            now: clock(),
+            policy: policy,
+            cliExecutablePath: cliExecutablePath
+        )
+        if reconciled || result == .dismissed {
+            try store.save(updated)
+            index = updated
+        }
+        needsStartupReconciliation = false
+        return result
     }
 }
 

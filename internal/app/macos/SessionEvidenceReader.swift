@@ -319,6 +319,10 @@ final class SessionEvidenceReader {
         self.url = url
     }
 
+    func matchesCurrentFile(_ anchor: SessionReconciliationAnchor) throws -> Bool {
+        return try EventLogFileIO.matchesCurrentFile(anchor, at: url)
+    }
+
     func scan(
         anchor: SessionReconciliationAnchor?,
         through boundary: SessionReconciliationAnchor? = nil,
