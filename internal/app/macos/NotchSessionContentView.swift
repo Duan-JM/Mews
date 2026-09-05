@@ -8,7 +8,7 @@ struct NotchSessionContentView: View {
     let onCopyCommand: (String) -> Void
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
+        SessionListScrollContainer {
             LazyVStack(spacing: 0) {
                 ForEach(snapshot.content.sessionRows, id: \.identity) { row in
                     sessionRow(row)
@@ -16,6 +16,7 @@ struct NotchSessionContentView: View {
                         .overlay(rule, alignment: .bottom)
                 }
             }
+            .frame(maxWidth: .infinity)
         }
         .frame(maxHeight: .infinity)
         .padding(.top, 4)

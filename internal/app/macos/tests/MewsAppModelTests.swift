@@ -25,6 +25,7 @@ enum MewsAppModelTests {
         try testNotchInteractionPolicy()
         try testNotchShellPresentation()
         try testNotchPanelContent()
+        try testSessionListScrollContainer()
         try testNotchPanelControllerTopology()
         testActionRouting()
     }
