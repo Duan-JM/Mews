@@ -7,6 +7,7 @@ extension MewsAppModelTests {
         try testScrollConfiguration()
         try testDocumentUpdatePreservesIdentity()
         try testTallContentScrollsVertically()
+        try testSwipeRouterInstallation()
     }
 
     private static func testScrollConfiguration() throws {
@@ -91,6 +92,32 @@ extension MewsAppModelTests {
         try scrollExpect(
             tallScrollView.contentView.bounds.origin.y > 0,
             "tall session content should scroll vertically"
+        )
+    }
+
+    private static func testSwipeRouterInstallation() throws {
+        let scrollView = SessionListScrollView()
+        let router = SessionSwipeInputRouter(
+            onBegin: { _, _ in },
+            onChange: { _, _ in },
+            onEnd: { _ in },
+            onCancel: {},
+            onVerticalScroll: {}
+        )
+        scrollView.installSwipeInputRouter(router)
+        scrollView.installSwipeInputRouter(router)
+        try scrollExpect(
+            scrollView.gestureRecognizers.filter {
+                $0 is SessionMouseSwipeRecognizer
+            }.count == 1,
+            "the scroll view should retain one mouse recognizer across SwiftUI updates"
+        )
+        scrollView.installSwipeInputRouter(nil)
+        try scrollExpect(
+            scrollView.gestureRecognizers.allSatisfy {
+                !($0 is SessionMouseSwipeRecognizer)
+            },
+            "dismantling the list should remove its swipe recognizer"
         )
     }
 

@@ -5,7 +5,7 @@ enum SessionTerminalSlot: Hashable {
     case kitty(listenOn: String, windowID: String)
 }
 
-struct SessionDismissalRequest: Equatable {
+struct SessionDismissalRequest: Equatable, Hashable {
     let identity: SessionIdentity
     let evidenceID: String
 }

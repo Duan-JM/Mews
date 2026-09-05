@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NotchExpandedContentView: View {
     let snapshot: NotchShellSnapshot
+    @ObservedObject var sessionListModel: SessionListPresentationModel
     let surface: NotchSurfacePalette
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
@@ -14,13 +15,22 @@ struct NotchExpandedContentView: View {
         return NotchExpandedHeaderLayout.resolved(
             placementMode: snapshot.placementMode,
             anchorSize: snapshot.anchorSize,
-            sessionCount: snapshot.content.sessionRows.count
+            sessionCount: sessionListModel.snapshot.rows.count
         )
     }
 
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            if let errorMessage = sessionListModel.snapshot.errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .tracking(0.35)
+                    .foregroundStyle(Color(nsColor: .systemRed))
+                    .frame(maxWidth: .infinity, minHeight: 18, alignment: .leading)
+                    .transition(.opacity)
+                    .accessibilityLabel(errorMessage)
+            }
             if let health = snapshot.content.health {
                 NotchHealthRowView(
                     health: health,
@@ -31,11 +41,12 @@ struct NotchExpandedContentView: View {
                 )
                     .padding(.top, 5)
             }
-            if snapshot.content.sessionRows.isEmpty {
+            if sessionListModel.snapshot.rows.isEmpty {
                 emptyContent
             } else {
                 NotchSessionContentView(
                     snapshot: snapshot,
+                    sessionListModel: sessionListModel,
                     palette: palette,
                     surface: surface,
                     onReturnToCLI: onReturnToCLI,
@@ -91,7 +102,7 @@ struct NotchExpandedContentView: View {
     }
 
     private var topBarLabel: String {
-        let count = snapshot.content.sessionRows.count
+        let count = sessionListModel.snapshot.rows.count
         return count == 0 ? "NO ACTIVE" : "\(count) ACTIVE"
     }
 }

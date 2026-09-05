@@ -310,6 +310,7 @@ private struct SyntheticStatusCard: View {
     let label: String
     let colorScheme: ColorScheme
     @StateObject private var model: NotchShellViewModel
+    @StateObject private var sessionListModel: SessionListPresentationModel
 
     init(fixture: SyntheticStatusSnapshot) {
         label = fixture.label
@@ -317,11 +318,14 @@ private struct SyntheticStatusCard: View {
         _model = StateObject(
             wrappedValue: NotchShellViewModel(snapshot: fixture.snapshot)
         )
+        _sessionListModel = StateObject(
+            wrappedValue: syntheticSessionListModel(for: fixture.snapshot)
+        )
     }
 
     var body: some View {
         VStack(spacing: 4) {
-            NotchShellView(model: model)
+            NotchShellView(model: model, sessionListModel: sessionListModel)
                 .frame(width: 116, height: 38)
                 .environment(\.colorScheme, colorScheme)
             Text("\(label) · \(appearanceLabel)")
@@ -361,18 +365,22 @@ private struct SyntheticStatusCard: View {
 private struct SyntheticPanelScene: View {
     let colorScheme: ColorScheme
     @StateObject private var model: NotchShellViewModel
+    @StateObject private var sessionListModel: SessionListPresentationModel
 
     init(snapshot: NotchShellSnapshot, colorScheme: ColorScheme) {
         self.colorScheme = colorScheme
         _model = StateObject(
             wrappedValue: NotchShellViewModel(snapshot: snapshot)
         )
+        _sessionListModel = StateObject(
+            wrappedValue: syntheticSessionListModel(for: snapshot)
+        )
     }
 
     var body: some View {
         ZStack {
             syntheticDesktopBackground(colorScheme: colorScheme)
-            NotchShellView(model: model)
+            NotchShellView(model: model, sessionListModel: sessionListModel)
                 .environment(\.colorScheme, colorScheme)
         }
         .frame(

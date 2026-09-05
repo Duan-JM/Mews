@@ -3,10 +3,33 @@ import Foundation
 struct SessionPresentationInput {
     let sessions: [CurrentSessionState]
     let attentionRecords: [AttentionRecord]
+    let revision: UInt64?
 }
 
 @MainActor
 extension MewsApp {
+    func dismissSession(
+        _ request: SessionDismissalRequest,
+        completion: @escaping (Result<SessionDismissalResponse, Error>) -> Void
+    ) {
+        configureSessionState()
+        guard let sessionStateController else {
+            completion(.failure(MewsSessionDismissalError.controllerUnavailable))
+            return
+        }
+        sessionStateController.dismiss(request) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self, self.started else {
+                    return
+                }
+                completion(result)
+                if case .success = result {
+                    self.reloadEvents()
+                }
+            }
+        }
+    }
+
     func finishReloadAfterEventReadFailure(now: Date) {
         let reload = EventReload(
             events: events,
@@ -18,6 +41,10 @@ extension MewsApp {
             now: now,
             reconcilesAttention: true
         )
+    }
+
+    private enum MewsSessionDismissalError: Error {
+        case controllerUnavailable
     }
 
     func finishReloadAfterSessionReconciliationFailure(
@@ -76,21 +103,24 @@ extension MewsApp {
             clearSessionPresentationError()
             return SessionPresentationInput(
                 sessions: attentionUpdate.sessions,
-                attentionRecords: attentionUpdate.reconciliation.state.persistedRecords
+                attentionRecords: attentionUpdate.reconciliation.state.persistedRecords,
+                revision: sessionSnapshot?.revision
             )
         }
         if let sessionSnapshot {
             clearSessionPresentationError()
             return SessionPresentationInput(
                 sessions: sessionSnapshot.sessions,
-                attentionRecords: []
+                attentionRecords: [],
+                revision: sessionSnapshot.revision
             )
         }
         let sessions = sessionPresentationSource.sessions(reconciling: reload)
         clearSessionPresentationError()
         return SessionPresentationInput(
             sessions: sessions,
-            attentionRecords: []
+            attentionRecords: [],
+            revision: nil
         )
     }
 

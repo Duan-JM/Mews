@@ -8,16 +8,38 @@ extension MewsAppModelTests {
         let screenChangeNotification = Notification.Name(
             "MewsNotchPanelControllerTestsScreenChanged"
         )
-        var screens = [controllerNotchedScreen()]
+        let screens = ControllerScreenBox(
+            screens: [controllerNotchedScreen()]
+        )
         let controller = NotchPanelController(
             notificationCenter: notifications,
             screenChangeNotification: screenChangeNotification,
-            screenProvider: { screens }
+            screenProvider: { screens.screens }
         )
 
         try testInitialNotchPresentation(controller)
+        try testExpandedRowOrderStaysStable(controller)
+        try testSwipeCancellationOnPlacementLoss(
+            controller: controller,
+            notifications: notifications,
+            screenChangeNotification: screenChangeNotification,
+            screens: screens
+        )
+        try testScreenTransitions(
+            controller: controller,
+            notifications: notifications,
+            screenChangeNotification: screenChangeNotification,
+            screens: screens
+        )
+    }
 
-        screens = [controllerExternalScreen()]
+    private static func testScreenTransitions(
+        controller: NotchPanelController,
+        notifications: NotificationCenter,
+        screenChangeNotification: Notification.Name,
+        screens: ControllerScreenBox
+    ) throws {
+        screens.screens = [controllerExternalScreen()]
         notifications.post(
             name: screenChangeNotification,
             object: nil
@@ -31,7 +53,7 @@ extension MewsAppModelTests {
             "the closed top-center fallback should not expose a hidden hit region"
         )
 
-        screens = []
+        screens.screens = []
         notifications.post(
             name: screenChangeNotification,
             object: nil
@@ -41,7 +63,7 @@ extension MewsAppModelTests {
             "a temporary no-screen transition should hide the panel without crashing"
         )
 
-        screens = [controllerNotchedScreen()]
+        screens.screens = [controllerNotchedScreen()]
         notifications.post(
             name: screenChangeNotification,
             object: nil
@@ -49,6 +71,118 @@ extension MewsAppModelTests {
         try controllerExpect(
             controllerShowsNotch(controller),
             "reconnecting the laptop display should restore notch placement"
+        )
+    }
+
+    private static func testSwipeCancellationOnPlacementLoss(
+        controller: NotchPanelController,
+        notifications: NotificationCenter,
+        screenChangeNotification: Notification.Name,
+        screens: ControllerScreenBox
+    ) throws {
+        let row = try controllerSwipeRow()
+        try configureSwipeFixture(controller: controller, row: row)
+
+        screens.screens = []
+        notifications.post(name: screenChangeNotification, object: nil)
+        try controllerExpect(
+            controller.sessionListSnapshot.rows == [row] &&
+                controller.sessionListSnapshot.visual(for: row) == .resting,
+            "placement loss should cancel gesture state and stale visual callbacks"
+        )
+        screens.screens = [controllerNotchedScreen()]
+        notifications.post(name: screenChangeNotification, object: nil)
+        try controllerExpect(
+            !controller.containsVisibleShell(CGPoint(x: 756, y: 800)),
+            "restoring placement should not reopen an expanded panel"
+        )
+    }
+
+    private static func testExpandedRowOrderStaysStable(
+        _ controller: NotchPanelController
+    ) throws {
+        let first = try controllerSwipeRow(
+            id: "stable-first",
+            evidenceID: "first-1"
+        )
+        let second = try controllerSwipeRow(
+            id: "stable-second",
+            evidenceID: "second-1"
+        )
+        let replacement = try controllerSwipeRow(
+            id: "stable-first",
+            evidenceID: "first-2"
+        )
+        controller.update(
+            interactionState: NotchInteractionState(
+                visibility: .expanded,
+                openReason: .click,
+                presentationState: MewsPresentationState(event: nil)
+            ),
+            accessibilityPreferences: controllerAccessibilityPreferences()
+        )
+        controller.update(content: controllerContent(
+            rows: [first, second],
+            revision: 1
+        ))
+        controller.update(content: controllerContent(
+            rows: [second, replacement],
+            revision: 2
+        ))
+        try controllerExpect(
+            controller.sessionListSnapshot.rows.map(\.id) == [
+                replacement.id,
+                second.id
+            ],
+            "new evidence should replace content without moving the row while expanded"
+        )
+    }
+
+    private static func configureSwipeFixture(
+        controller: NotchPanelController,
+        row: SessionPresentationRow
+    ) throws {
+        controller.update(
+            interactionState: NotchInteractionState(
+                visibility: .expanded,
+                openReason: .click,
+                presentationState: MewsPresentationState(event: nil)
+            ),
+            accessibilityPreferences: controllerAccessibilityPreferences()
+        )
+        controller.update(
+            content: NotchPanelContent(
+                presentation: SessionPresentation(
+                    rows: [row],
+                    health: nil,
+                    sessionRevision: 10
+                ),
+                events: [],
+                currentEvent: nil
+            )
+        )
+        controller.sessionSwipeInputRouter.begin(
+            SessionSwipeInputTarget(
+                request: try controllerSwipeTarget(row),
+                rowWidth: 320
+            )
+        )
+        controller.sessionSwipeInputRouter.change(
+            translationX: -60,
+            velocityX: -200
+        )
+        try controllerExpect(
+            controller.sessionListSnapshot.visual(for: row).phase == .dragging,
+            "the fixture should begin with an active row drag"
+        )
+    }
+
+    private static func controllerAccessibilityPreferences()
+        -> NotchAccessibilityPreferences {
+        return NotchAccessibilityPreferences(
+            reduceMotion: false,
+            reduceTransparency: false,
+            increaseContrast: false
         )
     }
 
@@ -136,6 +270,60 @@ extension MewsAppModelTests {
         )
     }
 
+    private static func controllerSwipeRow(
+        id: String = "panel-swipe",
+        evidenceID: String = "panel-evidence"
+    ) throws -> SessionPresentationRow {
+        guard let identity = SessionIdentity(
+            source: "codex",
+            sessionID: id
+        ) else {
+            throw NotchPanelControllerTestFailure(message: "invalid swipe identity")
+        }
+        let request = SessionDismissalRequest(
+            identity: identity,
+            evidenceID: evidenceID
+        )
+        return SessionPresentationRow(
+            identity: identity,
+            status: .done,
+            sourceLabel: "Codex",
+            projectLabel: "Mews",
+            sessionLabel: id,
+            statusLabel: "Stopped",
+            statusCode: "STOP",
+            returnContext: nil,
+            evidenceAt: Date(timeIntervalSince1970: 1_900_000_000),
+            priority: .recent,
+            evidenceID: request.evidenceID,
+            dismissalRequest: request
+        )
+    }
+
+    private static func controllerContent(
+        rows: [SessionPresentationRow],
+        revision: UInt64
+    ) -> NotchPanelContent {
+        return NotchPanelContent(
+            presentation: SessionPresentation(
+                rows: rows,
+                health: nil,
+                sessionRevision: revision
+            ),
+            events: [],
+            currentEvent: nil
+        )
+    }
+
+    private static func controllerSwipeTarget(
+        _ row: SessionPresentationRow
+    ) throws -> SessionDismissalRequest {
+        guard let request = row.dismissalRequest else {
+            throw NotchPanelControllerTestFailure(message: "missing swipe target")
+        }
+        return request
+    }
+
     private static func controllerExpect(
         _ condition: @autoclosure () -> Bool,
         _ message: String
@@ -148,4 +336,12 @@ extension MewsAppModelTests {
 
 private struct NotchPanelControllerTestFailure: Error {
     let message: String
+}
+
+private final class ControllerScreenBox {
+    var screens: [ScreenSnapshot]
+
+    init(screens: [ScreenSnapshot]) {
+        self.screens = screens
+    }
 }

@@ -40,16 +40,19 @@ final class NotchShellViewModel: ObservableObject {
 
 struct NotchShellView: View {
     @ObservedObject var model: NotchShellViewModel
+    @ObservedObject var sessionListModel: SessionListPresentationModel
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     init(
         model: NotchShellViewModel,
+        sessionListModel: SessionListPresentationModel,
         onReturnToCLI: @escaping (CLIContextPayload, SessionIdentity?) -> Void = { _, _ in },
         onCopyCommand: @escaping (String) -> Void = { _ in }
     ) {
         self.model = model
+        self.sessionListModel = sessionListModel
         self.onReturnToCLI = onReturnToCLI
         self.onCopyCommand = onCopyCommand
     }
@@ -94,6 +97,7 @@ struct NotchShellView: View {
             if snapshot.visibility == .expanded {
                 NotchExpandedContentView(
                     snapshot: snapshot,
+                    sessionListModel: sessionListModel,
                     surface: surface,
                     onReturnToCLI: onReturnToCLI,
                     onCopyCommand: onCopyCommand

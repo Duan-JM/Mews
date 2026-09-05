@@ -1,6 +1,18 @@
 import Foundation
 import SwiftUI
 
+@MainActor
+func syntheticSessionListModel(
+    for snapshot: NotchShellSnapshot
+) -> SessionListPresentationModel {
+    let model = SessionListPresentationModel { _, _ in }
+    model.update(
+        canonicalRows: snapshot.content.sessionRows,
+        revision: snapshot.content.sessionRevision
+    )
+    return model
+}
+
 struct SyntheticStatusSnapshot: Identifiable {
     let id: String
     let label: String

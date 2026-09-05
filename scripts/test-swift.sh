@@ -36,6 +36,14 @@ swiftc \
   "$ROOT/internal/app/macos/SessionStateController.swift" \
   "$ROOT/internal/app/macos/SessionVisibility.swift" \
   "$ROOT/internal/app/macos/SessionDismissal.swift" \
+  "$ROOT/internal/app/macos/SessionSwipeInteraction.swift" \
+  "$ROOT/internal/app/macos/SessionSwipeInput.swift" \
+  "$ROOT/internal/app/macos/SessionSwipeRowMarker.swift" \
+  "$ROOT/internal/app/macos/SessionRemovalAnimationObserver.swift" \
+  "$ROOT/internal/app/macos/SessionListPresentationModel.swift" \
+  "$ROOT/internal/app/macos/SessionListPresentationAnimation.swift" \
+  "$ROOT/internal/app/macos/SessionListPresentationReconciliation.swift" \
+  "$ROOT/internal/app/macos/SessionListPresentationCommit.swift" \
   "$ROOT/internal/app/macos/AttentionReconciler.swift" \
   "$ROOT/internal/app/macos/AttentionStateStore.swift" \
   "$ROOT/internal/app/macos/AttentionController.swift" \
@@ -65,6 +73,10 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionDismissalBoundaryTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalTestSupport.swift" \
+  "$ROOT/internal/app/macos/tests/SessionSwipeInteractionTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionSwipeInputTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionSwipePresentationTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionListPresentationModelTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateFoundationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRecoveryTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRegressionTests.swift" \

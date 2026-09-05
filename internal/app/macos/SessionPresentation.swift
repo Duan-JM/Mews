@@ -15,6 +15,11 @@ enum SessionPresentationPriority: Int, Comparable {
     }
 }
 
+struct SessionPresentationRowID: Hashable {
+    let identity: SessionIdentity
+    let evidenceID: String
+}
+
 struct SessionPresentationRow: Equatable {
     let identity: SessionIdentity
     let status: SessionStatus
@@ -26,6 +31,43 @@ struct SessionPresentationRow: Equatable {
     let returnContext: CLIContextPayload?
     let evidenceAt: Date
     let priority: SessionPresentationPriority
+    let evidenceID: String
+    let dismissalRequest: SessionDismissalRequest?
+
+    init(
+        identity: SessionIdentity,
+        status: SessionStatus,
+        sourceLabel: String,
+        projectLabel: String?,
+        sessionLabel: String,
+        statusLabel: String,
+        statusCode: String,
+        returnContext: CLIContextPayload?,
+        evidenceAt: Date,
+        priority: SessionPresentationPriority,
+        evidenceID: String = "",
+        dismissalRequest: SessionDismissalRequest? = nil
+    ) {
+        self.identity = identity
+        self.status = status
+        self.sourceLabel = sourceLabel
+        self.projectLabel = projectLabel
+        self.sessionLabel = sessionLabel
+        self.statusLabel = statusLabel
+        self.statusCode = statusCode
+        self.returnContext = returnContext
+        self.evidenceAt = evidenceAt
+        self.priority = priority
+        self.evidenceID = evidenceID
+        self.dismissalRequest = dismissalRequest
+    }
+
+    var id: SessionPresentationRowID {
+        return SessionPresentationRowID(
+            identity: identity,
+            evidenceID: evidenceID
+        )
+    }
 
     var returnCommand: String? {
         return returnContext?.returnCommand
@@ -143,6 +185,17 @@ struct SessionPresentation: Equatable {
 
     let rows: [SessionPresentationRow]
     let health: RuntimeHealthPresentation?
+    let sessionRevision: UInt64?
+
+    init(
+        rows: [SessionPresentationRow],
+        health: RuntimeHealthPresentation?,
+        sessionRevision: UInt64? = nil
+    ) {
+        self.rows = rows
+        self.health = health
+        self.sessionRevision = sessionRevision
+    }
 
     var menuRows: [SessionPresentationRow] {
         return Array(rows.prefix(Self.menuLimit))
@@ -155,6 +208,7 @@ struct SessionPresentationPolicy {
         attentionRecords: [AttentionRecord],
         healthSnapshot: RuntimeHealthSnapshot?,
         now: Date,
+        sessionRevision: UInt64? = nil,
         fileManager: FileManager = .default
     ) -> SessionPresentation {
         let attentionByIdentity = Dictionary(
@@ -174,13 +228,16 @@ struct SessionPresentationPolicy {
         }.map { session in
             row(
                 session: session,
+                allSessions: sessions,
+                now: now,
                 attentionRecord: attentionByIdentity[session.identity],
                 fileManager: fileManager
             )
         }.sorted(by: rowPrecedes)
         return SessionPresentation(
             rows: rows,
-            health: healthSnapshot.flatMap { health(snapshot: $0, now: now) }
+            health: healthSnapshot.flatMap { health(snapshot: $0, now: now) },
+            sessionRevision: sessionRevision
         )
     }
 
@@ -203,6 +260,8 @@ struct SessionPresentationPolicy {
 
     private static func row(
         session: CurrentSessionState,
+        allSessions: [CurrentSessionState],
+        now: Date,
         attentionRecord: AttentionRecord?,
         fileManager: FileManager
     ) -> SessionPresentationRow {
@@ -231,7 +290,31 @@ struct SessionPresentationPolicy {
                 status: status,
                 hasCurrentCompletion: session.status == .done,
                 attention: matchingAttention
+            ),
+            evidenceID: session.evidenceID,
+            dismissalRequest: dismissalRequest(
+                session: session,
+                allSessions: allSessions,
+                now: now
             )
+        )
+    }
+
+    private static func dismissalRequest(
+        session: CurrentSessionState,
+        allSessions: [CurrentSessionState],
+        now: Date
+    ) -> SessionDismissalRequest? {
+        guard SessionDismissalPolicy.eligibility(
+            for: session,
+            among: allSessions,
+            now: now
+        ) == .eligible else {
+            return nil
+        }
+        return SessionDismissalRequest(
+            identity: session.identity,
+            evidenceID: session.evidenceID
         )
     }
 

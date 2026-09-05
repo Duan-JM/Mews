@@ -124,6 +124,15 @@ Events stay deliberately small:
 8. Each attention event uses one automatic channel: the physical-notch shell when available, otherwise Notification Center.
 9. While expanded, retained session order and health actions stay fixed so refreshes cannot move an action target beneath the pointer; sessions that close disappear immediately.
 
+### Hide stopped sessions
+
+- Active Session rows stay unchanged by default. Only an ordered `STOP` row accepts a mouse left-drag or a two-finger trackpad swipe to the left.
+- Movement remains attached to the pointer or fingers after an 8-point slop and a 1.25 horizontal direction lock. Native vertical scrolling wins when that lock is not met, and only one row can be dragged or revealed at a time.
+- Releasing before 36 points closes the row. Releasing from 36 points onward reveals one 72-point system-red `HIDE` action. Crossing 55% of the current row width expands the red action across the row, centers and enlarges its label, and hides directly only after release; a 16-point retreat hysteresis cancels that full-swipe state.
+- Both the revealed button and full swipe submit the same evidence-scoped local write. The row leaves only after persistence succeeds. A write failure returns it to the revealed position for retry, while an ordering-unknown row remains visible and unavailable.
+- Hiding removes only the matching evidence from Active Sessions. Local event history, notifications, and the upstream CLI session remain unchanged. Strictly newer primary evidence restores the session automatically.
+- Reduce Motion keeps direct tracking but replaces spring and spatial removal with a 100 ms ease-out fade. VoiceOver exposes `Hide from Active Sessions` as a row custom action, while the visual `HIDE` layer stays out of the accessibility tree.
+
 ## Display and Accessibility Behavior
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
