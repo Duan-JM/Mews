@@ -248,7 +248,7 @@ only row transform and derived action geometry, clipping, and opacity; event
 scanning, JSON work, and atomic persistence remain on the session controller
 queue.
 
-The swipe visual derives from that same offset. The 72-point revealed gesture
+The swipe visual derives from that same offset. The 44-point revealed gesture
 stop presents a 44×24 `HIDE` button matching the compact row actions. Before
 that width is visible, its clipped leading edge uses circular geometry. Beyond
 the revealed stop, one normalized progress value expands the darker

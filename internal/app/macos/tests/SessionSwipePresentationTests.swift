@@ -71,7 +71,7 @@ extension MewsAppModelTests {
                 .actionCornerRadius(rowWidth: 320) == 8,
             "the first visible part of HIDE should remain circular"
         )
-        let shortSwipe = swipeVisual(phase: .revealed, offset: -72)
+        let shortSwipe = swipeVisual(phase: .revealed, offset: -44)
         try swipePresentationExpect(
             shortSwipe.actionWidth(rowWidth: 320) == 44 &&
                 shortSwipe.actionHeight(rowWidth: 320) == 24 &&
@@ -84,7 +84,7 @@ extension MewsAppModelTests {
     }
 
     private static func assertExpandingSwipe() throws {
-        let visual = swipeVisual(phase: .dragging, offset: -124)
+        let visual = swipeVisual(phase: .dragging, offset: -110)
         try swipePresentationExpect(
             visual.actionWidth(rowWidth: 320) == 182 &&
                 visual.actionHeight(rowWidth: 320) == 33 &&

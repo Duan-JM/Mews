@@ -4,7 +4,7 @@ struct SessionSwipeMetrics: Equatable {
     static let standard = SessionSwipeMetrics(
         inputSlop: 8,
         horizontalLockRatio: 1.25,
-        actionWidth: 72,
+        actionWidth: 44,
         revealThreshold: 36,
         commitThresholdRatio: 0.55,
         commitHysteresis: 16,
