@@ -244,8 +244,18 @@ finalizes the normal path at the visual endpoint, with a bounded 380 ms
 watchdog only for interrupted callbacks; failures keep the row visible and
 retryable. Panel close, `orderOut`, placement loss, and app shutdown advance the
 interaction epoch and cancel pending visual callbacks. Drag updates change
-only row transform, clipping, and opacity; event scanning, JSON work, and atomic
-persistence remain on the session controller queue.
+only row transform and derived action geometry, clipping, and opacity; event
+scanning, JSON work, and atomic persistence remain on the session controller
+queue.
+
+The swipe visual derives from that same offset. The 72-point revealed gesture
+stop presents a 44×24 `HIDE` button matching the compact row actions. Before
+that width is visible, its clipped leading edge uses circular geometry. Beyond
+the revealed stop, one normalized progress value expands the darker
+`#c80f28` button's width and height, reduces its corner radius, and scales its
+label until the action fills the row at the existing commit threshold. The row
+content owns the full 42-point height, so its separator remains at the row
+boundary instead of the action-button baseline.
 
 `EventLogReader` opens the log, stats the same descriptor, reads only complete
 JSONL records, and revalidates the descriptor and pathname before publishing a

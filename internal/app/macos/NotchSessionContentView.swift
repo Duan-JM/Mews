@@ -37,13 +37,13 @@ struct NotchSessionContentView: View {
         let removalToken = sessionListModel.removalToken(for: row.id)
         return ZStack(alignment: .trailing) {
             hideActionLayer(row, visual: visual, rowWidth: rowWidth)
-                .zIndex(visual.usesFullWidthAction ? 2 : 0)
+                .zIndex(visual.usesExpandedAction(rowWidth: rowWidth) ? 2 : 0)
             sessionRow(row, visual: visual, rowWidth: rowWidth)
                 .offset(x: visual.offset)
                 .zIndex(1)
         }
         .opacity(visual.opacity)
-        .frame(width: rowWidth, height: 42)
+        .frame(width: rowWidth, height: SessionRowLayout.rowHeight)
         .clipped()
         .modifier(
             SessionRemovalAnimationObserver(
@@ -105,6 +105,8 @@ struct NotchSessionContentView: View {
                 }
             }
         )
+        .padding(.bottom, SessionRowLayout.contentBottomInset)
+        .frame(height: SessionRowLayout.rowHeight)
         .overlay(rule, alignment: .bottom)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(row.accessibilityLabel)
@@ -192,6 +194,8 @@ struct NotchSessionContentView: View {
         rowWidth: CGFloat
     ) -> some View {
         let width = visual.actionWidth(rowWidth: rowWidth)
+        let height = visual.actionHeight(rowWidth: rowWidth)
+        let cornerRadius = visual.actionCornerRadius(rowWidth: rowWidth)
         return HStack(spacing: 0) {
             Spacer(minLength: 0)
             Button {
@@ -202,11 +206,20 @@ struct NotchSessionContentView: View {
                     .tracking(0.5)
                     .foregroundStyle(Color.white)
                     .opacity(visual.actionLabelOpacity)
-                    .scaleEffect(visual.actionScale)
+                    .scaleEffect(visual.actionLabelScale(rowWidth: rowWidth))
+                    .frame(width: width, height: height)
+                    .background(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(SessionSwipeStyle.danger)
+                    )
+                    .clipped()
+                    .offset(y: visual.actionVerticalOffset(rowWidth: rowWidth))
             }
-            .buttonStyle(.plain)
-            .frame(width: width, height: 42)
-            .background(Color(nsColor: .systemRed))
+            .buttonStyle(
+                SessionHideActionButtonStyle(
+                    transitionStyle: snapshot.transitionStyle
+                )
+            )
             .opacity(visual.actionOpacity)
             .allowsHitTesting(visual.actionAcceptsInput)
             .accessibilityHidden(true)
@@ -224,6 +237,33 @@ struct NotchSessionContentView: View {
         case .idle:
             return max(0.42, palette.statusFloor)
         }
+    }
+}
+
+private enum SessionSwipeStyle {
+    static let danger = Color(
+        red: 200.0 / 255.0,
+        green: 15.0 / 255.0,
+        blue: 40.0 / 255.0
+    )
+}
+
+private struct SessionHideActionButtonStyle: ButtonStyle {
+    let transitionStyle: NotchShellTransitionStyle
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .scaleEffect(
+                configuration.isPressed && transitionStyle == .spatial
+                    ? 0.97
+                    : 1,
+                anchor: .trailing
+            )
+            .animation(
+                transitionStyle == .spatial ? .easeOut(duration: 0.08) : nil,
+                value: configuration.isPressed
+            )
     }
 }
 

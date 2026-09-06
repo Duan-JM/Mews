@@ -41,6 +41,13 @@ extension MewsAppModelTests {
     }
 
     private static func assertFullSwipePresentation() throws {
+        try assertFullWidthSwipe()
+        try assertCompactSwipe()
+        try assertExpandingSwipe()
+        try assertRemovingSwipe()
+    }
+
+    private static func assertFullWidthSwipe() throws {
         let fullSwipe = SessionSwipeRowVisual(
             phase: .commitReady,
             offset: -176,
@@ -48,24 +55,46 @@ extension MewsAppModelTests {
             height: 42,
             isPending: false
         )
-        let shortSwipe = SessionSwipeRowVisual(
-            phase: .revealed,
-            offset: -72,
-            opacity: 1,
-            height: 42,
-            isPending: false
-        )
         try swipePresentationExpect(
             fullSwipe.actionWidth(rowWidth: 320) == 320 &&
-                fullSwipe.usesFullWidthAction,
+                fullSwipe.actionHeight(rowWidth: 320) == 42 &&
+                fullSwipe.actionCornerRadius(rowWidth: 320) == 0 &&
+                fullSwipe.actionVerticalOffset(rowWidth: 320) == 0 &&
+                fullSwipe.usesFullWidthAction(rowWidth: 320),
             "commit-ready feedback should expand the red action across the row"
         )
+    }
+
+    private static func assertCompactSwipe() throws {
         try swipePresentationExpect(
-            shortSwipe.actionWidth(rowWidth: 320) == 72 &&
-                !shortSwipe.usesFullWidthAction &&
-                shortSwipe.acceptsSwipeInput,
-            "a short swipe should keep the action at its revealed width"
+            swipeVisual(phase: .dragging, offset: -16)
+                .actionCornerRadius(rowWidth: 320) == 8,
+            "the first visible part of HIDE should remain circular"
         )
+        let shortSwipe = swipeVisual(phase: .revealed, offset: -72)
+        try swipePresentationExpect(
+            shortSwipe.actionWidth(rowWidth: 320) == 44 &&
+                shortSwipe.actionHeight(rowWidth: 320) == 24 &&
+                shortSwipe.actionCornerRadius(rowWidth: 320) == 4 &&
+                shortSwipe.actionVerticalOffset(rowWidth: 320) == -2 &&
+                !shortSwipe.usesExpandedAction(rowWidth: 320) &&
+                shortSwipe.acceptsSwipeInput,
+            "a short swipe should reveal a COPY-sized HIDE button"
+        )
+    }
+
+    private static func assertExpandingSwipe() throws {
+        let visual = swipeVisual(phase: .dragging, offset: -124)
+        try swipePresentationExpect(
+            visual.actionWidth(rowWidth: 320) == 182 &&
+                visual.actionHeight(rowWidth: 320) == 33 &&
+                visual.actionCornerRadius(rowWidth: 320) == 2 &&
+                visual.actionLabelScale(rowWidth: 320) == 1.03,
+            "a long pull should continuously morph the button toward the full row"
+        )
+    }
+
+    private static func assertRemovingSwipe() throws {
         let removing = SessionSwipeRowVisual(
             phase: .removing,
             offset: -320,
@@ -76,6 +105,19 @@ extension MewsAppModelTests {
         try swipePresentationExpect(
             !removing.acceptsSwipeInput,
             "a leaving row should not retain an input target"
+        )
+    }
+
+    private static func swipeVisual(
+        phase: SessionSwipePhase,
+        offset: CGFloat
+    ) -> SessionSwipeRowVisual {
+        return SessionSwipeRowVisual(
+            phase: phase,
+            offset: offset,
+            opacity: 1,
+            height: 42,
+            isPending: false
         )
     }
 
