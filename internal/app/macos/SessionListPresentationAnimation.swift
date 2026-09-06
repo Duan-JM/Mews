@@ -45,7 +45,7 @@ extension SessionListPresentationModel {
             phase: phase,
             offset: interaction.offset,
             opacity: 1,
-            height: 42,
+            height: SessionRowLayout.rowHeight,
             isPending: false
         )
     }

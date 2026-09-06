@@ -94,7 +94,7 @@ extension MewsAppModelTests {
         try swipeExpect(
             interaction.end(velocityX: 0) == .revealed &&
                 interaction.phase == .revealed &&
-                interaction.offset == -72,
+                interaction.offset == -44,
             "a 36-point swipe should reveal the fixed action width"
         )
     }
@@ -140,7 +140,7 @@ extension MewsAppModelTests {
         try swipeExpect(
             interaction.cancel() == .revealed &&
                 interaction.phase == .revealed &&
-                interaction.offset == -72,
+                interaction.offset == -44,
             "cancelling a resumed swipe should restore its revealed origin"
         )
     }
@@ -190,7 +190,7 @@ extension MewsAppModelTests {
         )
         interaction.markFailed()
         try swipeExpect(
-            interaction.phase == .failed && interaction.offset == -72,
+            interaction.phase == .failed && interaction.offset == -44,
             "a failed commit should return to the revealed position"
         )
         try swipeExpect(
