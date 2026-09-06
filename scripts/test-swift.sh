@@ -37,6 +37,7 @@ swiftc \
   "$ROOT/internal/app/macos/SessionVisibility.swift" \
   "$ROOT/internal/app/macos/SessionDismissal.swift" \
   "$ROOT/internal/app/macos/SessionSwipeInteraction.swift" \
+  "$ROOT/internal/app/macos/SessionSwipeActionView.swift" \
   "$ROOT/internal/app/macos/SessionSwipeInput.swift" \
   "$ROOT/internal/app/macos/SessionSwipeRowMarker.swift" \
   "$ROOT/internal/app/macos/SessionRemovalAnimationObserver.swift" \
@@ -76,6 +77,8 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionSwipeInteractionTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionSwipeInputTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionSwipePresentationTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionSwipeMotionTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionSwipeMotionTestSupport.swift" \
   "$ROOT/internal/app/macos/tests/SessionListPresentationModelTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateFoundationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRecoveryTests.swift" \

@@ -81,21 +81,28 @@ extension MewsAppModelTests {
         let target = try swipeTarget(id: "short")
         var interaction = SessionSwipeInteraction()
         interaction.begin(target: target, rowWidth: 320)
-        _ = interaction.update(translationX: -35)
+        _ = interaction.update(translationX: -7)
         try swipeExpect(
             interaction.end(velocityX: 0) == .closed &&
                 interaction.phase == .resting &&
                 interaction.offset == 0,
-            "a short swipe below 36 points should close"
+            "movement below the eight-point input slop should close"
         )
 
         interaction.begin(target: target, rowWidth: 320)
-        _ = interaction.update(translationX: -36)
+        _ = interaction.update(translationX: -8)
         try swipeExpect(
             interaction.end(velocityX: 0) == .revealed &&
                 interaction.phase == .revealed &&
-                interaction.offset == -44,
-            "a 36-point swipe should reveal the fixed action width"
+                interaction.offset == -56,
+            "a deliberate short swipe should leave room for HIDE and its insets"
+        )
+        interaction.reset()
+        interaction.begin(target: target, rowWidth: 640)
+        _ = interaction.update(translationX: -100)
+        try swipeExpect(
+            interaction.end(velocityX: 0) == .revealed && interaction.offset == -64,
+            "a wider row should settle at ten percent when that fits the button"
         )
     }
 
@@ -140,7 +147,7 @@ extension MewsAppModelTests {
         try swipeExpect(
             interaction.cancel() == .revealed &&
                 interaction.phase == .revealed &&
-                interaction.offset == -44,
+                interaction.offset == -56,
             "cancelling a resumed swipe should restore its revealed origin"
         )
     }
@@ -150,26 +157,30 @@ extension MewsAppModelTests {
         var interaction = SessionSwipeInteraction()
         interaction.begin(target: target, rowWidth: 320)
         try swipeExpect(
-            interaction.update(translationX: -176),
-            "the first crossing of 55 percent should request haptic feedback"
+            !interaction.update(translationX: -64) && interaction.phase == .dragging,
+            "reaching exactly twenty percent should not arm a full swipe"
+        )
+        try swipeExpect(
+            interaction.update(translationX: -65),
+            "crossing twenty percent should request haptic feedback"
         )
         try swipeExpect(
             interaction.phase == .commitReady &&
-                !interaction.update(translationX: -180),
+                !interaction.update(translationX: -68),
             "remaining beyond the threshold should not repeat haptic feedback"
         )
-        _ = interaction.update(translationX: -161)
+        _ = interaction.update(translationX: -49)
         try swipeExpect(
             interaction.phase == .commitReady,
             "the 16-point hysteresis should retain commit readiness"
         )
-        _ = interaction.update(translationX: -159)
+        _ = interaction.update(translationX: -47)
         try swipeExpect(
             interaction.phase == .dragging,
             "retreating beyond the hysteresis should cancel commit readiness"
         )
         try swipeExpect(
-            !interaction.update(translationX: -180),
+            !interaction.update(translationX: -68),
             "re-entering commit readiness in one gesture should not repeat haptics"
         )
         try swipeExpect(
@@ -190,7 +201,7 @@ extension MewsAppModelTests {
         )
         interaction.markFailed()
         try swipeExpect(
-            interaction.phase == .failed && interaction.offset == -44,
+            interaction.phase == .failed && interaction.offset == -56,
             "a failed commit should return to the revealed position"
         )
         try swipeExpect(

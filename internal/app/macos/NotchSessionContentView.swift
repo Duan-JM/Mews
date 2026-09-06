@@ -2,7 +2,7 @@ import SwiftUI
 
 struct NotchSessionContentView: View {
     let snapshot: NotchShellSnapshot
-    @ObservedObject var sessionListModel: SessionListPresentationModel
+    let sessionListModel: SessionListPresentationModel
     let palette: NotchContrastPalette
     let surface: NotchSurfacePalette
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
@@ -12,21 +12,42 @@ struct NotchSessionContentView: View {
         SessionListScrollContainer(
             swipeInputRouter: sessionListModel.inputRouter
         ) {
-            LazyVStack(spacing: 0) {
-                ForEach(sessionListModel.snapshot.rows, id: \.id) { row in
-                    GeometryReader { geometry in
-                        swipeRow(row, rowWidth: geometry.size.width)
-                    }
-                    .frame(height: sessionListModel.snapshot.visual(for: row).height)
-                    .clipped()
-                }
-            }
-            .frame(maxWidth: .infinity)
+            NotchSessionRowsView(
+                snapshot: snapshot,
+                sessionListModel: sessionListModel,
+                palette: palette,
+                surface: surface,
+                onReturnToCLI: onReturnToCLI,
+                onCopyCommand: onCopyCommand
+            )
         }
         .frame(maxHeight: .infinity)
         .padding(.top, 4)
         .padding(.bottom, 7)
         .accessibilityLabel("Active sessions")
+    }
+}
+
+private struct NotchSessionRowsView: View {
+    let snapshot: NotchShellSnapshot
+    // Observe inside the nested hosting tree; rootView replacement loses animation transactions.
+    @ObservedObject var sessionListModel: SessionListPresentationModel
+    let palette: NotchContrastPalette
+    let surface: NotchSurfacePalette
+    let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
+    let onCopyCommand: (String) -> Void
+
+    var body: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(sessionListModel.snapshot.rows, id: \.id) { row in
+                GeometryReader { geometry in
+                    swipeRow(row, rowWidth: geometry.size.width)
+                }
+                .frame(height: sessionListModel.snapshot.visual(for: row).height)
+                .clipped()
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func swipeRow(
@@ -37,17 +58,19 @@ struct NotchSessionContentView: View {
         let removalToken = sessionListModel.removalToken(for: row.id)
         return ZStack(alignment: .trailing) {
             hideActionLayer(row, visual: visual, rowWidth: rowWidth)
-                .zIndex(visual.usesExpandedAction(rowWidth: rowWidth) ? 2 : 0)
             sessionRow(row, visual: visual, rowWidth: rowWidth)
-                .offset(x: visual.offset)
-                .zIndex(1)
+                .offset(x: visual.contentOffset(rowWidth: rowWidth))
         }
         .opacity(visual.opacity)
         .frame(width: rowWidth, height: SessionRowLayout.rowHeight)
         .clipped()
+        .animation(
+            SessionSwipeMotion.fullSwipe(snapshot.transitionStyle),
+            value: visual.usesFullWidthAction(rowWidth: rowWidth)
+        )
         .modifier(
             SessionRemovalAnimationObserver(
-                offset: visual.offset,
+                offset: visual.contentOffset(rowWidth: rowWidth),
                 opacity: visual.opacity,
                 height: visual.height,
                 targetOffset: -rowWidth,
@@ -175,7 +198,7 @@ struct NotchSessionContentView: View {
                 surface: surface
             )
         )
-        .frame(width: 44)
+        .frame(width: SessionRowLayout.actionButtonWidth)
         .disabled(row.returnCommand == nil)
         .accessibilityLabel(
             "Copy return command for \(row.sourceLabel) session \(row.sessionLabel)"
@@ -193,37 +216,18 @@ struct NotchSessionContentView: View {
         visual: SessionSwipeRowVisual,
         rowWidth: CGFloat
     ) -> some View {
-        let width = visual.actionWidth(rowWidth: rowWidth)
-        let height = visual.actionHeight(rowWidth: rowWidth)
-        let cornerRadius = visual.actionCornerRadius(rowWidth: rowWidth)
-        return HStack(spacing: 0) {
-            Spacer(minLength: 0)
-            Button {
+        SessionSwipeActionView(
+            geometry: visual.actionGeometry(rowWidth: rowWidth),
+            isFullSwipe: visual.usesFullWidthAction(rowWidth: rowWidth),
+            labelOpacity: visual.actionLabelOpacity,
+            snapshot: snapshot,
+            palette: palette,
+            onHide: {
                 sessionListModel.requestHide(row, rowWidth: rowWidth)
-            } label: {
-                Text("HIDE")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(Color.white)
-                    .opacity(visual.actionLabelOpacity)
-                    .scaleEffect(visual.actionLabelScale(rowWidth: rowWidth))
-                    .frame(width: width, height: height)
-                    .background(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(SessionSwipeStyle.danger)
-                    )
-                    .clipped()
-                    .offset(y: visual.actionVerticalOffset(rowWidth: rowWidth))
             }
-            .buttonStyle(
-                SessionHideActionButtonStyle(
-                    transitionStyle: snapshot.transitionStyle
-                )
-            )
-            .opacity(visual.actionOpacity)
-            .allowsHitTesting(visual.actionAcceptsInput)
-            .accessibilityHidden(true)
-        }
+        )
+        .opacity(visual.actionOpacity)
+        .allowsHitTesting(visual.actionAcceptsInput)
     }
 
     private func statusOpacity(_ status: SessionStatus) -> Double {
@@ -237,33 +241,6 @@ struct NotchSessionContentView: View {
         case .idle:
             return max(0.42, palette.statusFloor)
         }
-    }
-}
-
-private enum SessionSwipeStyle {
-    static let danger = Color(
-        red: 200.0 / 255.0,
-        green: 15.0 / 255.0,
-        blue: 40.0 / 255.0
-    )
-}
-
-private struct SessionHideActionButtonStyle: ButtonStyle {
-    let transitionStyle: NotchShellTransitionStyle
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .scaleEffect(
-                configuration.isPressed && transitionStyle == .spatial
-                    ? 0.97
-                    : 1,
-                anchor: .trailing
-            )
-            .animation(
-                transitionStyle == .spatial ? .easeOut(duration: 0.08) : nil,
-                value: configuration.isPressed
-            )
     }
 }
 
@@ -359,18 +336,18 @@ struct NotchRowActionButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-            .tracking(0.35)
+            .font(.system(size: SessionRowLayout.actionFontSize, weight: .semibold, design: .monospaced))
+            .tracking(SessionRowLayout.actionTracking)
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity)
-            .frame(height: 24)
+            .frame(height: SessionRowLayout.actionButtonHeight)
             .background(
-                RoundedRectangle(cornerRadius: 4)
+                RoundedRectangle(cornerRadius: SessionRowLayout.actionButtonCornerRadius)
                     .fill(backgroundColor)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(borderColor, lineWidth: 1)
+                RoundedRectangle(cornerRadius: SessionRowLayout.actionButtonCornerRadius)
+                    .strokeBorder(borderColor, lineWidth: 1)
             )
             .opacity(configuration.isPressed && transitionStyle == .opacityOnly ? 0.72 : 1)
             .scaleEffect(pressedScale(configuration: configuration))

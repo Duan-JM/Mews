@@ -22,6 +22,7 @@ enum MewsAppModelTests {
         try testSessionSwipeInput()
         try testSessionSwipePresentation()
         try testSessionListPresentationModel()
+        try testSessionSwipeMotion()
         try testSemanticAttentionReconciliation()
         try testAgentRestartBackoff()
         try testNotificationStatusRecord()

@@ -4,9 +4,11 @@ import SwiftUI
 
 enum SessionRowLayout {
     static let rowHeight: CGFloat = 42
-    static let actionButtonWidth: CGFloat = 44
+    static let actionButtonWidth = SessionSwipeMetrics.standard.actionWidth
     static let actionButtonHeight: CGFloat = 24
     static let actionButtonCornerRadius: CGFloat = 4
+    static let actionFontSize: CGFloat = 9
+    static let actionTracking: CGFloat = 0.35
     static let contentBottomInset: CGFloat = 4
 }
 
@@ -30,7 +32,7 @@ struct SessionSwipeRowVisual: Equatable {
     }
 
     var actionOpacity: Double {
-        return min(1, revealWidth / SessionRowLayout.actionButtonWidth)
+        return revealWidth > 0 ? 1 : 0
     }
 
     var actionLabelOpacity: Double {
@@ -45,67 +47,36 @@ struct SessionSwipeRowVisual: Equatable {
         return phase != .committing && phase != .removing
     }
 
+    func actionGeometry(rowWidth: CGFloat) -> SessionSwipeActionGeometry {
+        let expanded = usesFullWidthAction(rowWidth: rowWidth)
+        return SessionSwipeActionGeometry(
+            trackWidth: expanded ? rowWidth : min(rowWidth, revealWidth)
+        )
+    }
+
+    func contentOffset(rowWidth: CGFloat) -> CGFloat {
+        return -actionGeometry(rowWidth: rowWidth).trackWidth
+    }
+
     func actionWidth(rowWidth: CGFloat) -> CGFloat {
-        let standardWidth = min(rowWidth, SessionRowLayout.actionButtonWidth)
-        let initialWidth = min(standardWidth, revealWidth)
-        let progress = actionExpansionProgress(rowWidth: rowWidth)
-        return initialWidth + ((rowWidth - initialWidth) * progress)
+        return actionGeometry(rowWidth: rowWidth).buttonWidth
     }
 
     func actionHeight(rowWidth: CGFloat) -> CGFloat {
-        let progress = actionExpansionProgress(rowWidth: rowWidth)
-        return SessionRowLayout.actionButtonHeight +
-            ((SessionRowLayout.rowHeight - SessionRowLayout.actionButtonHeight) * progress)
+        return actionGeometry(rowWidth: rowWidth).height
     }
 
     func actionCornerRadius(rowWidth: CGFloat) -> CGFloat {
-        let width = actionWidth(rowWidth: rowWidth)
-        let expansionProgress = actionExpansionProgress(rowWidth: rowWidth)
-        if expansionProgress > 0 {
-            return SessionRowLayout.actionButtonCornerRadius * (1 - expansionProgress)
-        }
-        if width <= SessionRowLayout.actionButtonHeight {
-            return width / 2
-        }
-        let cornerProgress = min(
-            1,
-            (width - SessionRowLayout.actionButtonHeight) /
-                (SessionRowLayout.actionButtonWidth - SessionRowLayout.actionButtonHeight)
-        )
-        return (SessionRowLayout.actionButtonHeight / 2) +
-            ((SessionRowLayout.actionButtonCornerRadius -
-                (SessionRowLayout.actionButtonHeight / 2)) * cornerProgress)
-    }
-
-    func actionLabelScale(rowWidth: CGFloat) -> CGFloat {
-        return 1 + (0.06 * actionExpansionProgress(rowWidth: rowWidth))
+        return actionGeometry(rowWidth: rowWidth).cornerRadius
     }
 
     func actionVerticalOffset(rowWidth: CGFloat) -> CGFloat {
-        return -(SessionRowLayout.contentBottomInset / 2) *
-            (1 - actionExpansionProgress(rowWidth: rowWidth))
-    }
-
-    func usesExpandedAction(rowWidth: CGFloat) -> Bool {
-        return actionExpansionProgress(rowWidth: rowWidth) > 0
+        return actionGeometry(rowWidth: rowWidth).verticalOffset
     }
 
     func usesFullWidthAction(rowWidth: CGFloat) -> Bool {
-        return actionExpansionProgress(rowWidth: rowWidth) >= 1
-    }
-
-    func actionExpansionProgress(rowWidth: CGFloat) -> CGFloat {
-        let expansionStart = SessionSwipeMetrics.standard.actionWidth
-        let expansionEnd = SessionSwipeMetrics.standard.commitThreshold(rowWidth: rowWidth)
-        guard expansionEnd > expansionStart else {
-            return phase == .commitReady || phase == .committing || phase == .removing
-                ? 1
-                : 0
-        }
-        return min(
-            1,
-            max(0, (revealWidth - expansionStart) / (expansionEnd - expansionStart))
-        )
+        return rowWidth > 0 &&
+            (phase == .commitReady || phase == .committing || phase == .removing)
     }
 }
 
