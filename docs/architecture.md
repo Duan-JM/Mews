@@ -248,14 +248,40 @@ only row transform and derived action geometry, clipping, and opacity; event
 scanning, JSON work, and atomic persistence remain on the session controller
 queue.
 
-The swipe visual derives from that same offset. The 44-point revealed gesture
-stop presents a 44×24 `HIDE` button matching the compact row actions. Before
-that width is visible, its clipped leading edge uses circular geometry. Beyond
-the revealed stop, one normalized progress value expands the darker
-`#c80f28` button's width and height, reduces its corner radius, and scales its
-label until the action fills the row at the existing commit threshold. The row
-content owns the full 42-point height, so its separator remains at the row
-boundary instead of the action-button baseline.
+The swipe track follows the physical offset until the drag crosses 20% of the
+row width. A short swipe past input slop settles at 10% of the row width, with a
+56-point minimum for a 44×24 `HIDE` button and six-point side insets. In
+top-center mode, the track uses the shell's native regular material with a 4%
+black tint. Opaque accessibility and physical-notch surfaces retain a subtle
+black overlay, 6% normally and 12% with Increase Contrast. Only the separate
+button uses `#c80f28`. It grows from a true circle into the compact row-button
+shape while the complete, fixed-size label fades in. Its right edge remains
+six points from the row's trailing edge. Further dragging lengthens the button
+leftward within the exposed track; its centered label initially moves by half
+the added width.
+
+Crossing 20% triggers a spring that moves the foreground off the row and
+lengthens the red button across the full track, retaining six-point side
+insets, 24-point height, four-point corners, and unchanged vertical alignment.
+Only the HIDE label switches immediately from centered to leading placement,
+ten points inside the growing button. The text does not interpolate its
+alignment or scale, and remains inside the red shape throughout expansion.
+This confirmation follows the latched commit-ready phase, including the
+16-point retreat hysteresis. Persistence still waits for release or an explicit
+`HIDE` action. Reduce Motion applies settling and full-width feedback without
+spatial animation and retains the existing 100 ms removal fade. Row controls
+draw their borders inside their shared height, matching HIDE and leaving no
+stroke behind when the foreground leaves.
+
+Row presentation observes its model inside the scroll view's nested hosting
+tree, rather than relying on animation transactions surviving root replacement
+across `NSViewRepresentable`. The inner observer preserves real settling,
+expansion, retry, and removal frames. Native rendering regressions measure the
+red button and white text separately: the right edge stays fixed while the
+button widens, and the label snaps to its leading inset. They also cover
+row-control dimensions, native material and opaque fallbacks, and Reduce Motion.
+The row content still owns the full 42-point height, so its separator remains
+at the row boundary instead of the action-button baseline.
 
 `EventLogReader` opens the log, stats the same descriptor, reads only complete
 JSONL records, and revalidates the descriptor and pathname before publishing a

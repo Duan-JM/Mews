@@ -54,15 +54,13 @@ extension SessionListPresentationModel {
         from startOffset: CGFloat,
         to targetOffset: CGFloat,
         velocityX: CGFloat
-    ) -> Animation {
+    ) -> Animation? {
         guard !reduceMotion else {
-            return .easeOut(duration: 0.1)
+            return nil
         }
-        let response = 0.28
-        let dampingFraction = 0.86
-        let angularFrequency = (2 * Double.pi) / response
+        let angularFrequency = (2 * Double.pi) / SessionSwipeMotion.response
         let stiffness = angularFrequency * angularFrequency
-        let damping = 2 * dampingFraction * angularFrequency
+        let damping = 2 * SessionSwipeMotion.dampingFraction * angularFrequency
         return .interpolatingSpring(
             mass: 1,
             stiffness: stiffness,

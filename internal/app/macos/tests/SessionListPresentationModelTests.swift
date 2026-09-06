@@ -24,7 +24,7 @@ extension MewsAppModelTests {
         model.inputRouter.begin(
             SessionSwipeInputTarget(request: firstTarget, rowWidth: 320)
         )
-        model.inputRouter.change(translationX: -20, velocityX: -80)
+        model.inputRouter.change(translationX: -7, velocityX: -80)
         model.inputRouter.end(velocityX: -80)
         try listExpect(
             model.snapshot.visual(for: first) == .resting,
@@ -38,7 +38,7 @@ extension MewsAppModelTests {
         model.inputRouter.end(velocityX: -120)
         try listExpect(
             model.snapshot.visual(for: first).phase == .revealed &&
-                model.snapshot.visual(for: first).offset == -44,
+                model.snapshot.visual(for: first).offset == -56,
             "a short swipe should reveal the first row"
         )
 
@@ -186,7 +186,7 @@ extension MewsAppModelTests {
         let visual = model.snapshot.visual(for: row)
         try listExpect(
             visual.phase == .failed &&
-                visual.offset == -44 &&
+                visual.offset == -56 &&
                 model.snapshot.errorMessage == "COULD NOT HIDE SESSION",
             "a failed write should keep the row revealed and retryable"
         )
@@ -344,7 +344,7 @@ extension MewsAppModelTests {
         model.cancelForLifecycle()
     }
 
-    private static func listRow(
+    static func listRow(
         id: String,
         evidenceID: String,
         dismissible: Bool = true

@@ -5,11 +5,13 @@ struct SessionSwipeMetrics: Equatable {
         inputSlop: 8,
         horizontalLockRatio: 1.25,
         actionWidth: 44,
-        revealThreshold: 36,
-        commitThresholdRatio: 0.55,
+        revealThreshold: 8,
+        commitThresholdRatio: 0.2,
         commitHysteresis: 16,
         revealedCloseThreshold: 24
     )
+
+    static let actionInset: CGFloat = 6
 
     let inputSlop: CGFloat
     let horizontalLockRatio: CGFloat
@@ -21,6 +23,10 @@ struct SessionSwipeMetrics: Equatable {
 
     func commitThreshold(rowWidth: CGFloat) -> CGFloat {
         return max(0, rowWidth * commitThresholdRatio)
+    }
+
+    func revealedWidth(rowWidth: CGFloat) -> CGFloat {
+        return min(max(0, rowWidth), max(rowWidth * 0.1, actionWidth + 2 * Self.actionInset))
     }
 }
 
@@ -122,7 +128,7 @@ struct SessionSwipeInteraction: Equatable {
         self.target = target
         self.rowWidth = max(0, rowWidth)
         gestureStartOffset = resumesRevealedTarget
-            ? -metrics.actionWidth
+            ? -metrics.revealedWidth(rowWidth: self.rowWidth)
             : 0
         offset = gestureStartOffset
         releaseVelocityX = 0
@@ -144,7 +150,7 @@ struct SessionSwipeInteraction: Equatable {
             }
             return false
         }
-        guard distance >= threshold else {
+        guard distance > threshold else {
             return false
         }
         phase = .commitReady
@@ -168,13 +174,14 @@ struct SessionSwipeInteraction: Equatable {
         }
 
         let distance = -offset
+        let revealedWidth = metrics.revealedWidth(rowWidth: rowWidth)
         let shouldCloseRevealed = gestureStartOffset < 0 &&
-            distance < metrics.actionWidth - metrics.revealedCloseThreshold
+            distance < revealedWidth - metrics.revealedCloseThreshold
         let shouldReveal = !shouldCloseRevealed &&
             (gestureStartOffset < 0 || distance >= metrics.revealThreshold)
         if shouldReveal {
             phase = .revealed
-            offset = -metrics.actionWidth
+            offset = -revealedWidth
             return .revealed
         }
         reset()
@@ -189,7 +196,7 @@ struct SessionSwipeInteraction: Equatable {
         }
         if gestureStartOffset < 0 {
             phase = .revealed
-            offset = -metrics.actionWidth
+            offset = -metrics.revealedWidth(rowWidth: rowWidth)
             releaseVelocityX = 0
             return .revealed
         }
@@ -219,7 +226,7 @@ struct SessionSwipeInteraction: Equatable {
             return
         }
         phase = .failed
-        offset = -metrics.actionWidth
+        offset = -metrics.revealedWidth(rowWidth: rowWidth)
         releaseVelocityX = 0
     }
 

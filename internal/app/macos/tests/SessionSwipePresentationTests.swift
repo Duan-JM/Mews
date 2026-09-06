@@ -44,53 +44,77 @@ extension MewsAppModelTests {
         try assertFullWidthSwipe()
         try assertCompactSwipe()
         try assertExpandingSwipe()
+        try assertLatchedSwipe()
         try assertRemovingSwipe()
     }
 
     private static func assertFullWidthSwipe() throws {
         let fullSwipe = SessionSwipeRowVisual(
             phase: .commitReady,
-            offset: -176,
+            offset: -65,
             opacity: 1,
             height: 42,
             isPending: false
         )
         try swipePresentationExpect(
-            fullSwipe.actionWidth(rowWidth: 320) == 320 &&
-                fullSwipe.actionHeight(rowWidth: 320) == 42 &&
-                fullSwipe.actionCornerRadius(rowWidth: 320) == 0 &&
-                fullSwipe.actionVerticalOffset(rowWidth: 320) == 0 &&
+            fullSwipe.contentOffset(rowWidth: 320) == -320 &&
+                fullSwipe.actionWidth(rowWidth: 320) == 308 &&
+                fullSwipe.actionHeight(rowWidth: 320) == 24 &&
+                fullSwipe.actionCornerRadius(rowWidth: 320) == 4 &&
+                fullSwipe.actionVerticalOffset(rowWidth: 320) == -2 &&
                 fullSwipe.usesFullWidthAction(rowWidth: 320),
-            "commit-ready feedback should expand the red action across the row"
+            "commit-ready should stretch HIDE across the inset track at the shared button height"
         )
     }
 
     private static func assertCompactSwipe() throws {
+        let initial = swipeVisual(phase: .dragging, offset: -28)
         try swipePresentationExpect(
-            swipeVisual(phase: .dragging, offset: -16)
-                .actionCornerRadius(rowWidth: 320) == 8,
-            "the first visible part of HIDE should remain circular"
+            initial.actionWidth(rowWidth: 320) == 16 &&
+                initial.actionHeight(rowWidth: 320) == 16 &&
+                initial.actionCornerRadius(rowWidth: 320) == 8,
+            "the first visible part of HIDE must have equal width and height, not an oval"
         )
-        let shortSwipe = swipeVisual(phase: .revealed, offset: -44)
+        let shortSwipe = swipeVisual(phase: .revealed, offset: -56)
         try swipePresentationExpect(
             shortSwipe.actionWidth(rowWidth: 320) == 44 &&
+                shortSwipe.contentOffset(rowWidth: 320) == -56 &&
                 shortSwipe.actionHeight(rowWidth: 320) == 24 &&
                 shortSwipe.actionCornerRadius(rowWidth: 320) == 4 &&
                 shortSwipe.actionVerticalOffset(rowWidth: 320) == -2 &&
-                !shortSwipe.usesExpandedAction(rowWidth: 320) &&
+                !shortSwipe.usesFullWidthAction(rowWidth: 320) &&
                 shortSwipe.acceptsSwipeInput,
             "a short swipe should reveal a COPY-sized HIDE button"
         )
     }
 
     private static func assertExpandingSwipe() throws {
-        let visual = swipeVisual(phase: .dragging, offset: -110)
+        let visual = swipeVisual(phase: .dragging, offset: -63)
         try swipePresentationExpect(
-            visual.actionWidth(rowWidth: 320) == 182 &&
-                visual.actionHeight(rowWidth: 320) == 33 &&
-                visual.actionCornerRadius(rowWidth: 320) == 2 &&
-                visual.actionLabelScale(rowWidth: 320) == 1.03,
-            "a long pull should continuously morph the button toward the full row"
+            visual.actionWidth(rowWidth: 320) == 51 &&
+                visual.contentOffset(rowWidth: 320) == -63 &&
+                visual.actionHeight(rowWidth: 320) == 24 &&
+                visual.actionCornerRadius(rowWidth: 320) == 4,
+            "before twenty percent, HIDE should follow the exposed width without growing taller"
+        )
+    }
+
+    private static func assertLatchedSwipe() throws {
+        for phase in [SessionSwipePhase.commitReady, .committing] {
+            let visual = swipeVisual(phase: phase, offset: -49)
+            try swipePresentationExpect(
+                visual.actionWidth(rowWidth: 320) == 308 &&
+                    visual.actionHeight(rowWidth: 320) == 24 &&
+                    visual.usesFullWidthAction(rowWidth: 320),
+                "full-swipe feedback must stay expanded throughout the armed retreat band and release"
+            )
+        }
+        let disarmed = swipeVisual(phase: .dragging, offset: -47)
+        try swipePresentationExpect(
+            disarmed.actionWidth(rowWidth: 320) == 35 &&
+                disarmed.contentOffset(rowWidth: 320) == -47 &&
+                disarmed.actionHeight(rowWidth: 320) == 24,
+            "retreat past hysteresis should return to the exposed button without submitting"
         )
     }
 
