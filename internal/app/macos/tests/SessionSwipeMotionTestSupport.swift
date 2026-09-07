@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+typealias SwipeMotionFrame = (button: CGRect, label: CGRect)
+
 @MainActor
 final class SwipeMotionFixture {
     let row: SessionPresentationRow
@@ -9,6 +11,7 @@ final class SwipeMotionFixture {
     let persistence = SwipeMotionPersistence()
     let host: NSView
     let window: NSWindow
+    var captureProcessingDelay: TimeInterval = 0
 
     init(
         reduceMotion: Bool = false,
@@ -60,17 +63,35 @@ final class SwipeMotionFixture {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
     }
 
-    func sampleActionBounds(duration: TimeInterval = 0.4) throws -> [CGRect] {
-        return try sampleActionFrames(duration: duration).map { $0.button }
+    func sampleActionBounds(
+        duration: TimeInterval = 0.4,
+        until isComplete: ((CGRect) throws -> Bool)? = nil
+    ) throws -> [CGRect] {
+        let predicate: ((SwipeMotionFrame) throws -> Bool)? = isComplete.map { completion in
+            { frame in try completion(frame.button) }
+        }
+        return try sampleActionFrames(duration: duration, until: predicate).map { $0.button }
     }
 
-    func sampleActionFrames(duration: TimeInterval = 0.4) throws -> [(button: CGRect, label: CGRect)] {
-        let deadline = Date().addingTimeInterval(duration)
-        var frames: [(button: CGRect, label: CGRect)] = []
+    func sampleActionFrames(
+        duration: TimeInterval = 0.4,
+        until isComplete: ((SwipeMotionFrame) throws -> Bool)? = nil
+    ) throws -> [SwipeMotionFrame] {
+        let started = Date()
+        let minimumDeadline = started.addingTimeInterval(duration)
+        let deadline = isComplete == nil ? minimumDeadline : started.addingTimeInterval(max(duration, 2))
+        var frames: [SwipeMotionFrame] = []
         repeat {
             RunLoop.main.run(until: Date().addingTimeInterval(0.01))
-            frames.append(try captureActionFrame())
+            let frame = try captureActionFrame()
+            frames.append(frame)
+            if let isComplete, Date() >= minimumDeadline, try isComplete(frame) {
+                return frames
+            }
         } while Date() < deadline
+        if isComplete != nil {
+            throw SwipeMotionTestError.samplingTimedOut(frames)
+        }
         return frames
     }
 
@@ -78,9 +99,13 @@ final class SwipeMotionFixture {
         return try captureActionFrame().button
     }
 
-    func captureActionFrame() throws -> (button: CGRect, label: CGRect) {
+    func captureActionFrame() throws -> SwipeMotionFrame {
         guard let bitmap = try captureDocument() else {
             return (.zero, .zero)
+        }
+        if captureProcessingDelay > 0 {
+            // Simulate costly bitmap analysis without advancing the main run loop.
+            Thread.sleep(forTimeInterval: captureProcessingDelay)
         }
         let button = try Self.redBounds(bitmap)
         // The inset excludes the border; small white glyphs are antialiased in a 1x capture.
@@ -237,4 +262,5 @@ final class SwipeMotionPersistence {
 enum SwipeMotionTestError: Error {
     case writeFailed
     case expectation(String)
+    case samplingTimedOut([SwipeMotionFrame])
 }
