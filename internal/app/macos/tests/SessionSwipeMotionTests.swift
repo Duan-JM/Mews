@@ -4,6 +4,8 @@ import SwiftUI
 extension MewsAppModelTests {
     static func testSessionSwipeMotion() throws {
         try testInterpolatedActionGeometry()
+        try testNativeSamplingCompletesAfterSlowCapture()
+        try testNativeSamplingTimeout()
         try testNativeSwipeSettle()
         try testNativeSwipeTrack()
         try testNativeSwipeMaterial()
@@ -11,6 +13,36 @@ extension MewsAppModelTests {
         try testNativeSwipeWriteFailure()
         try testNativeSwipeRemoval()
         try testNativeReducedMotionSwipe()
+    }
+
+    private static func testNativeSamplingCompletesAfterSlowCapture() throws {
+        let fixture = try SwipeMotionFixture()
+        defer { fixture.close() }
+        fixture.beginDrag(distance: 63)
+        fixture.captureProcessingDelay = 0.45
+        fixture.model.inputRouter.change(translationX: -65, velocityX: -240)
+        let frames = try fixture.sampleActionFrames(until: { abs($0.button.width - 308) <= 1 })
+        try motionExpect(
+            frames.count >= 2 && frames.contains { $0.button.width > 0 && $0.button.width < 300 } &&
+                abs((frames.last?.button.width ?? 0) - 308) <= 1 && fixture.persistence.requests.isEmpty,
+            "slow bitmap analysis must not truncate sampling before the rendered target; frames \(frames)"
+        )
+    }
+
+    private static func testNativeSamplingTimeout() throws {
+        let fixture = try SwipeMotionFixture()
+        defer { fixture.close() }
+        fixture.beginDrag(distance: 63)
+        do {
+            _ = try fixture.sampleActionFrames(until: { _ in false })
+        } catch SwipeMotionTestError.samplingTimedOut(let frames) {
+            try motionExpect(
+                !frames.isEmpty && frames.contains { $0.button.width > 0 },
+                "a sampling timeout must retain the rendered frames instead of reporting success"
+            )
+            return
+        }
+        throw SwipeMotionTestError.expectation("an unreachable rendered target must time out")
     }
 
     private static func testNativeSwipeMaterial() throws {
@@ -77,7 +109,7 @@ extension MewsAppModelTests {
             "a narrow native reveal must show a 16-point circle inside the track; rendered \(dragged)"
         )
         fixture.model.inputRouter.end(velocityX: 0)
-        let frames = try fixture.sampleActionBounds()
+        let frames = try fixture.sampleActionBounds(until: { abs($0.width - 44) <= 1 })
         try motionExpect(
             frames.contains { $0.width > 19 && $0.width < 41 },
             "the nested hosting tree must render circle-to-button settling frames, not jump to 44"
@@ -109,14 +141,14 @@ extension MewsAppModelTests {
                     "the red button must grow seven points left with its right edge fixed; rendered \(dragged)"
                 )
                 fixture.model.inputRouter.end(velocityX: 0)
-                _ = try fixture.sampleActionBounds()
+                _ = try fixture.sampleActionBounds(until: { abs($0.width - 44) <= 1 })
                 let settledTrack = try fixture.captureTrackWidth()
                 try motionExpect(
                     abs(settledTrack - 56) <= 1 && fixture.persistence.requests.isEmpty,
                     "release below twenty percent must return to an inset 56-point action slot"
                 )
                 fixture.beginDrag(distance: 9)
-                let full = try fixture.sampleActionBounds()
+                let full = try fixture.sampleActionBounds(until: { abs($0.width - 308) <= 1 })
                 let fullTrack = try fixture.captureTrackWidth()
                 try motionExpect(
                     abs(fullTrack - 320) <= 1 &&
@@ -135,7 +167,10 @@ extension MewsAppModelTests {
         defer { fixture.close() }
         fixture.beginDrag(distance: 63)
         fixture.model.inputRouter.change(translationX: -65, velocityX: -240)
-        let armedFrames = try fixture.sampleActionFrames()
+        let armedFrames = try fixture.sampleActionFrames(until: { frame in
+            return try abs(frame.button.width - 308) <= 1 &&
+                abs(fixture.captureTrackOpacity(column: 0, row: 20) - fixture.captureTrackOpacity()) <= 1.0 / 255
+        })
         try motionExpect(
             armedFrames.allSatisfy {
                 abs($0.button.maxX - 314) <= 1 && abs($0.button.height - 24) <= 1 &&
@@ -160,7 +195,7 @@ extension MewsAppModelTests {
             "armed hysteresis must retain full-row feedback without submitting"
         )
         fixture.model.inputRouter.change(translationX: -47, velocityX: 240)
-        let retreatFrames = try fixture.sampleActionBounds()
+        let retreatFrames = try fixture.sampleActionBounds(until: { abs($0.width - 35) <= 1 })
         try motionExpect(
             retreatFrames.contains { $0.width > 40 && $0.width < 300 } &&
                 retreatFrames.allSatisfy {
@@ -171,7 +206,7 @@ extension MewsAppModelTests {
             "disarming must contract the same right-anchored button back to finger tracking without submitting"
         )
         fixture.model.inputRouter.cancel()
-        let cancelled = try fixture.sampleActionBounds()
+        let cancelled = try fixture.sampleActionBounds(until: { $0 == .zero })
         try motionExpect(
             cancelled.last == .zero && fixture.persistence.requests.isEmpty,
             "cancelling an armed gesture must restore the row without a write"
@@ -182,17 +217,17 @@ extension MewsAppModelTests {
         let fixture = try SwipeMotionFixture()
         defer { fixture.close() }
         fixture.beginDrag(distance: 65)
-        _ = try fixture.sampleActionBounds()
+        _ = try fixture.sampleActionBounds(until: { abs($0.width - 308) <= 1 })
         fixture.model.inputRouter.change(translationX: -49, velocityX: 240)
         fixture.model.inputRouter.end(velocityX: 0)
-        _ = try fixture.sampleActionBounds()
+        _ = try fixture.sampleActionBounds(until: { abs($0.width - 308) <= 1 })
         try motionExpect(
             fixture.persistence.requests == [fixture.request] &&
                 fixture.model.snapshot.visual(for: fixture.row).isPending,
             "release inside armed hysteresis must submit exactly once and preserve pending feedback"
         )
         fixture.persistence.completion?(.failure(SwipeMotionTestError.writeFailed))
-        let recovery = try fixture.sampleActionBounds()
+        let recovery = try fixture.sampleActionBounds(until: { abs($0.width - 44) <= 1 })
         try motionExpect(
             recovery.contains { $0.width > 50 && $0.width < 300 } &&
                 recovery.allSatisfy { abs($0.maxX - 314) <= 1 } &&
@@ -208,7 +243,7 @@ extension MewsAppModelTests {
         let fixture = try SwipeMotionFixture()
         defer { fixture.close() }
         fixture.model.requestHide(fixture.row, rowWidth: 320)
-        let committing = try fixture.sampleActionBounds()
+        let committing = try fixture.sampleActionBounds(until: { abs($0.width - 308) <= 1 })
         try motionExpect(
             abs((committing.last?.width ?? 0) - 308) <= 1 &&
                 fixture.model.snapshot.rows == [fixture.row],
