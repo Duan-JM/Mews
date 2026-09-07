@@ -11,7 +11,8 @@ extension MewsAppModelTests {
         try testNativeSwipeMaterial()
         try testNativeFullSwipeRetreat()
         try testNativeSwipeWriteFailure()
-        try testNativeSwipeRemoval()
+        try testNativeSwipeRemoval(captureProcessingDelay: 0)
+        try testNativeSwipeRemoval(captureProcessingDelay: 0.2)
         try testNativeReducedMotionSwipe()
     }
 
@@ -239,27 +240,47 @@ extension MewsAppModelTests {
         )
     }
 
-    private static func testNativeSwipeRemoval() throws {
+    private static func testNativeSwipeRemoval(captureProcessingDelay: TimeInterval) throws {
         let fixture = try SwipeMotionFixture()
         defer { fixture.close() }
         fixture.model.requestHide(fixture.row, rowWidth: 320)
         let committing = try fixture.sampleActionBounds(until: { abs($0.width - 308) <= 1 })
         try motionExpect(
             abs((committing.last?.width ?? 0) - 308) <= 1 &&
-                fixture.model.snapshot.rows == [fixture.row],
+                fixture.model.snapshot.rows == [fixture.row] && fixture.model.scheduledWork.isEmpty,
             "a tapped HIDE should keep the row until its write succeeds"
         )
+        var watchdog: DispatchWorkItem?
+        let observation = fixture.model.$snapshot.sink { snapshot in
+            let visual = snapshot.visual(for: fixture.row)
+            guard !snapshot.rows.isEmpty, visual.phase == .removing, visual.height == 0,
+                  fixture.model.scheduledWork.count == 1,
+                  let pending = fixture.model.scheduledWork.values.first else {
+                return
+            }
+            // Height-collapse publication leaves only the watchdog scheduled in this fixture.
+            watchdog = pending
+            pending.cancel()
+        }
+        defer { observation.cancel() }
+        var removal = [try fixture.captureActionBounds()]
+        fixture.captureProcessingDelay = captureProcessingDelay
         fixture.persistence.completion?(.success(SessionDismissalResponse(
             result: .dismissed,
             snapshot: SessionControllerSnapshot(
                 revision: 2, sessions: [], reconciliationAnchor: nil, orderingKnown: true
             )
         )))
-        let removal = try fixture.sampleActionBounds(duration: 0.34)
+        removal += try fixture.sampleActionBounds(until: { bounds in
+            bounds == .zero && fixture.model.snapshot.rows.isEmpty
+        })
         try motionExpect(
             removal.contains { $0.width > 0 } && removal.last == .zero &&
-                fixture.model.snapshot.rows.isEmpty,
-            "native removal should render an exit and retire the row before the 380 ms watchdog"
+                fixture.model.snapshot.rows.isEmpty && watchdog?.isCancelled == true &&
+                fixture.model.scheduledWork.count == 1,
+            "native removal must retire through its completion callback with the watchdog disabled; "
+                + "frames \(removal), rows \(fixture.model.snapshot.rows.count), "
+                + "watchdog disabled \(watchdog?.isCancelled == true)"
         )
     }
 
