@@ -8,6 +8,7 @@ extension MewsAppModelTests {
         try testExhaustedOrdinalIsRejected()
         try testSnapshotSurvivesEventReadFailure()
         try testSessionStateReviewRegressions()
+        try testSessionReplayOrdering()
     }
 
     private static func testControllerRetriesEvidenceAfterSaveFailure() throws {
