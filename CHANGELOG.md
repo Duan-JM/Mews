@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Detect Codex App sessions from the environment exposed by current desktop builds. ([#109](https://github.com/Duan-JM/Mews/issues/109))
 - Detect Codex App sessions when current Codex hooks omit App-specific environment variables, so Return can open the matching thread instead of falling back to the terminal. ([#111](https://github.com/Duan-JM/Mews/issues/111))
 - HIDE now grows from a circle into a matching row button, then lengthens leftward from a fixed right edge. Past the 20% threshold, the red button springs across the row while only its text snaps to the leading inset. The subtly darker background follows native macOS material and accessibility settings, and settling, retry, and removal animate correctly inside the native session list. ([#124](https://github.com/Duan-JM/Mews/issues/124))
+- Fix active-session selection after partial event-log recovery so an older session cannot hide a newer session when the full log becomes available, including after restart. ([#129](https://github.com/Duan-JM/Mews/issues/129))
 
 
 ## [0.0.2] - 2026-08-17
