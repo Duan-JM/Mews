@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 while IFS= read -r variable; do
   [[ -n "$variable" ]] && unset "$variable"
 done < <(git rev-parse --local-env-vars)
-unset GITHUB_ACTIONS GITHUB_REF GITHUB_SHA
+unset VERSION GITHUB_ACTIONS GITHUB_REF GITHUB_SHA
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/mews-preflight-test.XXXXXX")"
 
 cleanup() {
