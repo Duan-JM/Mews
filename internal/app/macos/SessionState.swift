@@ -190,8 +190,8 @@ struct SessionStateIndex: Equatable {
         )
     }
 
-    private mutating func compactEvidenceOrdinalsIfNeeded() -> Bool {
-        guard nextEvidenceOrdinal >= UInt64.max - 1 else {
+    private mutating func compactEvidenceOrdinalsIfNeeded(reserving count: Int = 1) -> Bool {
+        guard nextEvidenceOrdinal >= UInt64.max - UInt64(max(1, count)) else {
             return false
         }
         let orderedIdentities = records.values
@@ -260,7 +260,7 @@ extension SessionStateIndex {
         policy: SessionFreshnessPolicy = .standard,
         cliExecutablePath: String? = nil
     ) -> Bool {
-        let compacted = compactEvidenceOrdinalsIfNeeded()
+        let compacted = compactEvidenceOrdinalsIfNeeded(reserving: events.count)
         let replay = replayProjection(
             events,
             now: now,
@@ -367,7 +367,7 @@ extension SessionStateIndex {
                 merged[identity] = existing.withUnknownOrdering()
             }
         }
-        return merged
+        return SessionReplayOrdering.align(merged: merged, replay: replay.index.records, existing: records)
     }
 }
 
