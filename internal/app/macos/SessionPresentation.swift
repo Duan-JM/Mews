@@ -15,9 +15,9 @@ enum SessionPresentationPriority: Int, Comparable {
     }
 }
 
-private enum SessionPresentationSlot: Hashable {
-    case tmux(socketPath: String, paneID: String)
-    case kitty(listenOn: String, windowID: String)
+struct SessionPresentationRowID: Hashable {
+    let identity: SessionIdentity
+    let evidenceID: String
 }
 
 struct SessionPresentationRow: Equatable {
@@ -31,9 +31,56 @@ struct SessionPresentationRow: Equatable {
     let returnContext: CLIContextPayload?
     let evidenceAt: Date
     let priority: SessionPresentationPriority
+    let evidenceID: String
+    let dismissalRequest: SessionDismissalRequest?
+
+    init(
+        identity: SessionIdentity,
+        status: SessionStatus,
+        sourceLabel: String,
+        projectLabel: String?,
+        sessionLabel: String,
+        statusLabel: String,
+        statusCode: String,
+        returnContext: CLIContextPayload?,
+        evidenceAt: Date,
+        priority: SessionPresentationPriority,
+        evidenceID: String = "",
+        dismissalRequest: SessionDismissalRequest? = nil
+    ) {
+        self.identity = identity
+        self.status = status
+        self.sourceLabel = sourceLabel
+        self.projectLabel = projectLabel
+        self.sessionLabel = sessionLabel
+        self.statusLabel = statusLabel
+        self.statusCode = statusCode
+        self.returnContext = returnContext
+        self.evidenceAt = evidenceAt
+        self.priority = priority
+        self.evidenceID = evidenceID
+        self.dismissalRequest = dismissalRequest
+    }
+
+    var id: SessionPresentationRowID {
+        return SessionPresentationRowID(
+            identity: identity,
+            evidenceID: evidenceID
+        )
+    }
 
     var returnCommand: String? {
         return returnContext?.returnCommand
+    }
+
+    var returnActionLabel: String {
+        return returnContext?.codexAppURL == nil ? "RETURN" : "OPEN"
+    }
+
+    var returnActionDescription: String {
+        return returnContext?.codexAppURL == nil
+            ? "Return to CLI"
+            : "Open in Codex"
     }
 
     var primaryLabel: String {
@@ -75,7 +122,7 @@ struct SessionPresentationRow: Equatable {
         parts.append(
             returnContext == nil
                 ? "Return to CLI unavailable"
-                : "Return to CLI available"
+                : "\(returnActionDescription) available"
         )
         return parts.joined(separator: ", ")
     }
@@ -138,6 +185,17 @@ struct SessionPresentation: Equatable {
 
     let rows: [SessionPresentationRow]
     let health: RuntimeHealthPresentation?
+    let sessionRevision: UInt64?
+
+    init(
+        rows: [SessionPresentationRow],
+        health: RuntimeHealthPresentation?,
+        sessionRevision: UInt64? = nil
+    ) {
+        self.rows = rows
+        self.health = health
+        self.sessionRevision = sessionRevision
+    }
 
     var menuRows: [SessionPresentationRow] {
         return Array(rows.prefix(Self.menuLimit))
@@ -150,57 +208,37 @@ struct SessionPresentationPolicy {
         attentionRecords: [AttentionRecord],
         healthSnapshot: RuntimeHealthSnapshot?,
         now: Date,
+        sessionRevision: UInt64? = nil,
         fileManager: FileManager = .default
     ) -> SessionPresentation {
         let attentionByIdentity = Dictionary(
             uniqueKeysWithValues: attentionRecords.map { ($0.identity, $0) }
         )
-        let rows = latestSessionsByTerminalSlot(sessions, now: now).filter {
-            isDisplayable(session: $0, now: now)
+        let candidates = SessionDismissalPolicy.displayableWinners(
+            from: sessions,
+            now: now
+        )
+        let rows = candidates.filter { session in
+            !SessionDismissalPolicy.isDismissed(session) ||
+                SessionDismissalPolicy.eligibility(
+                    for: session,
+                    among: sessions,
+                    now: now
+                ) != .eligible
         }.map { session in
             row(
                 session: session,
+                allSessions: sessions,
+                now: now,
                 attentionRecord: attentionByIdentity[session.identity],
                 fileManager: fileManager
             )
         }.sorted(by: rowPrecedes)
         return SessionPresentation(
             rows: rows,
-            health: healthSnapshot.flatMap { health(snapshot: $0, now: now) }
+            health: healthSnapshot.flatMap { health(snapshot: $0, now: now) },
+            sessionRevision: sessionRevision
         )
-    }
-
-    private static func latestSessionsByTerminalSlot(
-        _ sessions: [CurrentSessionState],
-        now: Date
-    ) -> [CurrentSessionState] {
-        let tolerance = SessionFreshnessPolicy.standard.futureTolerance
-        let eligible = sessions.filter {
-            now.timeIntervalSince($0.evidenceAt) >= -tolerance
-        }
-        let withoutSlot = eligible.filter { presentationSlot(for: $0) == nil }
-        let bySlot = Dictionary(grouping: eligible.compactMap { session in
-            presentationSlot(for: session).map { ($0, session) }
-        }, by: \.0)
-
-        return withoutSlot + bySlot.values.flatMap { entries in
-            let newestEvidenceAt = entries.map(\.1.evidenceAt).max()
-            return entries.compactMap { _, session in
-                session.evidenceAt == newestEvidenceAt ? session : nil
-            }
-        }
-    }
-
-    private static func presentationSlot(
-        for session: CurrentSessionState
-    ) -> SessionPresentationSlot? {
-        if let target = session.returnContext?.tmuxTarget {
-            return .tmux(socketPath: target.socketPath, paneID: target.paneID)
-        }
-        if let target = session.returnContext?.kittyTarget {
-            return .kitty(listenOn: target.listenOn, windowID: target.windowID)
-        }
-        return nil
     }
 
     static func stabilizedRows(
@@ -222,6 +260,8 @@ struct SessionPresentationPolicy {
 
     private static func row(
         session: CurrentSessionState,
+        allSessions: [CurrentSessionState],
+        now: Date,
         attentionRecord: AttentionRecord?,
         fileManager: FileManager
     ) -> SessionPresentationRow {
@@ -250,27 +290,32 @@ struct SessionPresentationPolicy {
                 status: status,
                 hasCurrentCompletion: session.status == .done,
                 attention: matchingAttention
+            ),
+            evidenceID: session.evidenceID,
+            dismissalRequest: dismissalRequest(
+                session: session,
+                allSessions: allSessions,
+                now: now
             )
         )
     }
 
-    private static func isDisplayable(
+    private static func dismissalRequest(
         session: CurrentSessionState,
+        allSessions: [CurrentSessionState],
         now: Date
-    ) -> Bool {
-        let age = now.timeIntervalSince(session.evidenceAt)
-        let policy = SessionFreshnessPolicy.standard
-        guard age >= -policy.futureTolerance else {
-            return false
+    ) -> SessionDismissalRequest? {
+        guard SessionDismissalPolicy.eligibility(
+            for: session,
+            among: allSessions,
+            now: now
+        ) == .eligible else {
+            return nil
         }
-        switch session.presence {
-        case .closed:
-            return false
-        case .open:
-            return age <= policy.activeLifetime
-        case .unknown:
-            return session.isFresh && session.status != .idle
-        }
+        return SessionDismissalRequest(
+            identity: session.identity,
+            evidenceID: session.evidenceID
+        )
     }
 
     private static func priority(

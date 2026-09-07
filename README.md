@@ -19,7 +19,7 @@ Mews is a local macOS menu bar companion for AI coding agents running in termina
 - Shows a compact status near the MacBook notch when available, with Notification Center as the fallback.
 - Shows current sessions in the menu bar and keeps recent event history on your Mac.
 - Supports Claude Code, Codex, Copilot CLI, and long-running commands through `mw run`.
-- Returns to a validated source terminal when possible, and can copy a command for that session's local history.
+- Returns to a validated source terminal when possible, opens confirmed Codex App sessions directly, and can copy a command for local history.
 
 ## Install
 

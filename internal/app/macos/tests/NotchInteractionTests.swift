@@ -5,6 +5,7 @@ extension MewsAppModelTests {
         try testLogoAndNotchClicks()
         try testHoverTimers()
         try testOutsideClick()
+        try testPlacementLossClosesInteraction()
         try testHistoricalPresentationSync()
         try testNeedsInputPeek()
         try testDistinctNeedsInputPeek()
@@ -113,6 +114,34 @@ extension MewsAppModelTests {
         try notchExpect(
             model.state.visibility == .peek,
             "an outside click should not dismiss a noninteractive notification peek"
+        )
+    }
+
+    private static func testPlacementLossClosesInteraction() throws {
+        var model = NotchInteractionModel(
+            presentationState: MewsPresentationState(event: nil)
+        )
+        _ = model.send(.logoPrimaryClick)
+        let effects = model.send(.placementUnavailable)
+        try notchExpect(
+            model.state.visibility == .closed &&
+                model.state.openReason == nil &&
+                effects.isEmpty,
+            "losing every display placement should close an expanded interaction"
+        )
+
+        var pendingModel = NotchInteractionModel(
+            presentationState: MewsPresentationState(event: nil)
+        )
+        _ = pendingModel.send(
+            .pointerMoved(
+                isInsideNotch: true,
+                isInsideInteractiveSurface: true
+            )
+        )
+        try notchExpect(
+            pendingModel.send(.placementUnavailable) == [.cancelHoverOpen],
+            "placement loss should cancel a pending hover open while still closed"
         )
     }
 

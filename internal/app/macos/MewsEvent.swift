@@ -5,6 +5,7 @@ struct MewsEvent: Decodable {
     let source: String
     let status: String
     let hookEvent: String?
+    let launchContext: String?
     let agentScope: String?
     let recoverable: Bool?
     let sessionID: String?
@@ -25,6 +26,7 @@ struct MewsEvent: Decodable {
         case source
         case status
         case hookEvent = "hook_event"
+        case launchContext = "launch_context"
         case agentScope = "agent_scope"
         case recoverable
         case sessionID = "session_id"
@@ -58,9 +60,16 @@ struct MewsEvent: Decodable {
         let command = normalizedText(sessionID).map {
             sessionReturnCommand($0, cliExecutablePath: cliExecutablePath)
         }
+        let codexLaunchContext = source == "codex"
+            ? normalizedText(launchContext) ?? "unknown"
+            : nil
         return CLIContextPayload(
             returnCommand: command,
             workingDirectory: cwd,
+            launchContext: codexLaunchContext,
+            codexSessionID: codexLaunchContext == "codex_app"
+                ? sessionID
+                : nil,
             terminal: terminal,
             terminalWindowID: terminalWindowID,
             kittyListenOn: kittyListenOn,

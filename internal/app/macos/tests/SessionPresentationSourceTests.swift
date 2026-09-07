@@ -4,6 +4,7 @@ extension MewsAppModelTests {
     static func testSessionPresentationSource() throws {
         try testAttentionIndependentSessionSource()
         try testSessionSourceBurstRecovery()
+        try testSessionSourceResyncOrdering()
     }
 
     private static func testAttentionIndependentSessionSource() throws {
@@ -20,8 +21,7 @@ extension MewsAppModelTests {
         }
         let now = Date(timeIntervalSince1970: 1_900_000_700)
         let event = sessionPresentationSourceEvent(at: now)
-        let sessions = try SessionPresentationSource(
-            storeDirectory: directory,
+        let sessions = SessionPresentationSource(
             clock: { now }
         ).sessions(
             reconciling: EventReload(
@@ -46,10 +46,10 @@ extension MewsAppModelTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let now = Date(timeIntervalSince1970: 1_900_000_700)
         let initial = sessionPresentationSourceEvent(at: now)
-        _ = try SessionPresentationSource(
-            storeDirectory: directory,
+        let source = SessionPresentationSource(
             clock: { now }
-        ).sessions(
+        )
+        _ = source.sessions(
             reconciling: EventReload(
                 events: [initial],
                 newEvents: [initial],
@@ -62,10 +62,7 @@ extension MewsAppModelTests {
                 sessionID: "burst-\(index)"
             )
         }
-        let recovered = try SessionPresentationSource(
-            storeDirectory: directory,
-            clock: { now.addingTimeInterval(20) }
-        ).sessions(
+        let recovered = source.sessions(
             reconciling: EventReload(
                 events: Array(burst.suffix(10)),
                 newEvents: burst
@@ -75,6 +72,42 @@ extension MewsAppModelTests {
             recovered.count == 13 &&
                 recovered.contains { $0.sessionID == "burst-0" },
             "fallback recovery should include a burst larger than visible history"
+        )
+    }
+
+    private static func testSessionSourceResyncOrdering() throws {
+        let now = Date(timeIntervalSince1970: 1_900_000_800)
+        let earlier = try sessionEvent(
+            id: "fallback-a",
+            sessionID: "fallback-order",
+            status: "done",
+            timestamp: now
+        )
+        let winner = try sessionEvent(
+            id: "fallback-b",
+            sessionID: "fallback-order",
+            status: "failed",
+            timestamp: now
+        )
+        let source = SessionPresentationSource(clock: { now })
+        _ = source.sessions(
+            reconciling: EventReload(
+                events: [winner],
+                newEvents: [],
+                recoveryEvents: [winner]
+            )
+        )
+        let sessions = source.sessions(
+            reconciling: EventReload(
+                events: [earlier, winner],
+                newEvents: [],
+                sessionResyncEvents: [earlier, winner],
+                sessionDidResync: true
+            )
+        )
+        try sessionPresentationSourceExpect(
+            sessions.first?.evidenceID == "fallback-b",
+            "fallback resync should preserve the append-ordered winner"
         )
     }
 
@@ -97,6 +130,7 @@ extension MewsAppModelTests {
             source: "copilot",
             status: "needs_input",
             hookEvent: nil,
+            launchContext: nil,
             agentScope: "main",
             recoverable: nil,
             sessionID: sessionID,

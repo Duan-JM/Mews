@@ -4,6 +4,8 @@ import Foundation
 struct CLIContextPayload: Equatable {
     static let returnCommandKey = "return_command"
     static let workingDirectoryKey = "cwd"
+    static let launchContextKey = "launch_context"
+    static let codexSessionIDKey = "codex_session_id"
     static let terminalKey = "terminal"
     static let terminalWindowIDKey = "terminal_window_id"
     static let kittyListenOnKey = "kitty_listen_on"
@@ -13,6 +15,8 @@ struct CLIContextPayload: Equatable {
 
     let returnCommand: String?
     let workingDirectory: String?
+    let launchContext: String?
+    let codexSessionID: String?
     let terminal: String?
     let terminalWindowID: String?
     let kittyListenOn: String?
@@ -23,6 +27,8 @@ struct CLIContextPayload: Equatable {
     init?(
         returnCommand: String?,
         workingDirectory: String?,
+        launchContext: String? = nil,
+        codexSessionID: String? = nil,
         terminal: String? = nil,
         terminalWindowID: String? = nil,
         kittyListenOn: String? = nil,
@@ -32,14 +38,23 @@ struct CLIContextPayload: Equatable {
     ) {
         self.returnCommand = normalizedText(returnCommand)
         self.workingDirectory = normalizedText(workingDirectory)
+        self.launchContext = validatedLaunchContext(launchContext)
+        self.codexSessionID = self.launchContext == "codex_app"
+            ? validatedCodexSessionID(codexSessionID)
+            : nil
         self.terminal = TerminalProfile.source(terminal)?.rawValue
         self.terminalWindowID = validatedWindowID(terminalWindowID, terminal: self.terminal)
         self.kittyListenOn = validatedKittyListen(kittyListenOn, terminal: self.terminal)
         let tmux = validatedTmuxMetadata(socket: tmuxSocket, pane: tmuxPane, client: tmuxClient)
-        self.tmuxSocket = tmux?.socketPath
-        self.tmuxPane = tmux?.paneID
-        self.tmuxClient = tmux?.clientName
-        if self.returnCommand == nil && self.workingDirectory == nil && self.terminal == nil {
+        self.tmuxSocket = self.launchContext == "codex_app" ? nil : tmux?.socketPath
+        self.tmuxPane = self.launchContext == "codex_app" ? nil : tmux?.paneID
+        self.tmuxClient = self.launchContext == "codex_app" ? nil : tmux?.clientName
+        if self.returnCommand == nil &&
+            self.workingDirectory == nil &&
+            self.launchContext == nil &&
+            self.codexSessionID == nil &&
+            self.terminal == nil &&
+            self.tmuxSocket == nil {
             return nil
         }
     }
@@ -48,6 +63,8 @@ struct CLIContextPayload: Equatable {
         self.init(
             returnCommand: userInfo[Self.returnCommandKey] as? String,
             workingDirectory: userInfo[Self.workingDirectoryKey] as? String,
+            launchContext: userInfo[Self.launchContextKey] as? String,
+            codexSessionID: userInfo[Self.codexSessionIDKey] as? String,
             terminal: userInfo[Self.terminalKey] as? String,
             terminalWindowID: userInfo[Self.terminalWindowIDKey] as? String,
             kittyListenOn: userInfo[Self.kittyListenOnKey] as? String,
@@ -64,6 +81,12 @@ struct CLIContextPayload: Equatable {
         }
         if let workingDirectory {
             info[Self.workingDirectoryKey] = workingDirectory
+        }
+        if let launchContext {
+            info[Self.launchContextKey] = launchContext
+        }
+        if let codexSessionID {
+            info[Self.codexSessionIDKey] = codexSessionID
         }
         if let terminal {
             info[Self.terminalKey] = terminal
@@ -88,6 +111,13 @@ struct CLIContextPayload: Equatable {
 
     var sourceTerminalProfile: TerminalProfile? {
         return TerminalProfile.source(terminal)
+    }
+
+    var codexAppURL: URL? {
+        guard let codexSessionID else {
+            return nil
+        }
+        return URL(string: "codex://threads/\(codexSessionID)")
     }
 
     var kittyTarget: KittyTarget? {
@@ -124,6 +154,7 @@ struct CLIContextPayload: Equatable {
 
     func isActionable(fileManager: FileManager = .default) -> Bool {
         return returnCommand != nil ||
+            codexAppURL != nil ||
             sourceTerminalProfile != nil ||
             validatedDirectoryURL(fileManager: fileManager) != nil
     }
@@ -237,6 +268,23 @@ private func validatedWindowID(_ value: String?, terminal: String?) -> String? {
           let value = normalizedText(value),
           value.count <= 64,
           asciiDigitsOnly(value) else {
+        return nil
+    }
+    return value
+}
+
+private func validatedCodexSessionID(_ value: String?) -> String? {
+    guard let value = normalizedText(value),
+          value.count <= 256,
+          UUID(uuidString: value) != nil else {
+        return nil
+    }
+    return value.lowercased()
+}
+
+private func validatedLaunchContext(_ value: String?) -> String? {
+    guard let value = normalizedText(value),
+          ["unknown", "tmux", "codex_app"].contains(value) else {
         return nil
     }
     return value

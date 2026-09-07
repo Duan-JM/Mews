@@ -58,6 +58,7 @@ enum NotchInteractionAction: Equatable {
     case hoverOpenTimerFired
     case hoverCloseTimerFired
     case notificationPeekTimerFired(sequence: Int)
+    case placementUnavailable
     case presentationSynchronized(MewsPresentationState)
     case presentationChanged(MewsPresentationState)
 }
@@ -154,6 +155,8 @@ struct NotchInteractionModel {
             return handleHoverCloseTimer()
         case let .notificationPeekTimerFired(sequence):
             return handleNotificationPeekTimer(sequence: sequence)
+        case .placementUnavailable:
+            return close()
         case let .presentationSynchronized(presentationState):
             return synchronizePresentation(presentationState)
         case let .presentationChanged(presentationState):

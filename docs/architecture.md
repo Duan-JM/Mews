@@ -112,7 +112,7 @@ The agent is packaged as a small app bundle so macOS menu bar identity, notifica
 
 The shell keeps a pure `closed` / `peek` / `expanded` interaction policy separate from AppKit timers and event monitors. On a physical notch, `closed` is a persistent compact strip below a hardware-width neck, `peek` is a bounded wider status preview, and `expanded` is the existing full panel. The top-center fallback still renders only `expanded`. AppKit owns the fixed 420×220 nonactivating panel, display placement, passive local/global mouse observation, and teardown. Hit testing derives from the current rendered shell frame rather than the transparent maximum panel, so the visible compact strip, preview, and expanded surface match their click and hover targets. Outside clicks close an expanded panel without consuming or synthesizing the target event. SwiftUI keeps the solid black shell for a physical notch and uses rounded adaptive material with a native window shadow for top-center placement. The fallback sits six points below the visible menu-bar edge. Left-clicking the status item toggles the shell, while right-click and Control-click preserve the existing event, Refresh, and Quit menu. Physical-notch hover is optional: if global hover monitoring is unavailable, the app logs the degradation and keeps the status-item click and top-center fallback paths.
 
-Display placement is recalculated on `NSApplication.didChangeScreenParametersNotification`. The resolver prefers any available physical notch, otherwise uses the main display's `visibleFrame` top center so the shell stays below the menu bar. This covers external-display, clamshell, resolution, coordinate, and main-screen changes. A transient empty screen list clears placement and orders the panel out; the next display notification restores it. The panel remains stationary, joins all Spaces, and participates as a full-screen auxiliary window.
+Display placement is recalculated on `NSApplication.didChangeScreenParametersNotification`. The resolver prefers any available physical notch, otherwise uses the main display's `visibleFrame` top center so the shell stays below the menu bar. This covers external-display, clamshell, resolution, coordinate, and main-screen changes. A transient empty screen list clears placement, closes the interaction state, and orders the panel out; the next display notification restores compact placement without reopening the expanded panel. The panel remains stationary, joins all Spaces, and participates as a full-screen auxiliary window.
 
 Alert routing reads that live placement for every newly alertable semantic session transition. Only the current transition that the physical notch will actually present suppresses its system notification; other transitions keep Notification Center fallback so a two-second reload batch cannot silently drop an earlier completion. Without a physical notch, presentation state still updates the menu bar and top-center shell content, but the shell does not auto-open for the transition.
 
@@ -192,7 +192,110 @@ The session index uses `source` plus a non-empty `session_id` as its stable iden
 
 The fold is incremental and deterministic. Older evidence and duplicate event IDs are ignored; legacy events without IDs include their exact timestamp in the fallback evidence identity. Equal-time evidence uses a centralized precedence policy so explicit session end, idle, and runner process-exit evidence cannot be replaced by a less conclusive update merely because it arrived later. Persisted precedence must match that same policy for the stored identity, status, and hook. Main-agent, subagent, and recoverable rules remain the same as notification and primary presentation rules: subagent and recoverable events stay in history and do not replace current primary state.
 
-`sessions.json` is written through a private `0600` staging file followed by an atomic rename. Missing storage starts with an empty index. On every repository start, the first `EventLogReader` scan reconciles its full recovery event set into the persisted index, including events appended while the app was offline; sessions absent from the bounded scan remain intact. Invalid JSON, unsupported versions, duplicate identities, and invalid persisted records return explicit errors without deleting the damaged file. Persisted return metadata must round-trip exactly through `CLIContextPayload`; forbidden commands, unknown keys, or values that validation would drop make the record corrupt rather than silently reducing its context. Corrupt storage recovery is an explicit rebuild from validated `MewsEvent` values followed by another atomic write.
+`SessionStateController` is the only runtime owner of `SessionStateRepository`.
+It produces immutable snapshots for attention and presentation consumers; those
+consumers never construct or save `sessions.json`. The controller serializes
+folds and store writes, and publishes a new snapshot only after the copy-on-write
+save succeeds. It also owns a reconciliation anchor for the event log. The
+controller scans from that uncommitted anchor on every reconciliation, so a
+failed save retries the same evidence on the next refresh. The anchor advances
+only with a stable, complete-line scan and a successful fold transaction. Each
+controller scan stops at the foreground reader's published boundary so
+attention, notifications, and presentation consume one event generation.
+
+Evidence ordering is append-stable. Persisted records retain an optional global
+evidence ordinal and a bounded same-timestamp/same-precedence tie set. Older
+snapshots without ordering metadata enter a rebuild gate and remain usable for
+display, but ordering-dependent operations fail open until a complete event-log
+scan proves their order. If the tie set exceeds its bounded capacity, the
+record freezes that ordering key; only strictly newer evidence can establish a
+new order. Full resyncs fold into a separate ordered projection before merging
+with persisted records; an equal-key winner absent from the available log
+remains visible with unknown ordering rather than being replaced by an
+unproven replay. This prevents rotation or restart from changing a winner.
+
+Active-session dismissal is an evidence-scoped compare-and-set. A record may
+persist `dismissedEvidenceID` only when it matches the current ordered,
+non-overflow evidence; missing, stale, running, closed, expired, or
+ambiguous-order records remain visible or return an explicit non-success
+result. The controller scans unseen evidence to stable EOF before each
+dismissal transaction, saves the folded index before advancing its anchor, and
+publishes the resulting immutable snapshot. Strictly newer primary evidence
+clears the dismissal; replayed, older, subagent, and recoverable evidence does
+not.
+
+The expanded session list keeps SwiftUI row content inside its AppKit-backed
+`NSScrollView`. A custom mouse recognizer delays primary-button delivery only
+for dismissible rows, preserving ordinary Return and Copy clicks below the
+eight-point drag slop. Precise trackpad events are buffered until the same
+eight-point and 1.25 direction lock resolves. Horizontal sequences drive the
+swipe state machine; vertical sequences replay their complete buffered events
+to native scrolling. Physical deltas are normalized against the user's Natural
+Scrolling preference, and momentum never commits a dismissal.
+
+`SessionListPresentationModel` owns one interactive row plus independent
+removal tokens. Rows are keyed by stable session identity and evidence ID, so a
+refresh cannot redirect a gesture to a replacement row; replacement evidence
+keeps the prior identity's expanded-list position. Controller revisions reject
+pre-dismissal snapshots, while a changed identity/evidence target cancels the
+gesture and adopts the latest state. Successful writes animate the captured row
+from its current offset before compacting its height. An animatable observer
+finalizes the normal path at the visual endpoint, with a bounded 380 ms
+watchdog only for interrupted callbacks; failures keep the row visible and
+retryable. Panel close, `orderOut`, placement loss, and app shutdown advance the
+interaction epoch and cancel pending visual callbacks. Drag updates change
+only row transform and derived action geometry, clipping, and opacity; event
+scanning, JSON work, and atomic persistence remain on the session controller
+queue.
+
+The swipe track follows the physical offset until the drag crosses 20% of the
+row width. A short swipe past input slop settles at 10% of the row width, with a
+56-point minimum for a 44×24 `HIDE` button and six-point side insets. In
+top-center mode, the track uses the shell's native regular material with a 4%
+black tint. Opaque accessibility and physical-notch surfaces retain a subtle
+black overlay, 6% normally and 12% with Increase Contrast. Only the separate
+button uses `#c80f28`. It grows from a true circle into the compact row-button
+shape while the complete, fixed-size label fades in. Its right edge remains
+six points from the row's trailing edge. Further dragging lengthens the button
+leftward within the exposed track; its centered label initially moves by half
+the added width.
+
+Crossing 20% triggers a spring that moves the foreground off the row and
+lengthens the red button across the full track, retaining six-point side
+insets, 24-point height, four-point corners, and unchanged vertical alignment.
+Only the HIDE label switches immediately from centered to leading placement,
+ten points inside the growing button. The text does not interpolate its
+alignment or scale, and remains inside the red shape throughout expansion.
+This confirmation follows the latched commit-ready phase, including the
+16-point retreat hysteresis. Persistence still waits for release or an explicit
+`HIDE` action. Reduce Motion applies settling and full-width feedback without
+spatial animation and retains the existing 100 ms removal fade. Row controls
+draw their borders inside their shared height, matching HIDE and leaving no
+stroke behind when the foreground leaves.
+
+Row presentation observes its model inside the scroll view's nested hosting
+tree, rather than relying on animation transactions surviving root replacement
+across `NSViewRepresentable`. The inner observer preserves real settling,
+expansion, retry, and removal frames. Native rendering regressions measure the
+red button and white text separately: the right edge stays fixed while the
+button widens, and the label snaps to its leading inset. They also cover
+row-control dimensions, native material and opaque fallbacks, and Reduce Motion.
+The row content still owns the full 42-point height, so its separator remains
+at the row boundary instead of the action-button baseline.
+
+`EventLogReader` opens the log, stats the same descriptor, reads only complete
+JSONL records, and revalidates the descriptor and pathname before publishing a
+reload. Its cursor includes observed file mutation metadata plus complete-line
+and consumed-prefix digests, so same-inode rewrites are distinguished from
+append-only growth. Replacement, truncation, and anchor mismatch provide a full
+session resync batch while preserving the existing notification `newEvents`
+semantics. Read, decode, reconciliation, and save failures are explicit, leave
+the previous cursor unchanged, and keep presenting the last valid persisted
+Session snapshot.
+`SessionEvidenceReader` uses the same descriptor-bound scanner for controller
+ordered scans without advancing the notification reader.
+
+`sessions.json` is written through a private `0600` staging file followed by an atomic rename. Missing storage starts with an empty index. On every controller start, its first independent evidence scan reconciles the complete available event log into the persisted index, including events appended while the app was offline; sessions absent from the scan remain intact. Invalid JSON, unsupported versions, duplicate identities, and invalid persisted records return explicit errors without deleting the damaged file. Persisted return metadata must round-trip exactly through `CLIContextPayload`; forbidden commands, unknown keys, or values that validation would drop make the record corrupt rather than silently reducing its context. Corrupt storage recovery is an explicit rebuild from validated `MewsEvent` values followed by another atomic write.
 
 `attention.json` stores only the latest round key and its delivered, acknowledged, or resolved disposition for each session. It uses the same private staging-file and atomic-rename pattern. Missing state starts empty; invalid JSON, unsupported versions, unknown schema keys, duplicate identities, and inconsistent round identities fail explicitly without deleting or silently rebuilding the file. The app logs the failure, leaves attention routing disabled, and retries the unchanged file on each refresh so a corrected store recovers without restarting Mews.
 
@@ -339,6 +442,7 @@ Optional fields:
 
 - `session_id`
 - `hook_event`
+- `launch_context`
 - `agent_scope`
 - `recoverable`
 - `project`
@@ -371,7 +475,9 @@ When `session_id` is present, the CLI displays the local return command as `mw h
 
 The terminal preference defaults to `auto`. Auto uses the recorded source terminal when available and falls back to Terminal.app. An explicit profile uses that terminal unless the event came from the same profile, in which case Mews prefers the existing application. Supported profiles are Terminal, kitty, iTerm2, WezTerm, Ghostty, and Alacritty.
 
-Return actions copy the Mews-owned history command and activate the source terminal. When an event originates in tmux, the CLI preserves the validated same-user socket and source pane even when no client is attached. If a client is available, the app uses one fixed `switch-client -c <client> -t <pane>` operation so tmux restores the source session, window, and pane together. If the client is absent or disappears before the action, the app verifies the pane with a fixed `display-message` operation. For kitty, it then opens a new active instance that runs a fixed `attach-session -t <pane>` command with inherited tmux variables removed. Kitty window focus is attempted only when the event carries a numeric kitty window ID and an existing local Unix remote-control address; Mews does not enable kitty remote control. A failed exact kitty or detached tmux restore skips generic application activation and opens a new active kitty instance with `--directory <cwd>`, even if kitty is already running. Other unavailable source contexts use the configured terminal at the event's validated absolute `cwd`. A directory-only event does not invent a session command. Mews never executes event-provided command text or reads terminal scrollback.
+Return actions open confirmed Codex App sessions with the fixed `codex://threads/<session-id>` deep link. Mews records that context when the Codex hook either inherits the expected desktop originator plus a recognized App resource path or has a process ancestry containing the bundled Codex runtime and its owning App executable. Validated tmux context takes precedence. Unknown Codex origins continue through the terminal fallback instead of being guessed as App sessions.
+
+Terminal return actions copy the Mews-owned history command and activate the source terminal. When an event originates in tmux, the CLI preserves the validated same-user socket and source pane even when no client is attached. If a client is available, the app uses one fixed `switch-client -c <client> -t <pane>` operation so tmux restores the source session, window, and pane together. If the client is absent or disappears before the action, the app verifies the pane with a fixed `display-message` operation. For kitty, it then opens a new active instance that runs a fixed `attach-session -t <pane>` command with inherited tmux variables removed. Kitty window focus is attempted only when the event carries a numeric kitty window ID and an existing local Unix remote-control address; Mews does not enable kitty remote control. A failed exact kitty or detached tmux restore skips generic application activation and opens a new active kitty instance with `--directory <cwd>`, even if kitty is already running. Other unavailable source contexts use the configured terminal at the event's validated absolute `cwd`. A directory-only event does not invent a session command. Mews never executes event-provided command text or reads terminal scrollback.
 
 ## IPC
 
@@ -405,7 +511,7 @@ Rules:
 
 ### Codex
 
-Mews installs user-level Codex command hooks for `SessionStart`, `UserPromptSubmit`, `Stop`, and `SessionEnd` in `~/.codex/hooks.json`. Each command calls `mw hook codex <event>` and receives the hook JSON through stdin. `UserPromptSubmit` records `running`, `Stop` records stopped-between-turns state, and `SessionEnd` closes the active row immediately.
+Mews installs user-level Codex command hooks for `SessionStart`, `UserPromptSubmit`, `Stop`, and `SessionEnd` in `~/.codex/hooks.json`. Each command calls `mw hook codex <event>` and receives the hook JSON through stdin. `UserPromptSubmit` records `running`, `Stop` records stopped-between-turns state, and `SessionEnd` closes the active row immediately. Hooks launched from Codex App retain a narrow `codex_app` launch marker derived from inherited local environment evidence or the validated local parent-process chain, without reading the transcript.
 
 Codex requires user hook definitions to carry a matching trust hash before they run outside the sandbox. `mw setup --yes` writes a marked `hooks.state` block for only the fixed Mews commands it just installed. `mw doctor` verifies both the hook definitions and their current hashes. Existing user hooks and a user-owned legacy `notify` command are preserved. An older Mews-managed `notify` block is migrated to lifecycle hooks.
 

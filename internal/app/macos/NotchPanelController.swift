@@ -7,6 +7,7 @@ final class NotchPanelController: NSObject {
     typealias ScreenProvider = () -> [ScreenSnapshot]
     typealias OpenContextHandler = (CLIContextPayload, SessionIdentity?) -> Void
     typealias CopyCommandHandler = (String) -> Void
+    typealias HideSessionHandler = SessionListPresentationModel.HideHandler
 
     let panel: NSPanel
     private(set) var placement: OverlayPlacement?
@@ -19,6 +20,9 @@ final class NotchPanelController: NSObject {
     private let screenProvider: ScreenProvider
     private let onOpenContext: OpenContextHandler
     private let onCopyCommand: CopyCommandHandler
+    private let onHideSession: HideSessionHandler
+    private let log: (String) -> Void
+    private var onPlacementUnavailable: () -> Void = {}
     private let resolver = OverlayScreenResolver()
     private let calculator = OverlayPlacementCalculator()
     private let shellModel = NotchShellViewModel()
@@ -32,10 +36,18 @@ final class NotchPanelController: NSObject {
         reduceTransparency: false,
         increaseContrast: false
     )
+    private lazy var sessionListModel = SessionListPresentationModel(
+        hide: onHideSession,
+        log: log,
+        announce: { [weak self] message in
+            self?.announceAccessibility(message)
+        }
+    )
 
     private lazy var hostingView = NotchHostingView(
         rootView: NotchShellView(
             model: shellModel,
+            sessionListModel: sessionListModel,
             onReturnToCLI: onOpenContext,
             onCopyCommand: onCopyCommand
         )
@@ -46,7 +58,11 @@ final class NotchPanelController: NSObject {
         screenChangeNotification: Notification.Name? = nil,
         screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens,
         onOpenContext: @escaping OpenContextHandler = { _, _ in },
-        onCopyCommand: @escaping CopyCommandHandler = { _ in }
+        onCopyCommand: @escaping CopyCommandHandler = { _ in },
+        onHideSession: @escaping HideSessionHandler = { _, completion in
+            completion(.failure(NotchPanelControllerError.dismissalUnavailable))
+        },
+        log: @escaping (String) -> Void = { _ in }
     ) {
         self.notificationCenter = notificationCenter
         self.screenChangeNotification =
@@ -54,6 +70,8 @@ final class NotchPanelController: NSObject {
         self.screenProvider = screenProvider
         self.onOpenContext = onOpenContext
         self.onCopyCommand = onCopyCommand
+        self.onHideSession = onHideSession
+        self.log = log
         panel = NSPanel(
             contentRect: CGRect(origin: .zero, size: OverlayPlacementCalculator.maximumSize),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -84,9 +102,19 @@ final class NotchPanelController: NSObject {
     func reposition() -> OverlayPlacement? {
         guard let target = resolver.resolve(screens: screenProvider()) else {
             placement = nil
+            interactionState = NotchInteractionState(
+                presentationState: interactionState.presentationState
+            )
+            content = canonicalContent
+            sessionListModel.update(
+                canonicalRows: canonicalContent.sessionRows,
+                revision: canonicalContent.sessionRevision
+            )
             panel.hasShadow = false
+            sessionListModel.cancelForLifecycle()
             panel.orderOut(nil)
             refreshShell()
+            onPlacementUnavailable()
             return nil
         }
         let placement = calculator.placement(for: target)
@@ -104,8 +132,16 @@ final class NotchPanelController: NSObject {
         let wasExpanded = self.interactionState.visibility == .expanded
         self.interactionState = interactionState
         self.accessibilityPreferences = accessibilityPreferences
+        sessionListModel.updateAccessibility(
+            reduceMotion: accessibilityPreferences.reduceMotion
+        )
         if wasExpanded && interactionState.visibility != .expanded {
             content = canonicalContent
+            sessionListModel.update(
+                canonicalRows: canonicalContent.sessionRows,
+                revision: canonicalContent.sessionRevision
+            )
+            sessionListModel.cancelForLifecycle()
         }
         refreshShell()
         applyWindowPresentation()
@@ -116,6 +152,10 @@ final class NotchPanelController: NSObject {
         let presentedContent = interactionState.visibility == .expanded
             ? content.stabilized(relativeTo: self.content)
             : content
+        sessionListModel.update(
+            canonicalRows: presentedContent.sessionRows,
+            revision: presentedContent.sessionRevision
+        )
         guard self.content != presentedContent else {
             return
         }
@@ -124,51 +164,9 @@ final class NotchPanelController: NSObject {
     }
 
     func hide() {
+        sessionListModel.cancelForLifecycle()
         panel.ignoresMouseEvents = true
         panel.orderOut(nil)
-    }
-
-    func eventTargetsControl(_ event: NSEvent) -> Bool {
-        guard event.window === panel,
-              let contentView = panel.contentView else {
-            return false
-        }
-        let point = contentView.convert(event.locationInWindow, from: nil)
-        var view = contentView.hitTest(point)
-        while let current = view {
-            if current is NSControl {
-                return true
-            }
-            view = current.superview
-        }
-        return false
-    }
-
-    func containsNotchTrigger(_ point: CGPoint) -> Bool {
-        guard let placement, placement.mode == .notch else {
-            return false
-        }
-        let visibility = interactionState.visibility == .expanded
-            ? NotchVisibility.closed
-            : interactionState.visibility
-        return shellGeometry(visibility: visibility).contains(
-            point,
-            in: placement.frame
-        )
-    }
-
-    func containsVisibleShell(_ point: CGPoint) -> Bool {
-        guard let placement,
-              NotchPanelPresentationPolicy.isVisible(
-                  visibility: interactionState.visibility,
-                  placementMode: placement.mode
-              ) else {
-            return false
-        }
-        return shellGeometry(visibility: interactionState.visibility).contains(
-            point,
-            in: placement.frame
-        )
     }
 
     @objc private func screenParametersDidChange(_ notification: Notification) {
@@ -255,6 +253,87 @@ final class NotchPanelController: NSObject {
             visibility: visibility
         )
     }
+
+    private func announceAccessibility(_ message: String) {
+        NSAccessibility.post(
+            element: panel,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: message,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue
+            ]
+        )
+    }
+}
+
+extension NotchPanelController {
+    func setPlacementUnavailableHandler(
+        _ handler: @escaping () -> Void
+    ) {
+        onPlacementUnavailable = handler
+    }
+
+    var sessionListSnapshot: SessionListPresentationSnapshot {
+        return sessionListModel.snapshot
+    }
+
+    var sessionSwipeInputRouter: SessionSwipeInputRouter {
+        return sessionListModel.inputRouter
+    }
+
+    func prepareForPanelInteraction(
+        event: NSEvent,
+        targetsControl: Bool
+    ) {
+        if let target = sessionListModel.inputRouter.inputTarget(for: event) {
+            sessionListModel.prepareForInputTarget(target.request)
+        } else if !targetsControl {
+            sessionListModel.closeRevealedRow()
+        }
+    }
+
+    func eventTargetsControl(_ event: NSEvent) -> Bool {
+        guard event.window === panel,
+              let contentView = panel.contentView else {
+            return false
+        }
+        let point = contentView.convert(event.locationInWindow, from: nil)
+        var view = contentView.hitTest(point)
+        while let current = view {
+            if current is NSControl {
+                return true
+            }
+            view = current.superview
+        }
+        return false
+    }
+
+    func containsNotchTrigger(_ point: CGPoint) -> Bool {
+        guard let placement, placement.mode == .notch else {
+            return false
+        }
+        let visibility = interactionState.visibility == .expanded
+            ? NotchVisibility.closed
+            : interactionState.visibility
+        return shellGeometry(visibility: visibility).contains(
+            point,
+            in: placement.frame
+        )
+    }
+
+    func containsVisibleShell(_ point: CGPoint) -> Bool {
+        guard let placement,
+              NotchPanelPresentationPolicy.isVisible(
+                  visibility: interactionState.visibility,
+                  placementMode: placement.mode
+              ) else {
+            return false
+        }
+        return shellGeometry(visibility: interactionState.visibility).contains(
+            point,
+            in: placement.frame
+        )
+    }
 }
 
 final class NotchHostingView<Content: View>: NSHostingView<Content> {
@@ -275,4 +354,8 @@ private extension NotchVisibility {
             return "panel expanded"
         }
     }
+}
+
+private enum NotchPanelControllerError: Error {
+    case dismissalUnavailable
 }

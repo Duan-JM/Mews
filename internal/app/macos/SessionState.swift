@@ -1,125 +1,9 @@
 import Foundation
 
-enum SessionStatus: String, Codable, Equatable {
-    case running
-    case needsInput = "needs_input"
-    case done
-    case failed
-    case idle
-}
-
-enum SessionPresence: Equatable {
-    case open
-    case closed
-    case unknown
-}
-
-struct SessionIdentity: Codable, Hashable, Comparable {
-    let source: String
-    let sessionID: String
-
-    init?(source: String, sessionID: String?) {
-        guard let source = normalizedText(source),
-              source.count <= 64,
-              let sessionID = normalizedText(sessionID),
-              sessionID.count <= 256 else {
-            return nil
-        }
-        self.source = source
-        self.sessionID = sessionID
-    }
-
-    static func < (left: SessionIdentity, right: SessionIdentity) -> Bool {
-        if left.source != right.source {
-            return left.source < right.source
-        }
-        return left.sessionID < right.sessionID
-    }
-}
-
-struct SessionFreshnessPolicy: Equatable {
-    static let standard = SessionFreshnessPolicy(
-        activeLifetime: 24 * 60 * 60,
-        settledLifetime: 30 * 60,
-        futureTolerance: 5 * 60
-    )
-
-    let activeLifetime: TimeInterval
-    let settledLifetime: TimeInterval
-    let futureTolerance: TimeInterval
-
-    func acceptsEvidence(evidenceAt: Date, now: Date) -> Bool {
-        return now.timeIntervalSince(evidenceAt) >= -futureTolerance
-    }
-
-    func isFresh(status: SessionStatus, evidenceAt: Date, now: Date) -> Bool {
-        let age = now.timeIntervalSince(evidenceAt)
-        guard acceptsEvidence(evidenceAt: evidenceAt, now: now) else {
-            return false
-        }
-
-        switch status {
-        case .running, .needsInput:
-            return age <= activeLifetime
-        case .done, .failed, .idle:
-            return age <= settledLifetime
-        }
-    }
-
-    func currentStatus(status: SessionStatus, evidenceAt: Date, now: Date) -> SessionStatus {
-        return isFresh(status: status, evidenceAt: evidenceAt, now: now) ? status : .idle
-    }
-}
-
-struct CurrentSessionState: Equatable {
-    let identity: SessionIdentity
-    let status: SessionStatus
-    let evidenceStatus: SessionStatus
-    let statusChangedAt: Date
-    let evidenceAt: Date
-    let project: String?
-    let hookEvent: String?
-    let returnContext: CLIContextPayload?
-    let isFresh: Bool
-
-    var source: String {
-        identity.source
-    }
-
-    var sessionID: String {
-        identity.sessionID
-    }
-
-    var presence: SessionPresence {
-        let normalizedHook = normalizedText(hookEvent)?.lowercased()
-        if normalizedHook == "sessionend" {
-            return .closed
-        }
-        if normalizedHook != nil && (source == "claude-code" || source == "copilot") {
-            return .open
-        }
-        if source == "codex",
-           ["sessionstart", "userpromptsubmit", "stop"].contains(normalizedHook) {
-            return .open
-        }
-        return .unknown
-    }
-
-    var presentationStatus: SessionStatus {
-        guard presence == .open else {
-            return status
-        }
-        return evidenceStatus == .idle ? .done : evidenceStatus
-    }
-
-    var isSubagentRunning: Bool {
-        return presentationStatus == .running &&
-            normalizedText(hookEvent)?.lowercased() == "subagentrunning"
-    }
-}
-
 struct SessionStateIndex: Equatable {
     private var records: [SessionIdentity: SessionStateRecord] = [:]
+    private(set) var nextEvidenceOrdinal: UInt64 = 1
+    private(set) var orderingNeedsRebuild = false
 
     var count: Int {
         records.count
@@ -128,6 +12,7 @@ struct SessionStateIndex: Equatable {
     init() {}
 
     init(restoring persistedRecords: [SessionStateRecord]) throws {
+        var ordinals = Set<UInt64>()
         for record in persistedRecords {
             guard SessionIdentity(
                 source: record.identity.source,
@@ -138,7 +23,39 @@ struct SessionStateIndex: Equatable {
                 throw SessionStateValidationError.invalidRecord
             }
             records[record.identity] = record
+            if record.orderingKnown {
+                guard let ordinal = record.evidenceOrdinal,
+                      ordinal < UInt64.max - 1,
+                      ordinals.insert(ordinal).inserted else {
+                    throw SessionStateValidationError.invalidOrdering
+                }
+                nextEvidenceOrdinal = max(
+                    nextEvidenceOrdinal,
+                    (record.evidenceOrdinal ?? 0) + 1
+                )
+            } else {
+                orderingNeedsRebuild = true
+            }
         }
+    }
+
+    init(
+        restoring persistedRecords: [SessionStateRecord],
+        nextEvidenceOrdinal: UInt64?,
+        orderingNeedsRebuild: Bool
+    ) throws {
+        try self.init(restoring: persistedRecords)
+        if let nextEvidenceOrdinal {
+            guard nextEvidenceOrdinal >= self.nextEvidenceOrdinal,
+                  nextEvidenceOrdinal < UInt64.max else {
+                throw SessionStateValidationError.invalidOrdering
+            }
+            self.nextEvidenceOrdinal = nextEvidenceOrdinal
+        } else {
+            self.orderingNeedsRebuild = true
+            records = records.mapValues { $0.withUnknownOrdering() }
+        }
+        self.orderingNeedsRebuild = self.orderingNeedsRebuild || orderingNeedsRebuild
     }
 
     static func rebuilding(
@@ -173,6 +90,11 @@ struct SessionStateIndex: Equatable {
             .sorted {
                 if $0.evidenceAt != $1.evidenceAt {
                     return $0.evidenceAt > $1.evidenceAt
+                }
+                if let leftOrdinal = $0.evidenceOrdinal,
+                   let rightOrdinal = $1.evidenceOrdinal,
+                   leftOrdinal != rightOrdinal {
+                    return leftOrdinal > rightOrdinal
                 }
                 return $0.identity < $1.identity
             }
@@ -216,10 +138,23 @@ struct SessionStateIndex: Equatable {
         let replacesFutureRecord = current.map {
             !policy.acceptsEvidence(evidenceAt: $0.evidenceAt, now: now)
         } ?? false
-        if let current, !replacesFutureRecord, !evidence.isNewer(than: current) {
-            return false
+        if let current, !replacesFutureRecord {
+            guard evidence.isNewer(than: current) else {
+                return false
+            }
         }
 
+        let tie = equivalentEvidence(
+            for: evidence,
+            replacing: replacesFutureRecord ? nil : current
+        )
+        _ = compactEvidenceOrdinalsIfNeeded()
+        let ordinal = nextEvidenceOrdinal
+        guard ordinal > 0, ordinal < UInt64.max else {
+            orderingNeedsRebuild = true
+            return false
+        }
+        nextEvidenceOrdinal += 1
         records[identity] = SessionStateRecord(
             replacing: replacesFutureRecord ? nil : current,
             identity: identity,
@@ -229,165 +164,238 @@ struct SessionStateIndex: Equatable {
             hookEvent: normalizedText(event.hookEvent),
             context: SessionReturnContext(
                 payload: event.cliContext(cliExecutablePath: cliExecutablePath)
-            )
+            ),
+            evidenceOrdinal: ordinal,
+            equivalentEvidenceIDs: tie.ids,
+            equivalentEvidenceOverflow: tie.overflow
         )
+        return true
+    }
+
+    private func equivalentEvidence(
+        for evidence: SessionEvidence,
+        replacing current: SessionStateRecord?
+    ) -> (ids: [String], overflow: Bool) {
+        guard let current,
+              current.evidenceAt == evidence.timestamp,
+              current.evidencePrecedence == evidence.precedence else {
+            return ([evidence.id], false)
+        }
+        let priorIDs = current.equivalentEvidenceIDs ?? [current.evidenceID]
+        let allIDs = priorIDs + [evidence.id]
+        return (
+            Array(allIDs.suffix(SessionEvidence.maximumEquivalentIDs)),
+            current.equivalentEvidenceOverflow ||
+                allIDs.count > SessionEvidence.maximumEquivalentIDs
+        )
+    }
+
+    private mutating func compactEvidenceOrdinalsIfNeeded(reserving count: Int = 1) -> Bool {
+        guard nextEvidenceOrdinal >= UInt64.max - UInt64(max(1, count)) else {
+            return false
+        }
+        let orderedIdentities = records.values
+            .filter(\.orderingKnown)
+            .sorted {
+                if $0.evidenceOrdinal != $1.evidenceOrdinal {
+                    return ($0.evidenceOrdinal ?? 0) < ($1.evidenceOrdinal ?? 0)
+                }
+                return $0.identity < $1.identity
+            }
+            .map(\.identity)
+        for (offset, identity) in orderedIdentities.enumerated() {
+            records[identity]?.evidenceOrdinal = UInt64(offset + 1)
+        }
+        nextEvidenceOrdinal = UInt64(orderedIdentities.count + 1)
         return true
     }
 
     var persistedRecords: [SessionStateRecord] {
         return records.values.sorted { $0.identity < $1.identity }
     }
-}
 
-enum SessionStateValidationError: Error {
-    case invalidRecord
-}
-
-struct SessionStateRecord: Codable, Equatable {
-    let identity: SessionIdentity
-    let status: SessionStatus
-    let statusChangedAt: Date
-    let evidenceAt: Date
-    let project: String?
-    let hookEvent: String?
-    let context: SessionReturnContext?
-    let evidencePrecedence: Int
-    let evidenceID: String
-
-    var isValid: Bool {
-        guard statusChangedAt <= evidenceAt,
-              normalizedText(evidenceID) == evidenceID,
-              evidenceID.count <= 1024,
-              evidencePrecedence == SessionEvidence.precedence(
-                  source: identity.source,
-                  status: status,
-                  hookEvent: hookEvent
-              ) else {
-            return false
+    @discardableResult
+    mutating func dismiss(
+        _ request: SessionDismissalRequest,
+        now: Date,
+        policy: SessionFreshnessPolicy = .standard,
+        cliExecutablePath: String? = nil
+    ) -> SessionDismissalResult {
+        guard let record = records[request.identity],
+              record.evidenceID == request.evidenceID else {
+            return .staleEvidence
         }
-        if let project, normalizedText(project) != project || project.count > 256 {
-            return false
+        if record.dismissedEvidenceID == request.evidenceID {
+            return .alreadyDismissed
         }
-        if let hookEvent, normalizedText(hookEvent) != hookEvent || hookEvent.count > 128 {
-            return false
-        }
-        return true
-    }
-
-    init(
-        replacing existing: SessionStateRecord?,
-        identity: SessionIdentity,
-        status: SessionStatus,
-        evidence: SessionEvidence,
-        project: String?,
-        hookEvent: String?,
-        context: SessionReturnContext?
-    ) {
-        self.identity = identity
-        self.status = status
-        if existing?.status == status, let priorChange = existing?.statusChangedAt {
-            statusChangedAt = priorChange
-        } else {
-            statusChangedAt = evidence.timestamp
-        }
-        evidenceAt = evidence.timestamp
-        self.project = project ?? existing?.project
-        self.hookEvent = hookEvent
-        self.context = SessionReturnContext.merging(
-            prior: existing?.context,
-            newer: context
+        let sessions = currentSessions(
+            now: now,
+            policy: policy,
+            cliExecutablePath: cliExecutablePath
         )
-        evidencePrecedence = evidence.precedence
-        evidenceID = evidence.id
+        guard let current = sessions.first(where: { $0.identity == request.identity }) else {
+            return .staleEvidence
+        }
+        switch SessionDismissalPolicy.eligibility(
+            for: current,
+            among: sessions,
+            now: now,
+            policy: policy
+        ) {
+        case .eligible:
+            records[request.identity]?.dismissedEvidenceID = request.evidenceID
+            return .dismissed
+        case .orderingUnavailable:
+            return .orderingUnavailable
+        case .ineligibleState:
+            return .ineligibleState
+        }
+    }
+}
+
+extension SessionStateIndex {
+    mutating func rebuildOrdering(
+        from events: [MewsEvent],
+        now: Date,
+        policy: SessionFreshnessPolicy = .standard,
+        cliExecutablePath: String? = nil
+    ) -> Bool {
+        let compacted = compactEvidenceOrdinalsIfNeeded(reserving: events.count)
+        let replay = replayProjection(
+            events,
+            now: now,
+            policy: policy,
+            cliExecutablePath: cliExecutablePath
+        )
+        let merged = mergingReplay(
+            replay,
+            now: now,
+            policy: policy
+        )
+        let changed = compacted || merged != records || orderingNeedsRebuild
+        records = merged
+        nextEvidenceOrdinal = max(
+            replay.index.nextEvidenceOrdinal,
+            records.values.compactMap(\.evidenceOrdinal).max().map { $0 + 1 } ?? 1
+        )
+        orderingNeedsRebuild = records.values.contains { !$0.orderingKnown }
+        return changed
     }
 
-    func current(
+    private func replayProjection(
+        _ events: [MewsEvent],
         now: Date,
         policy: SessionFreshnessPolicy,
         cliExecutablePath: String?
-    ) -> CurrentSessionState {
-        let fresh = policy.isFresh(status: status, evidenceAt: evidenceAt, now: now)
-        return CurrentSessionState(
-            identity: identity,
-            status: policy.currentStatus(status: status, evidenceAt: evidenceAt, now: now),
-            evidenceStatus: status,
-            statusChangedAt: statusChangedAt,
-            evidenceAt: evidenceAt,
-            project: project,
-            hookEvent: hookEvent,
-            returnContext: SessionReturnContext.payload(
-                metadata: context,
-                sessionID: identity.sessionID,
+    ) -> SessionReplayProjection {
+        var projection = SessionStateIndex()
+        projection.nextEvidenceOrdinal = nextEvidenceOrdinal
+        var acceptedEvidence: [SessionIdentity: [SessionReplayEvidence]] = [:]
+        for event in events {
+            let identity = SessionIdentity(source: event.source, sessionID: event.sessionID)
+            let status = SessionStatus(rawValue: event.status)
+            guard projection.apply(
+                event,
+                now: now,
+                policy: policy,
                 cliExecutablePath: cliExecutablePath
-            ),
-            isFresh: fresh
+            ), let identity, let status else {
+                continue
+            }
+            let evidence = SessionEvidence(event: event, status: status)
+            acceptedEvidence[identity, default: []].append(
+                SessionReplayEvidence(
+                    status: status,
+                    orderingKey: evidence.orderingKey,
+                    id: evidence.id
+                )
+            )
+        }
+        return SessionReplayProjection(
+            index: projection,
+            acceptedEvidence: acceptedEvidence
         )
+    }
+
+    private func mergingReplay(
+        _ replay: SessionReplayProjection,
+        now: Date,
+        policy: SessionFreshnessPolicy
+    ) -> [SessionIdentity: SessionStateRecord] {
+        var merged = records
+        for (identity, candidate) in replay.index.records {
+            guard let existing = records[identity] else {
+                merged[identity] = candidate
+                continue
+            }
+            if !policy.acceptsEvidence(evidenceAt: existing.evidenceAt, now: now) {
+                merged[identity] = candidate
+                continue
+            }
+            if candidate.evidenceID == existing.evidenceID {
+                merged[identity] = existing.orderingKnown
+                    ? existing.mergingEquivalentEvidence(from: candidate)
+                    : existing.attachingOrdering(from: candidate)
+                continue
+            }
+            if candidate.orderingKey > existing.orderingKey {
+                merged[identity] = candidate.mergingPersistedMetadata(
+                    from: existing,
+                    replayProvesStatusTransition: replay.provesStatusTransition(
+                        for: identity,
+                        after: existing
+                    )
+                )
+                continue
+            }
+            if candidate.orderingKey == existing.orderingKey,
+               existing.equivalentEvidenceOverflow {
+                continue
+            }
+            if candidate.orderingKey == existing.orderingKey,
+               candidate.equivalentEvidenceIDs?.contains(existing.evidenceID) == true {
+                merged[identity] = candidate.mergingPersistedMetadata(
+                    from: existing,
+                    replayProvesStatusTransition: replay.provesStatusTransition(
+                        for: identity,
+                        after: existing
+                    )
+                )
+                continue
+            }
+            if candidate.orderingKey == existing.orderingKey {
+                merged[identity] = existing.withUnknownOrdering()
+            }
+        }
+        return SessionReplayOrdering.align(merged: merged, replay: replay.index.records, existing: records)
     }
 }
 
-struct SessionEvidence {
-    let timestamp: Date
-    let precedence: Int
+private struct SessionReplayProjection {
+    let index: SessionStateIndex
+    let acceptedEvidence: [SessionIdentity: [SessionReplayEvidence]]
+
+    func provesStatusTransition(
+        for identity: SessionIdentity,
+        after existing: SessionStateRecord
+    ) -> Bool {
+        var passedExistingEvidence = false
+        for evidence in acceptedEvidence[identity] ?? [] {
+            if evidence.id == existing.evidenceID {
+                passedExistingEvidence = true
+                continue
+            }
+            if passedExistingEvidence || evidence.orderingKey > existing.orderingKey,
+               evidence.status != existing.status {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+private struct SessionReplayEvidence {
+    let status: SessionStatus
+    let orderingKey: SessionEvidenceOrderingKey
     let id: String
-
-    init(event: MewsEvent, status: SessionStatus) {
-        timestamp = event.timestamp
-        precedence = Self.precedence(
-            source: event.source,
-            status: status,
-            hookEvent: event.hookEvent
-        )
-        id = normalizedText(event.id) ?? Self.legacyID(event: event)
-    }
-
-    func isNewer(than record: SessionStateRecord) -> Bool {
-        if id == record.evidenceID {
-            return false
-        }
-        if timestamp != record.evidenceAt {
-            return timestamp > record.evidenceAt
-        }
-        if precedence != record.evidencePrecedence {
-            return precedence > record.evidencePrecedence
-        }
-        return id > record.evidenceID
-    }
-
-    static func precedence(
-        source: String,
-        status: SessionStatus,
-        hookEvent: String?
-    ) -> Int {
-        let hook = normalizedText(hookEvent)?.lowercased()
-        if hook == "sessionend" {
-            return 500
-        }
-        if source == "runner", status == .done || status == .failed {
-            return 400
-        }
-        switch status {
-        case .idle:
-            return 350
-        case .done, .failed:
-            return 300
-        case .needsInput:
-            return 200
-        case .running:
-            return 100
-        }
-    }
-
-    private static func legacyID(event: MewsEvent) -> String {
-        let timestamp = event.timestamp.timeIntervalSinceReferenceDate.bitPattern
-        return [
-            event.source,
-            event.status,
-            normalizedText(event.hookEvent) ?? "",
-            normalizedText(event.agentScope) ?? "",
-            event.recoverable == true ? "recoverable" : "primary",
-            normalizedText(event.sessionID) ?? "",
-            normalizedText(event.project) ?? "",
-            String(timestamp)
-        ].joined(separator: "\u{1F}")
-    }
 }

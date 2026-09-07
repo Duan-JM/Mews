@@ -40,6 +40,13 @@ final class CLIContextOpener {
     }
 
     func open(_ context: CLIContextPayload) {
+        if let url = context.codexAppURL {
+            if workspace.open(url) {
+                log("Opened Codex App session")
+                return
+            }
+            log("Could not open Codex App session; falling back to CLI context")
+        }
         if let command = context.returnCommand {
             copy(command)
         }

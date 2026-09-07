@@ -8,8 +8,7 @@ extension MewsApp {
         }
         do {
             attentionController = try AttentionController(
-                storeDirectory: storeDirectoryURL,
-                cliExecutablePath: helperPath()
+                storeDirectory: storeDirectoryURL
             )
             clearAttentionError()
         } catch {
@@ -18,13 +17,19 @@ extension MewsApp {
         }
     }
 
-    func reconcileAttention(_ reload: EventReload) -> AttentionRuntimeUpdate? {
+    func reconcileAttention(
+        _ reload: EventReload,
+        sessions: [CurrentSessionState]?
+    ) -> AttentionRuntimeUpdate? {
         configureAttention()
-        guard let attentionController else {
+        guard let attentionController, let sessions else {
             return nil
         }
         do {
-            let update = try attentionController.reconcile(reload)
+            let update = try attentionController.reconcile(
+                reload,
+                sessions: sessions
+            )
             clearAttentionError()
             return update
         } catch {

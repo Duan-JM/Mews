@@ -2,12 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/Duan-JM/mews/internal/events"
 	"github.com/Duan-JM/mews/internal/store"
 	"github.com/Duan-JM/mews/internal/terminal"
 )
@@ -119,6 +121,179 @@ func TestNotifyCapturesKittyAndTmuxContext(t *testing.T) {
 	}, "\n")
 	if string(args) != wantArgs {
 		t.Fatalf("tmux lookup args = %q, want %q", args, wantArgs)
+	}
+}
+
+func TestCodexHookDetectsAppLaunchContext(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("TMUX", "")
+	t.Setenv("TMUX_PANE", "")
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex")
+	t.Setenv("CODEX_ELECTRON_RESOURCES_PATH", "/Applications/ChatGPT.app/Contents/Resources")
+
+	var stdout, stderr bytes.Buffer
+	code := Run(
+		[]string{"hook", "codex", "SessionStart"},
+		strings.NewReader(`{"session_id":"67c4e708-30c2-4b6d-b6ef-93385dfe64ae","cwd":"/tmp"}`),
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("Codex hook returned %d, stderr: %s", code, stderr.String())
+	}
+
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("events = %#v, err=%v", recent, err)
+	}
+	if recent[0].LaunchContext != events.LaunchContextCodexApp {
+		t.Fatalf("launch context = %q, want %q", recent[0].LaunchContext, events.LaunchContextCodexApp)
+	}
+}
+
+func TestCodexHookDetectsCurrentAppLaunchContext(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("TMUX", "")
+	t.Setenv("TMUX_PANE", "")
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex")
+	t.Setenv("CODEX_ELECTRON_RESOURCES_PATH", "")
+	t.Setenv(
+		"CODEX_MCP_NODE_PATH",
+		"/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+	)
+
+	var stdout, stderr bytes.Buffer
+	code := Run(
+		[]string{"hook", "codex", "SessionStart"},
+		strings.NewReader(`{"session_id":"67c4e708-30c2-4b6d-b6ef-93385dfe64ae","cwd":"/tmp"}`),
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("Codex hook returned %d, stderr: %s", code, stderr.String())
+	}
+
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("events = %#v, err=%v", recent, err)
+	}
+	if recent[0].LaunchContext != events.LaunchContextCodexApp {
+		t.Fatalf("launch context = %q, want %q", recent[0].LaunchContext, events.LaunchContextCodexApp)
+	}
+}
+
+func TestCodexAppProcessAncestryDetectsEnvironmentlessHook(t *testing.T) {
+	processes := map[int]struct {
+		parent     int
+		executable string
+	}{
+		400: {parent: 300, executable: "/bin/zsh"},
+		300: {
+			parent:     200,
+			executable: "/Applications/ChatGPT.app/Contents/Resources/codex",
+		},
+		200: {
+			parent:     1,
+			executable: "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+		},
+	}
+	lookup := func(pid int) (int, string, error) {
+		process, ok := processes[pid]
+		if !ok {
+			return 0, "", errors.New("process not found")
+		}
+		return process.parent, process.executable, nil
+	}
+
+	if !isCodexAppProcessAncestry(400, lookup) {
+		t.Fatal("Codex App ancestry was not detected")
+	}
+
+	event := events.Event{
+		Source: "codex",
+		CWD:    "/tmp",
+	}
+	enrichRuntimeContextWith(&event, runtimeContextSource{
+		getenv:      func(string) string { return "" },
+		pid:         500,
+		parentPID:   400,
+		processInfo: lookup,
+	})
+	if event.LaunchContext != events.LaunchContextCodexApp {
+		t.Fatalf("launch context = %q, want %q", event.LaunchContext, events.LaunchContextCodexApp)
+	}
+}
+
+func TestCodexAppProcessAncestryRejectsBundledCLIWithoutMainAppParent(t *testing.T) {
+	processes := map[int]struct {
+		parent     int
+		executable string
+	}{
+		400: {parent: 300, executable: "/bin/zsh"},
+		300: {
+			parent:     200,
+			executable: "/Applications/ChatGPT.app/Contents/Resources/codex",
+		},
+		200: {
+			parent:     1,
+			executable: "/Applications/ChatGPT.app/Contents/MacOS/Helper",
+		},
+	}
+	lookup := func(pid int) (int, string, error) {
+		process, ok := processes[pid]
+		if !ok {
+			return 0, "", errors.New("process not found")
+		}
+		return process.parent, process.executable, nil
+	}
+
+	if isCodexAppProcessAncestry(400, lookup) {
+		t.Fatal("bundled Codex CLI without its main App parent was detected as Codex App")
+	}
+}
+
+func TestCodexHookPrefersTmuxOverAppLaunchContext(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "Codex")
+	t.Setenv(
+		"CODEX_MCP_NODE_PATH",
+		"/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+	)
+	socketPath := newOwnedUnixSocket(t)
+	t.Setenv("TMUX", socketPath+",9336,2")
+	t.Setenv("TMUX_PANE", "%6")
+
+	var stdout, stderr bytes.Buffer
+	code := Run(
+		[]string{"hook", "codex", "SessionStart"},
+		strings.NewReader(`{"session_id":"67c4e708-30c2-4b6d-b6ef-93385dfe64ae","cwd":"/tmp"}`),
+		&stdout,
+		&stderr,
+	)
+	if code != 0 {
+		t.Fatalf("Codex hook returned %d, stderr: %s", code, stderr.String())
+	}
+
+	paths, err := store.Paths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recent, err := store.ReadEvents(paths.Events, 1)
+	if err != nil || len(recent) != 1 {
+		t.Fatalf("events = %#v, err=%v", recent, err)
+	}
+	if recent[0].LaunchContext != events.LaunchContextTmux ||
+		recent[0].TmuxSocket != socketPath {
+		t.Fatalf("tmux Codex event = %#v", recent[0])
 	}
 }
 

@@ -146,6 +146,7 @@ final class NotchInteractionCoordinator: NSObject {
             return
         }
         if panelController.containsVisibleShell(point) {
+            panelController.prepareForPanelInteraction(event: event, targetsControl: targetsControl)
             if event.type == .leftMouseDown {
                 send(.panelSurfaceClick(isPanelControl: targetsControl))
             }
@@ -277,6 +278,10 @@ final class NotchInteractionCoordinator: NSObject {
 }
 
 extension NotchInteractionCoordinator {
+    func placementDidBecomeUnavailable() {
+        send(.placementUnavailable)
+    }
+
     func update(
         presentationState: MewsPresentationState,
         announcesTransition: Bool

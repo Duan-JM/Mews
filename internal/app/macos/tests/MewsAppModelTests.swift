@@ -16,6 +16,13 @@ enum MewsAppModelTests {
         try testPresentationPrimaryEventPolicy()
         try testPresentationFreshness()
         try testRecoverableSessionState()
+        try testSessionStateFoundation()
+        try testSessionDismissal()
+        try testSessionSwipeInteraction()
+        try testSessionSwipeInput()
+        try testSessionSwipePresentation()
+        try testSessionListPresentationModel()
+        try testSessionSwipeMotion()
         try testSemanticAttentionReconciliation()
         try testAgentRestartBackoff()
         try testNotificationStatusRecord()
@@ -24,6 +31,7 @@ enum MewsAppModelTests {
         try testNotchInteractionPolicy()
         try testNotchShellPresentation()
         try testNotchPanelContent()
+        try testSessionListScrollContainer()
         try testNotchPanelControllerTopology()
         testActionRouting()
     }
@@ -33,6 +41,7 @@ enum MewsAppModelTests {
             source: "copilot",
             status: "done",
             hookEvent: "agentStop",
+            launchContext: nil,
             agentScope: "main",
             recoverable: nil,
             sessionID: "session'1",
@@ -76,17 +85,6 @@ enum MewsAppModelTests {
             "notification metadata should decode"
         )
         try expect(decoded == context, "notification metadata should preserve CLI context")
-    }
-
-    private static func testSessionCommandQuoting() throws {
-        try expect(
-            sessionReturnCommand(
-                "session'1",
-                cliExecutablePath: "/tmp/Mews' App/Contents/Resources/mw"
-            ) ==
-                "'/tmp/Mews'\\'' App/Contents/Resources/mw' history --session 'session'\\''1'",
-            "return command should quote executable and session paths independently"
-        )
     }
 
     private static func testTerminalPreference() throws {

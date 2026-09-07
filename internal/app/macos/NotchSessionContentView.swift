@@ -2,28 +2,114 @@ import SwiftUI
 
 struct NotchSessionContentView: View {
     let snapshot: NotchShellSnapshot
+    let sessionListModel: SessionListPresentationModel
     let palette: NotchContrastPalette
     let surface: NotchSurfacePalette
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            LazyVStack(spacing: 0) {
-                ForEach(snapshot.content.sessionRows, id: \.identity) { row in
-                    sessionRow(row)
-                        .frame(height: 42)
-                        .overlay(rule, alignment: .bottom)
-                }
-            }
+        SessionListScrollContainer(
+            swipeInputRouter: sessionListModel.inputRouter
+        ) {
+            NotchSessionRowsView(
+                snapshot: snapshot,
+                sessionListModel: sessionListModel,
+                palette: palette,
+                surface: surface,
+                onReturnToCLI: onReturnToCLI,
+                onCopyCommand: onCopyCommand
+            )
         }
         .frame(maxHeight: .infinity)
         .padding(.top, 4)
         .padding(.bottom, 7)
         .accessibilityLabel("Active sessions")
     }
+}
 
-    private func sessionRow(_ row: SessionPresentationRow) -> some View {
+private struct NotchSessionRowsView: View {
+    let snapshot: NotchShellSnapshot
+    // Observe inside the nested hosting tree; rootView replacement loses animation transactions.
+    @ObservedObject var sessionListModel: SessionListPresentationModel
+    let palette: NotchContrastPalette
+    let surface: NotchSurfacePalette
+    let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
+    let onCopyCommand: (String) -> Void
+
+    var body: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(sessionListModel.snapshot.rows, id: \.id) { row in
+                GeometryReader { geometry in
+                    swipeRow(row, rowWidth: geometry.size.width)
+                }
+                .frame(height: sessionListModel.snapshot.visual(for: row).height)
+                .clipped()
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func swipeRow(
+        _ row: SessionPresentationRow,
+        rowWidth: CGFloat
+    ) -> some View {
+        let visual = sessionListModel.snapshot.visual(for: row)
+        let removalToken = sessionListModel.removalToken(for: row.id)
+        return ZStack(alignment: .trailing) {
+            hideActionLayer(row, visual: visual, rowWidth: rowWidth)
+            sessionRow(row, visual: visual, rowWidth: rowWidth)
+                .offset(x: visual.contentOffset(rowWidth: rowWidth))
+        }
+        .opacity(visual.opacity)
+        .frame(width: rowWidth, height: SessionRowLayout.rowHeight)
+        .clipped()
+        .animation(
+            SessionSwipeMotion.fullSwipe(snapshot.transitionStyle),
+            value: visual.usesFullWidthAction(rowWidth: rowWidth)
+        )
+        .modifier(
+            SessionRemovalAnimationObserver(
+                offset: visual.contentOffset(rowWidth: rowWidth),
+                opacity: visual.opacity,
+                height: visual.height,
+                targetOffset: -rowWidth,
+                requiresSpatialCompletion: snapshot.transitionStyle == .spatial,
+                isActive: removalToken != nil,
+                onCompletion: {
+                    if let removalToken {
+                        sessionListModel.finishRemovalAnimation(
+                            rowID: row.id,
+                            token: removalToken
+                        )
+                    }
+                }
+            )
+        )
+        .onDisappear {
+            if let removalToken {
+                sessionListModel.finishRemovalAnimation(
+                    rowID: row.id,
+                    token: removalToken
+                )
+            }
+        }
+        .background {
+            if visual.acceptsSwipeInput,
+               let request = row.dismissalRequest {
+                SessionSwipeRowMarker(
+                    request: request,
+                    inputRouter: sessionListModel.inputRouter
+                )
+            }
+        }
+    }
+
+    private func sessionRow(
+        _ row: SessionPresentationRow,
+        visual: SessionSwipeRowVisual,
+        rowWidth: CGFloat
+    ) -> some View {
         HStack(spacing: 7) {
             Text(row.statusCode)
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -34,8 +120,27 @@ struct NotchSessionContentView: View {
             returnButton(row)
             copyButton(row)
         }
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                if visual.phase == .revealed || visual.phase == .failed {
+                    sessionListModel.closeRevealedRow()
+                }
+            }
+        )
+        .padding(.bottom, SessionRowLayout.contentBottomInset)
+        .frame(height: SessionRowLayout.rowHeight)
+        .overlay(rule, alignment: .bottom)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(row.accessibilityLabel)
+        .modifier(
+            SessionHideAccessibilityModifier(
+                canHide: row.dismissalRequest != nil,
+                onHide: {
+                    sessionListModel.requestHide(row, rowWidth: rowWidth)
+                }
+            )
+        )
     }
 
     private func sessionIdentity(_ row: SessionPresentationRow) -> some View {
@@ -54,8 +159,9 @@ struct NotchSessionContentView: View {
     }
 
     private func returnButton(_ row: SessionPresentationRow) -> some View {
-        Button("RETURN") {
+        Button(row.returnActionLabel) {
             if let context = row.returnContext {
+                sessionListModel.prepareForRowAction()
                 onReturnToCLI(context, row.identity)
             }
         }
@@ -69,13 +175,18 @@ struct NotchSessionContentView: View {
         )
         .frame(width: 62)
         .disabled(row.returnContext == nil)
-        .accessibilityLabel("Return to \(row.sourceLabel) session \(row.sessionLabel)")
-        .accessibilityHint("Returns to the validated terminal context")
+        .accessibilityLabel("\(row.returnActionDescription) session \(row.sessionLabel)")
+        .accessibilityHint(
+            row.returnContext?.codexAppURL == nil
+                ? "Returns to the validated terminal context"
+                : "Opens the matching session in Codex"
+        )
     }
 
     private func copyButton(_ row: SessionPresentationRow) -> some View {
         Button("COPY") {
             if let command = row.returnCommand {
+                sessionListModel.prepareForRowAction()
                 onCopyCommand(command)
             }
         }
@@ -87,7 +198,7 @@ struct NotchSessionContentView: View {
                 surface: surface
             )
         )
-        .frame(width: 44)
+        .frame(width: SessionRowLayout.actionButtonWidth)
         .disabled(row.returnCommand == nil)
         .accessibilityLabel(
             "Copy return command for \(row.sourceLabel) session \(row.sessionLabel)"
@@ -100,6 +211,25 @@ struct NotchSessionContentView: View {
             .frame(height: 1)
     }
 
+    private func hideActionLayer(
+        _ row: SessionPresentationRow,
+        visual: SessionSwipeRowVisual,
+        rowWidth: CGFloat
+    ) -> some View {
+        SessionSwipeActionView(
+            geometry: visual.actionGeometry(rowWidth: rowWidth),
+            isFullSwipe: visual.usesFullWidthAction(rowWidth: rowWidth),
+            labelOpacity: visual.actionLabelOpacity,
+            snapshot: snapshot,
+            palette: palette,
+            onHide: {
+                sessionListModel.requestHide(row, rowWidth: rowWidth)
+            }
+        )
+        .opacity(visual.actionOpacity)
+        .allowsHitTesting(visual.actionAcceptsInput)
+    }
+
     private func statusOpacity(_ status: SessionStatus) -> Double {
         switch status {
         case .needsInput, .failed:
@@ -110,6 +240,24 @@ struct NotchSessionContentView: View {
             return max(0.64, palette.statusFloor)
         case .idle:
             return max(0.42, palette.statusFloor)
+        }
+    }
+}
+
+private struct SessionHideAccessibilityModifier: ViewModifier {
+    let canHide: Bool
+    let onHide: () -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if canHide {
+            content.accessibilityAction(
+                named: Text("Hide from Active Sessions")
+            ) {
+                onHide()
+            }
+        } else {
+            content
         }
     }
 }
@@ -188,18 +336,18 @@ struct NotchRowActionButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-            .tracking(0.35)
+            .font(.system(size: SessionRowLayout.actionFontSize, weight: .semibold, design: .monospaced))
+            .tracking(SessionRowLayout.actionTracking)
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity)
-            .frame(height: 24)
+            .frame(height: SessionRowLayout.actionButtonHeight)
             .background(
-                RoundedRectangle(cornerRadius: 4)
+                RoundedRectangle(cornerRadius: SessionRowLayout.actionButtonCornerRadius)
                     .fill(backgroundColor)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(borderColor, lineWidth: 1)
+                RoundedRectangle(cornerRadius: SessionRowLayout.actionButtonCornerRadius)
+                    .strokeBorder(borderColor, lineWidth: 1)
             )
             .opacity(configuration.isPressed && transitionStyle == .opacityOnly ? 0.72 : 1)
             .scaleEffect(pressedScale(configuration: configuration))

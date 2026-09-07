@@ -88,3 +88,49 @@ func TestEventValidateRejectsUnsafeTmuxClient(t *testing.T) {
 		t.Fatal("Validate accepted unsafe tmux client")
 	}
 }
+
+func TestEventValidateAcceptsCodexAppLaunchContext(t *testing.T) {
+	event := Event{
+		Version:       1,
+		Source:        "codex",
+		Status:        StatusDone,
+		LaunchContext: LaunchContextCodexApp,
+		Timestamp:     time.Now(),
+	}
+	if err := event.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestEventValidateRejectsInvalidLaunchContext(t *testing.T) {
+	tests := []Event{
+		{
+			Version:       1,
+			Source:        "copilot",
+			Status:        StatusDone,
+			LaunchContext: LaunchContextCodexApp,
+			Timestamp:     time.Now(),
+		},
+		{
+			Version:       1,
+			Source:        "codex",
+			Status:        StatusDone,
+			LaunchContext: LaunchContextCodexApp,
+			TmuxSocket:    "/tmp/tmux.sock",
+			TmuxPane:      "%1",
+			Timestamp:     time.Now(),
+		},
+		{
+			Version:       1,
+			Source:        "codex",
+			Status:        StatusDone,
+			LaunchContext: LaunchContextTmux,
+			Timestamp:     time.Now(),
+		},
+	}
+	for _, event := range tests {
+		if err := event.Validate(); err == nil {
+			t.Fatalf("Validate() accepted invalid event: %#v", event)
+		}
+	}
+}

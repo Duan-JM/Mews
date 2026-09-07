@@ -120,9 +120,20 @@ Events stay deliberately small:
 4. Integrations must be explicit. Mews should not secretly read terminal output.
 5. Missed notifications and silent subagent events should be recoverable from recent local history.
 6. Stale unknown-presence states return to `idle` on the fixed freshness schedule, and known-open states use the 24-hour safety cap so missed closure events cannot stay visible forever.
-7. Returning to work should take one action: switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If neither path is available, use the configured terminal and a validated directory. Keep a local Mews history command on the clipboard without executing event-provided command text.
+7. Returning to work should take one action: open a confirmed Codex App thread directly, switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If no exact target is available, use the configured terminal and a validated directory. Keep a local Mews history command available without executing event-provided command text.
 8. Each attention event uses one automatic channel: the physical-notch shell when available, otherwise Notification Center.
 9. While expanded, retained session order and health actions stay fixed so refreshes cannot move an action target beneath the pointer; sessions that close disappear immediately.
+
+### Hide stopped sessions
+
+- Active Session rows stay unchanged by default. Only an ordered `STOP` row accepts a mouse left-drag or a two-finger trackpad swipe to the left.
+- Movement remains attached to the pointer or fingers after an 8-point slop and a 1.25 horizontal direction lock. Native vertical scrolling wins when that lock is not met, and only one row can be dragged or revealed at a time.
+- A deliberate short swipe that passes input slop but does not cross 20% settles at approximately 10% of the row width, with a 56-point minimum so a complete 44×24 `HIDE` button and six-point side insets fit. Smaller movements close the row.
+- The revealed background is only slightly darker than the original row and follows the shell's native macOS material and accessibility fallbacks. The separate `#c80f28` HIDE button grows from a circle into the same compact shape and typography as `COPY`, without clipping its label. Its right edge stays fixed while further dragging lengthens it leftward; its centered text initially moves only slightly.
+- Crossing 20% springs the red button across the full track, with six-point side insets, unchanged 24-point height, and the accepted vertical alignment. Only the HIDE text snaps to the button's left inner edge, without scaling or a separate alignment animation. The button elongates rather than moving across the row as a fixed-width slider. Hiding still occurs only after release, and a 16-point retreat hysteresis cancels the full-swipe state.
+- Both the revealed button and full swipe submit the same evidence-scoped local write. The row leaves only after persistence succeeds. A write failure returns it to the revealed position for retry, while an ordering-unknown row remains visible and unavailable.
+- Hiding removes only the matching evidence from Active Sessions. Local event history, notifications, and the upstream CLI session remain unchanged. Strictly newer primary evidence restores the session automatically.
+- Reduce Motion keeps direct tracking and static settling/full-swipe feedback, and replaces spatial removal with a 100 ms ease-out fade. VoiceOver exposes `Hide from Active Sessions` as a row custom action, while the visual `HIDE` layer stays out of the accessibility tree.
 
 ## Display and Accessibility Behavior
 

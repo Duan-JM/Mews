@@ -27,16 +27,23 @@ const (
 	AgentScopeSubagent AgentScope = "subagent"
 )
 
+const (
+	LaunchContextUnknown  = "unknown"
+	LaunchContextTmux     = "tmux"
+	LaunchContextCodexApp = "codex_app"
+)
+
 type Event struct {
-	ID         string     `json:"id,omitempty"`
-	Version    int        `json:"version"`
-	Source     string     `json:"source"`
-	HookEvent  string     `json:"hook_event,omitempty"`
-	AgentScope AgentScope `json:"agent_scope,omitempty"`
-	SessionID  string     `json:"session_id,omitempty"`
-	Project    string     `json:"project,omitempty"`
-	TaskTitle  string     `json:"task_title,omitempty"`
-	Status     Status     `json:"status"`
+	ID            string     `json:"id,omitempty"`
+	Version       int        `json:"version"`
+	Source        string     `json:"source"`
+	HookEvent     string     `json:"hook_event,omitempty"`
+	LaunchContext string     `json:"launch_context,omitempty"`
+	AgentScope    AgentScope `json:"agent_scope,omitempty"`
+	SessionID     string     `json:"session_id,omitempty"`
+	Project       string     `json:"project,omitempty"`
+	TaskTitle     string     `json:"task_title,omitempty"`
+	Status        Status     `json:"status"`
 	// Recoverable is nil for legacy events and is then treated as non-recoverable.
 	Recoverable *bool     `json:"recoverable,omitempty"`
 	Message     string    `json:"message,omitempty"`
@@ -99,6 +106,7 @@ func (e *Event) Validate() error {
 		{name: "source", value: e.Source, max: 64},
 		{name: "id", value: e.ID, max: 64},
 		{name: "hook_event", value: e.HookEvent, max: 128},
+		{name: "launch_context", value: e.LaunchContext, max: 32},
 		{name: "session_id", value: e.SessionID, max: 256},
 		{name: "project", value: e.Project, max: 256},
 		{name: "task_title", value: e.TaskTitle, max: 80},
@@ -119,6 +127,9 @@ func (e *Event) Validate() error {
 	if err := e.validateTerminalContext(); err != nil {
 		return err
 	}
+	if err := e.validateLaunchContext(); err != nil {
+		return err
+	}
 	switch e.AgentScope {
 	case "", AgentScopeMain, AgentScopeSubagent:
 	default:
@@ -130,6 +141,26 @@ func (e *Event) Validate() error {
 	default:
 		return fmt.Errorf("unsupported status %q", e.Status)
 	}
+}
+
+func (e *Event) validateLaunchContext() error {
+	if e.LaunchContext == "" {
+		return nil
+	}
+	if e.Source != "codex" {
+		return fmt.Errorf("unsupported launch_context %q", e.LaunchContext)
+	}
+	switch e.LaunchContext {
+	case LaunchContextUnknown, LaunchContextCodexApp:
+		if e.TmuxSocket == "" {
+			return nil
+		}
+	case LaunchContextTmux:
+		if e.TmuxSocket != "" {
+			return nil
+		}
+	}
+	return fmt.Errorf("unsupported launch_context %q", e.LaunchContext)
 }
 
 func (e *Event) validateTerminalContext() error {
