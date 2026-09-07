@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- changelog release notes start -->
 
+## [0.0.3] - 2026-09-07
+
+### Added
+
+- Stopped Active Sessions can now be hidden with an Apple Mail-style left swipe while local history and the underlying CLI session remain intact. ([#113](https://github.com/Duan-JM/Mews/issues/113))
+
+### Changed
+
+- Open confirmed Codex App sessions directly from Mews while preserving exact tmux and terminal return behavior. ([#107](https://github.com/Duan-JM/Mews/issues/107))
+- Active Sessions use a calmer dark-red HIDE button, with better vertical spacing for status and row controls. ([#122](https://github.com/Duan-JM/Mews/issues/122))
+
+### Fixed
+
+- Detect Codex App sessions from the environment exposed by current desktop builds. ([#109](https://github.com/Duan-JM/Mews/issues/109))
+- Detect Codex App sessions when current Codex hooks omit App-specific environment variables, so Return can open the matching thread instead of falling back to the terminal. ([#111](https://github.com/Duan-JM/Mews/issues/111))
+- HIDE now grows from a circle into a matching row button, then lengthens leftward from a fixed right edge. Past the 20% threshold, the red button springs across the row while only its text snaps to the leading inset. The subtly darker background follows native macOS material and accessibility settings, and settling, retry, and removal animate correctly inside the native session list. ([#124](https://github.com/Duan-JM/Mews/issues/124))
+
+
 ## [0.0.2] - 2026-08-17
 
 ### Changed
