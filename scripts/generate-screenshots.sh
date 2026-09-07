@@ -178,6 +178,7 @@ SOURCES=(
   "$ROOT/internal/app/macos/SessionEvidence.swift"
   "$ROOT/internal/app/macos/SessionModels.swift"
   "$ROOT/internal/app/macos/SessionState.swift"
+  "$ROOT/internal/app/macos/SessionReplayOrdering.swift"
   "$ROOT/internal/app/macos/SessionStateRecord.swift"
   "$ROOT/internal/app/macos/SessionStateStore.swift"
   "$ROOT/internal/app/macos/SessionStateController.swift"
