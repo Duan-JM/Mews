@@ -7,9 +7,10 @@ extension MewsAppModelTests {
         try testOutsideClick()
         try testPlacementLossClosesInteraction()
         try testHistoricalPresentationSync()
-        try testNeedsInputPeek()
-        try testDistinctNeedsInputPeek()
+        try testNeedsInputGlow()
+        try testDistinctNeedsInputGlow()
         try testTimedNotificationPeeks()
+        try testExplicitNotchStopTransition()
         try testNotificationPeekDeduplication()
         try testExpandedStatusUpdates()
         try testStatusItemClickPolicy()
@@ -145,38 +146,27 @@ extension MewsAppModelTests {
         )
     }
 
-    private static func testNeedsInputPeek() throws {
-        try testBoundedNeedsInputPreview()
+    private static func testNeedsInputGlow() throws {
+        try testPersistentNeedsInputGlow()
         try testNeedsInputStateChanges()
     }
 
-    private static func testBoundedNeedsInputPreview() throws {
+    private static func testPersistentNeedsInputGlow() throws {
         var model = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
         let needsInput = MewsPresentationState(event: try notchEvent(status: "needs_input"))
         let effects = model.send(.presentationChanged(needsInput))
-        let sequence = try notificationSequence(in: effects)
 
         try notchExpect(
-            effects == [
-                .scheduleNotificationPeek(
-                    sequence: sequence,
-                    after: NotchInteractionTiming.needsInputPeek
-                )
-            ],
-            "needs_input should schedule a bounded four second preview"
+            effects.isEmpty,
+            "needs_input should use the persistent collapsed attention glow"
         )
         try notchExpect(
-            model.state.visibility == .peek && model.state.openReason == .notification,
-            "needs_input should open a notification preview"
+            model.state.visibility == .closed && model.state.openReason == nil,
+            "needs_input should not open a status surface below the notch"
         )
         try notchExpect(
             model.send(.presentationChanged(needsInput)).isEmpty,
-            "an unchanged needs_input state should not reopen or restart its peek"
-        )
-        _ = model.send(.notificationPeekTimerFired(sequence: sequence))
-        try notchExpect(
-            model.state.visibility == .closed,
-            "needs_input should return to its compact attention state"
+            "an unchanged needs_input state should not restart its glow"
         )
 
         _ = model.send(.logoPrimaryClick)
@@ -207,9 +197,8 @@ extension MewsAppModelTests {
         _ = automaticModel.send(.presentationChanged(needsInput))
         let closeEffects = automaticModel.send(.presentationChanged(running))
         try notchExpect(
-            closeEffects == [.cancelNotificationPeek] &&
-                automaticModel.state.visibility == .closed,
-            "running should close an automatic needs_input peek without opening another surface"
+            closeEffects.isEmpty && automaticModel.state.visibility == .closed,
+            "running should replace the needs-input glow without opening another surface"
         )
         let idle = MewsPresentationState(event: nil)
         try notchExpect(
@@ -219,7 +208,7 @@ extension MewsAppModelTests {
         )
     }
 
-    private static func testDistinctNeedsInputPeek() throws {
+    private static func testDistinctNeedsInputGlow() throws {
         var model = NotchInteractionModel(presentationState: MewsPresentationState(event: nil))
         let first = MewsPresentationState(
             event: try notchEvent(id: "needs-input-1", status: "needs_input")
@@ -231,13 +220,16 @@ extension MewsAppModelTests {
         _ = model.send(.presentationChanged(first))
         _ = model.send(.logoPrimaryClick)
         _ = model.send(.logoPrimaryClick)
-        try notchExpect(model.state.visibility == .closed, "the first input peek should be dismissible")
+        try notchExpect(
+            model.state.visibility == .closed,
+            "needs-input should remain in the collapsed glow state"
+        )
 
         try notchExpect(
-            !model.send(.presentationChanged(second)).isEmpty &&
-                model.state.visibility == .peek &&
-                model.state.openReason == .notification,
-            "a distinct needs_input event should reopen the notch alert"
+            model.send(.presentationChanged(second)).isEmpty &&
+                model.state.visibility == .closed &&
+                model.state.presentationState == second,
+            "a distinct needs-input event should refresh the glow without opening a surface"
         )
     }
 
@@ -306,10 +298,10 @@ extension MewsAppModelTests {
             doneEffects == [
                 .scheduleNotificationPeek(
                     sequence: doneSequence,
-                    after: NotchInteractionTiming.donePeek
+                    after: NotchInteractionTiming.stoppedPulse
                 )
             ],
-            "done should schedule a 2.5 second peek"
+            "done should schedule a two second red pulse"
         )
         _ = doneModel.send(.notificationPeekTimerFired(sequence: doneSequence))
         try notchExpect(doneModel.state.visibility == .closed, "the done peek should expire")
@@ -322,10 +314,10 @@ extension MewsAppModelTests {
             failedEffects == [
                 .scheduleNotificationPeek(
                     sequence: failedSequence,
-                    after: NotchInteractionTiming.failedPeek
+                    after: NotchInteractionTiming.stoppedPulse
                 )
             ],
-            "failed should schedule a 4 second peek"
+            "failed should schedule a two second red pulse"
         )
 
         _ = failedModel.send(.logoPrimaryClick)

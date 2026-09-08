@@ -44,9 +44,7 @@ enum StatusItemClickIntent: Equatable {
 enum NotchInteractionTiming {
     static let hoverOpen: TimeInterval = 0.45
     static let hoverClose: TimeInterval = 0.25
-    static let needsInputPeek: TimeInterval = 4
-    static let donePeek: TimeInterval = 2.5
-    static let failedPeek: TimeInterval = 4
+    static let stoppedPulse: TimeInterval = 2
 }
 
 enum NotchInteractionAction: Equatable {
@@ -59,6 +57,7 @@ enum NotchInteractionAction: Equatable {
     case hoverCloseTimerFired
     case notificationPeekTimerFired(sequence: Int)
     case placementUnavailable
+    case stoppedTransition(identifier: String)
     case presentationSynchronized(MewsPresentationState)
     case presentationChanged(MewsPresentationState)
 }
@@ -100,11 +99,12 @@ struct NotchInteractionState: Equatable {
 struct NotchPanelPresentationPolicy {
     static func isVisible(
         visibility: NotchVisibility,
-        placementMode: OverlayPlacementMode
+        placementMode: OverlayPlacementMode,
+        hasCollapsedSignal: Bool
     ) -> Bool {
         switch placementMode {
         case .notch:
-            return true
+            return visibility == .expanded || hasCollapsedSignal
         case .topCenter:
             return visibility == .expanded
         }
@@ -157,6 +157,11 @@ struct NotchInteractionModel {
             return handleNotificationPeekTimer(sequence: sequence)
         case .placementUnavailable:
             return close()
+        case let .stoppedTransition(identifier):
+            return beginTransitionPeek(
+                identifier: identifier,
+                duration: NotchInteractionTiming.stoppedPulse
+            )
         case let .presentationSynchronized(presentationState):
             return synchronizePresentation(presentationState)
         case let .presentationChanged(presentationState):
@@ -294,19 +299,16 @@ struct NotchInteractionModel {
 
         switch presentationState.status {
         case .needsInput:
-            effects.append(contentsOf: beginTransitionPeek(
-                identifier: presentationState.transitionIdentifier,
-                duration: NotchInteractionTiming.needsInputPeek
-            ))
+            break
         case .done:
             effects.append(contentsOf: beginTransitionPeek(
                 identifier: presentationState.transitionIdentifier,
-                duration: NotchInteractionTiming.donePeek
+                duration: NotchInteractionTiming.stoppedPulse
             ))
         case .failed:
             effects.append(contentsOf: beginTransitionPeek(
                 identifier: presentationState.transitionIdentifier,
-                duration: NotchInteractionTiming.failedPeek
+                duration: NotchInteractionTiming.stoppedPulse
             ))
         case .running, .idle:
             break
@@ -324,6 +326,10 @@ struct NotchInteractionModel {
             return []
         }
         state.presentationState = presentationState
+        if state.visibility == .peek,
+           state.openReason == .notification {
+            return []
+        }
         return closeAutomaticPeek()
     }
 

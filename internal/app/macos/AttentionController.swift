@@ -65,17 +65,22 @@ final class AttentionController {
 
 struct AttentionAlertRoutingPolicy {
     static func channel(
-        for candidate: SessionAttentionCandidate,
-        notchSession: CurrentSessionState?,
+        status: SessionStatus,
+        candidateIsRepresented: Bool,
         physicalNotchAvailable: Bool
     ) -> EventAlertChannel {
-        guard physicalNotchAvailable,
-              let notchSession,
-              notchSession.identity == candidate.identity,
-              notchSession.status == candidate.status,
-              notchSession.statusChangedAt == candidate.key.statusChangedAt else {
+        guard physicalNotchAvailable else {
             return .systemNotification
         }
-        return .notch
+        switch status {
+        case .done, .failed:
+            return .notch
+        case .needsInput:
+            return candidateIsRepresented
+                ? .notch
+                : .systemNotification
+        case .running, .idle:
+            return .systemNotification
+        }
     }
 }

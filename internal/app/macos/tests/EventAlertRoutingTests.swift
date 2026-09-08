@@ -5,6 +5,8 @@ extension MewsAppModelTests {
         try testCurrentAlertRouting()
         try testFallbackAlertRouting()
         try testLegacyAlertRouting()
+        try testAggregateNotchRouting()
+        try testTransientStopDetection()
     }
 
     private static func testCurrentAlertRouting() throws {
@@ -88,17 +90,77 @@ extension MewsAppModelTests {
             "one-sided event IDs should not suppress a notification for a different event"
         )
     }
+
+    private static func testAggregateNotchRouting() throws {
+        try alertRoutingExpect(
+            AttentionAlertRoutingPolicy.channel(
+                status: .done,
+                candidateIsRepresented: false,
+                physicalNotchAvailable: true
+            ) == .notch,
+            "a generic stop pulse should represent any completion at a physical notch"
+        )
+        try alertRoutingExpect(
+            AttentionAlertRoutingPolicy.channel(
+                status: .needsInput,
+                candidateIsRepresented: true,
+                physicalNotchAvailable: true
+            ) == .notch,
+            "a displayed needs-input session should use the persistent notch signal"
+        )
+        try alertRoutingExpect(
+            AttentionAlertRoutingPolicy.channel(
+                status: .needsInput,
+                candidateIsRepresented: false,
+                physicalNotchAvailable: true
+            ) == .systemNotification,
+            "a hidden needs-input session should retain its notification fallback"
+        )
+    }
+
+    private static func testTransientStopDetection() throws {
+        let stopped = try alertRoutingEvent(
+            id: "transient-stop",
+            agentScope: "main"
+        )
+        let resumed = try alertRoutingEvent(
+            id: "resumed",
+            agentScope: "main",
+            status: "running",
+            timestamp: "2026-07-20T12:00:01Z"
+        )
+        var index = SessionStateIndex()
+        let result = index.applyTrackingStopTransitions(
+            [stopped, resumed],
+            now: stopped.timestamp.addingTimeInterval(1)
+        )
+        try alertRoutingExpect(
+            result.stopTransitionIdentifier == "stop-event|transient-stop",
+            "a stop superseded before reconciliation should still pulse the notch"
+        )
+        let duplicate = index.applyTrackingStopTransitions(
+            [stopped],
+            now: stopped.timestamp.addingTimeInterval(2)
+        )
+        try alertRoutingExpect(
+            duplicate.stopTransitionIdentifier == nil,
+            "duplicate stop evidence should not pulse the notch"
+        )
+    }
 }
 
 private func alertRoutingEvent(
     id: String?,
-    agentScope: String
+    agentScope: String,
+    status: String = "done",
+    timestamp: String = "2026-07-20T12:00:00Z"
 ) throws -> MewsEvent {
     var object: [String: Any] = [
         "source": "copilot",
-        "status": "done",
+        "status": status,
         "agent_scope": agentScope,
-        "timestamp": "2026-07-20T12:00:00Z"
+        "session_id": "routing-session",
+        "timestamp": timestamp
     ]
     if let id {
         object["id"] = id

@@ -5,6 +5,21 @@ struct SessionControllerSnapshot: Equatable {
     let sessions: [CurrentSessionState]
     let reconciliationAnchor: SessionReconciliationAnchor?
     let orderingKnown: Bool
+    let stopTransitionIdentifier: String?
+
+    init(
+        revision: UInt64,
+        sessions: [CurrentSessionState],
+        reconciliationAnchor: SessionReconciliationAnchor?,
+        orderingKnown: Bool,
+        stopTransitionIdentifier: String? = nil
+    ) {
+        self.revision = revision
+        self.sessions = sessions
+        self.reconciliationAnchor = reconciliationAnchor
+        self.orderingKnown = orderingKnown
+        self.stopTransitionIdentifier = stopTransitionIdentifier
+    }
 }
 
 enum SessionControllerReconciliation {
@@ -100,12 +115,15 @@ final class SessionStateController {
         }
     }
 
-    private func makeSnapshot() -> SessionControllerSnapshot {
+    private func makeSnapshot(
+        stopTransitionIdentifier: String? = nil
+    ) -> SessionControllerSnapshot {
         return SessionControllerSnapshot(
             revision: revision,
             sessions: repository.snapshot(),
             reconciliationAnchor: anchor,
-            orderingKnown: repository.orderingKnown
+            orderingKnown: repository.orderingKnown,
+            stopTransitionIdentifier: stopTransitionIdentifier
         )
     }
 
@@ -136,9 +154,11 @@ final class SessionStateController {
             sessionCandidateAnchor: scan.candidateAnchor,
             sessionDidResync: scan.didResync
         )
-        _ = try repository.apply(sessionReload)
+        let result = try repository.applyWithResult(sessionReload)
         anchor = scan.candidateAnchor
         revision += 1
-        return makeSnapshot()
+        return makeSnapshot(
+            stopTransitionIdentifier: result.stopTransitionIdentifier
+        )
     }
 }

@@ -290,27 +290,42 @@ final class SessionStateRepository {
 
     @discardableResult
     func apply(_ reload: EventReload) throws -> Bool {
+        return try applyWithResult(reload).changed
+    }
+
+    func applyWithResult(
+        _ reload: EventReload
+    ) throws -> SessionStateApplicationResult {
         if reload.sessionDidResync {
             let changed = try rebuildOrdering(from: reload.sessionResyncEvents)
             needsStartupReconciliation = false
-            return changed
+            return SessionStateApplicationResult(
+                changed: changed,
+                stopTransitionIdentifier: nil
+            )
         }
-        let events = needsStartupReconciliation
+        let recovering = needsStartupReconciliation
+        let events = recovering
             ? reload.recoveryEvents
             : reload.newEvents
         var updated = index
-        let applied = updated.apply(
+        let result = updated.applyTrackingStopTransitions(
             events,
             now: clock(),
             policy: policy,
             cliExecutablePath: cliExecutablePath
         )
-        if applied {
+        if result.changed {
             try store.save(updated)
             index = updated
         }
         needsStartupReconciliation = false
-        return applied
+        return SessionStateApplicationResult(
+            changed: result.changed,
+            stopTransitionIdentifier: recovering
+                ? nil
+                : result.stopTransitionIdentifier
+        )
     }
 
     func currentSessions() -> [CurrentSessionState] {

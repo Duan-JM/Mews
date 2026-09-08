@@ -91,13 +91,13 @@ Mews first handles five states:
 
 | State | Meaning | UI expression |
 |---|---|---|
-| `running` | Agent is working | `RUN` compact notch state and running menu-bar pose |
-| `needs_input` | Main agent is waiting for user input, permission, or confirmation | 4-second notch preview followed by compact `ASK`, or a system notification without a physical notch |
-| `done` | Main task finished | 2.5-second notch preview followed by compact `DONE`, or a system notification fallback |
-| `failed` | Main task failed or a command exited unexpectedly | 4-second notch preview followed by compact `FAIL`, or a system notification fallback |
-| `idle` | No active task | Quiet `IDLE` compact notch state |
+| `running` | Agent is working | Steady green physical-notch glow and running menu-bar pose |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Red breathing physical-notch glow until resolved, or a system notification without a physical notch |
+| `done` | Main task finished | Two-second red breathing glow, then green while another session runs or steady red when all sessions stop |
+| `failed` | Main task failed or a command exited unexpectedly | Two-second red breathing glow, then the same aggregate running/stopped state as completion |
+| `idle` | No active task | No collapsed physical-notch surface |
 
-UI freshness is separate from stored history. `running` and `needs_input` can drive the compact current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code, Codex, or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while legacy or hookless sources remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
+UI freshness is separate from stored history. `running` and `needs_input` can drive the collapsed notch signal for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code, Codex, or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while legacy or hookless sources remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
 
 Events stay deliberately small:
 
@@ -121,7 +121,7 @@ Events stay deliberately small:
 5. Missed notifications and silent subagent events should be recoverable from recent local history.
 6. Stale unknown-presence states return to `idle` on the fixed freshness schedule, and known-open states use the 24-hour safety cap so missed closure events cannot stay visible forever.
 7. Returning to work should take one action: open a confirmed Codex App thread directly, switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If no exact target is available, use the configured terminal and a validated directory. Keep a local Mews history command available without executing event-provided command text.
-8. Each attention event uses one automatic channel: the physical-notch shell when available, otherwise Notification Center.
+8. Each attention event uses one automatic channel: the physical-notch glow when available, otherwise Notification Center.
 9. While expanded, retained session order and health actions stay fixed so refreshes cannot move an action target beneath the pointer; sessions that close disappear immediately.
 
 ### Hide stopped sessions
@@ -139,10 +139,10 @@ Events stay deliberately small:
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
-- Keep a hardware-width neck over the physical notch and place recognizable compact status below the occluded area. Preview and expanded hit regions must follow the rendered shell rather than the transparent panel bounds.
+- Keep collapsed status inside a tight glow around the visible left, right, and bottom notch edges. Do not add a persistent strip below the hardware.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
-- Keep the physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
+- Keep only the expanded physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
 - Reduce Transparency and Increase Contrast replace top-center material with an opaque high-contrast surface.
 - Increase Contrast strengthens secondary copy, separators, borders, status labels, and disabled controls.
@@ -155,9 +155,9 @@ Events stay deliberately small:
 
 These synthetic previews use fixed, privacy-safe data.
 
-Compact physical-notch states in light and dark appearance:
+Collapsed physical-notch glows in light and dark appearance:
 
-![Synthetic Mews physical-notch states in light and dark appearance with the pixel mascot and IDLE, RUN, ASK, DONE, and FAIL labels](../assets/screenshots/mews-status-states.png)
+![Synthetic Mews physical-notch glows in light and dark appearance for idle, running, needs-input, done, and failed states](../assets/screenshots/mews-status-states.png)
 
 The light top-center panel shows multiple active sessions and enabled or disabled return actions:
 

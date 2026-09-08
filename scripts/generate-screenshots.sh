@@ -203,6 +203,7 @@ SOURCES=(
   "$ROOT/internal/app/macos/NotchPanelContent.swift"
   "$ROOT/internal/app/macos/PixelStatusLogo.swift"
   "$ROOT/internal/app/macos/NotchShellGeometry.swift"
+  "$ROOT/internal/app/macos/NotchGlowView.swift"
   "$ROOT/internal/app/macos/NotchExpandedContentView.swift"
   "$ROOT/internal/app/macos/SessionListScrollContainer.swift"
   "$ROOT/internal/app/macos/NotchSessionContentView.swift"
