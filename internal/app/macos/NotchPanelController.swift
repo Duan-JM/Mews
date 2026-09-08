@@ -161,6 +161,7 @@ final class NotchPanelController: NSObject {
         }
         self.content = presentedContent
         refreshShell()
+        applyWindowPresentation()
     }
 
     func hide() {
@@ -200,23 +201,25 @@ final class NotchPanelController: NSObject {
         let placementMode = placement?.mode ?? .topCenter
         let panelSize = placement?.frame.size ?? panel.frame.size
         let anchorSize = placement?.anchorFrame.size ?? .zero
-        shellModel.update(
-            snapshot: NotchShellSnapshot(
-                visibility: interactionState.visibility,
-                placementMode: placementMode,
-                panelSize: panelSize,
-                anchorSize: anchorSize,
-                presentationState: interactionState.presentationState,
-                content: content,
-                transitionStyle: .resolved(
-                    reduceMotion: accessibilityPreferences.reduceMotion
-                ),
-                reduceTransparency: accessibilityPreferences.reduceTransparency,
-                increaseContrast: accessibilityPreferences.increaseContrast
-            )
+        let snapshot = NotchShellSnapshot(
+            visibility: interactionState.visibility,
+            placementMode: placementMode,
+            panelSize: panelSize,
+            anchorSize: anchorSize,
+            presentationState: interactionState.presentationState,
+            content: content,
+            transitionStyle: .resolved(
+                reduceMotion: accessibilityPreferences.reduceMotion
+            ),
+            reduceTransparency: accessibilityPreferences.reduceTransparency,
+            increaseContrast: accessibilityPreferences.increaseContrast
         )
+        shellModel.update(snapshot: snapshot)
+        let statusLabel = interactionState.visibility == .expanded
+            ? interactionState.presentationState.accessibilityLabel
+            : NotchGlowPresentation.resolved(snapshot: snapshot).accessibilityLabel
         panel.setAccessibilityLabel(
-            "\(interactionState.presentationState.accessibilityLabel), " +
+            "\(statusLabel), " +
                 "\(interactionState.visibility.accessibilityDescription)"
         )
     }
@@ -229,9 +232,11 @@ final class NotchPanelController: NSObject {
             return
         }
         panel.hasShadow = placement.mode == .topCenter
+        let glow = NotchGlowPresentation.resolved(snapshot: shellModel.snapshot)
         let isVisible = NotchPanelPresentationPolicy.isVisible(
             visibility: interactionState.visibility,
-            placementMode: placement.mode
+            placementMode: placement.mode,
+            hasCollapsedSignal: glow.isVisible
         )
         guard isVisible else {
             panel.ignoresMouseEvents = true
@@ -322,10 +327,12 @@ extension NotchPanelController {
     }
 
     func containsVisibleShell(_ point: CGPoint) -> Bool {
+        let glow = NotchGlowPresentation.resolved(snapshot: shellModel.snapshot)
         guard let placement,
               NotchPanelPresentationPolicy.isVisible(
                   visibility: interactionState.visibility,
-                  placementMode: placement.mode
+                  placementMode: placement.mode,
+                  hasCollapsedSignal: glow.isVisible
               ) else {
             return false
         }
@@ -347,9 +354,9 @@ private extension NotchVisibility {
     var accessibilityDescription: String {
         switch self {
         case .closed:
-            return "compact status"
+            return "collapsed notch signal"
         case .peek:
-            return "status preview"
+            return "stop pulse"
         case .expanded:
             return "panel expanded"
         }

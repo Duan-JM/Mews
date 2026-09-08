@@ -184,15 +184,18 @@ struct SessionPresentation: Equatable {
     static let menuLimit = 5
 
     let rows: [SessionPresentationRow]
+    let aggregateStatuses: [SessionStatus]
     let health: RuntimeHealthPresentation?
     let sessionRevision: UInt64?
 
     init(
         rows: [SessionPresentationRow],
+        aggregateStatuses: [SessionStatus]? = nil,
         health: RuntimeHealthPresentation?,
         sessionRevision: UInt64? = nil
     ) {
         self.rows = rows
+        self.aggregateStatuses = aggregateStatuses ?? rows.map(\.status)
         self.health = health
         self.sessionRevision = sessionRevision
     }
@@ -218,14 +221,15 @@ struct SessionPresentationPolicy {
             from: sessions,
             now: now
         )
-        let rows = candidates.filter { session in
+        let presentedSessions = candidates.filter { session in
             !SessionDismissalPolicy.isDismissed(session) ||
                 SessionDismissalPolicy.eligibility(
                     for: session,
                     among: sessions,
                     now: now
                 ) != .eligible
-        }.map { session in
+        }
+        let rows = presentedSessions.map { session in
             row(
                 session: session,
                 allSessions: sessions,
@@ -236,6 +240,7 @@ struct SessionPresentationPolicy {
         }.sorted(by: rowPrecedes)
         return SessionPresentation(
             rows: rows,
+            aggregateStatuses: presentedSessions.map(\.status),
             health: healthSnapshot.flatMap { health(snapshot: $0, now: now) },
             sessionRevision: sessionRevision
         )

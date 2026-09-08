@@ -9,6 +9,7 @@ extension MewsAppModelTests {
         try testFullReplayPreservesNewStatusRound()
         try testFullReplayIgnoresEarlierStatusChanges()
         try testGrowingRewriteForcesResync()
+        try testReplacementWithReusedEventID()
     }
 
     private static func testControllerStopsAtForegroundBoundary() throws {

@@ -9,6 +9,10 @@ struct SessionStateIndex: Equatable {
         records.count
     }
 
+    func evidenceStatus(for identity: SessionIdentity) -> SessionStatus? {
+        return records[identity]?.status
+    }
+
     init() {}
 
     init(restoring persistedRecords: [SessionStateRecord]) throws {
@@ -132,7 +136,6 @@ struct SessionStateIndex: Equatable {
               policy.acceptsEvidence(evidenceAt: event.timestamp, now: now) else {
             return false
         }
-
         let evidence = SessionEvidence(event: event, status: status)
         let current = records[identity]
         let replacesFutureRecord = current.map {
@@ -332,7 +335,8 @@ extension SessionStateIndex {
                 merged[identity] = candidate
                 continue
             }
-            if candidate.evidenceID == existing.evidenceID {
+            if candidate.evidenceID == existing.evidenceID,
+               candidate.orderingKey == existing.orderingKey {
                 merged[identity] = existing.orderingKnown
                     ? existing.mergingEquivalentEvidence(from: candidate)
                     : existing.attachingOrdering(from: candidate)

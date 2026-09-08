@@ -31,6 +31,7 @@ swiftc \
   "$ROOT/internal/app/macos/SessionEvidence.swift" \
   "$ROOT/internal/app/macos/SessionModels.swift" \
   "$ROOT/internal/app/macos/SessionState.swift" \
+  "$ROOT/internal/app/macos/SessionStateTransitions.swift" \
   "$ROOT/internal/app/macos/SessionReplayOrdering.swift" \
   "$ROOT/internal/app/macos/SessionStateRecord.swift" \
   "$ROOT/internal/app/macos/SessionStateStore.swift" \
@@ -58,6 +59,7 @@ swiftc \
   "$ROOT/internal/app/macos/NotchPanelContent.swift" \
   "$ROOT/internal/app/macos/PixelStatusLogo.swift" \
   "$ROOT/internal/app/macos/NotchShellGeometry.swift" \
+  "$ROOT/internal/app/macos/NotchGlowView.swift" \
   "$ROOT/internal/app/macos/NotchExpandedContentView.swift" \
   "$ROOT/internal/app/macos/SessionListScrollContainer.swift" \
   "$ROOT/internal/app/macos/NotchSessionContentView.swift" \
@@ -71,6 +73,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateTests.swift" \
   "$ROOT/internal/app/macos/tests/ActiveSessionPanelTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateTransitionStoreTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalBoundaryTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalControllerTests.swift" \
@@ -84,13 +87,16 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateFoundationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRecoveryTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRegressionTests.swift" \
+  "$ROOT/internal/app/macos/tests/EventLogReplacementTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionReplayOrderingTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionReconcilerTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionPresentationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionPresentationSourceTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchInteractionTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchStopTransitionTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionListScrollContainerTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchGlowViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \

@@ -195,8 +195,8 @@ extension MewsAppModelTests {
         )
         try controllerExpect(
             controller.containsNotchTrigger(CGPoint(x: 756, y: 940)) &&
-                controller.containsVisibleShell(CGPoint(x: 756, y: 940)),
-            "the visible compact strip below the physical notch should be clickable"
+                !controller.containsVisibleShell(CGPoint(x: 756, y: 940)),
+            "the idle notch should remain a trigger without showing an empty strip"
         )
         try controllerExpect(
             !controller.containsNotchTrigger(CGPoint(x: 756, y: 800)) &&
@@ -217,6 +217,21 @@ extension MewsAppModelTests {
         try controllerExpect(
             !controller.panel.hasShadow,
             "the physical-notch shell should not add a detached window shadow"
+        )
+
+        controller.update(content: controllerContent(
+            rows: [try controllerGlowRow(status: .running)],
+            revision: 1
+        ))
+        try controllerExpect(
+            controller.panel.isVisible &&
+                controller.containsVisibleShell(CGPoint(x: 756, y: 940)),
+            "a content-only running update should reveal the collapsed glow"
+        )
+        controller.update(content: controllerContent(rows: [], revision: 2))
+        try controllerExpect(
+            !controller.panel.isVisible,
+            "removing the last displayable session should hide the idle overlay"
         )
     }
 
@@ -297,6 +312,29 @@ extension MewsAppModelTests {
             priority: .recent,
             evidenceID: request.evidenceID,
             dismissalRequest: request
+        )
+    }
+
+    private static func controllerGlowRow(
+        status: SessionStatus
+    ) throws -> SessionPresentationRow {
+        guard let identity = SessionIdentity(
+            source: "codex",
+            sessionID: "panel-glow"
+        ) else {
+            throw NotchPanelControllerTestFailure(message: "invalid glow identity")
+        }
+        return SessionPresentationRow(
+            identity: identity,
+            status: status,
+            sourceLabel: "Codex",
+            projectLabel: "Mews",
+            sessionLabel: "panel-glow",
+            statusLabel: status.sessionPresentationLabel,
+            statusCode: status.sessionPresentationCode,
+            returnContext: nil,
+            evidenceAt: Date(timeIntervalSince1970: 1_900_000_000),
+            priority: .running
         )
     }
 

@@ -278,17 +278,22 @@ final class NotchInteractionCoordinator: NSObject {
 }
 
 extension NotchInteractionCoordinator {
+    var canPresentStopTransition: Bool {
+        return panelController.canPresentNotchAlert &&
+            model.state.visibility != .expanded
+    }
+
     func placementDidBecomeUnavailable() {
         send(.placementUnavailable)
     }
 
     func update(
         presentationState: MewsPresentationState,
-        announcesTransition: Bool
+        stopTransitionIdentifier: String?
     ) {
-        let action: NotchInteractionAction = announcesTransition
-            ? .presentationChanged(presentationState)
-            : .presentationSynchronized(presentationState)
-        send(action)
+        send(.presentationSynchronized(presentationState))
+        if let stopTransitionIdentifier {
+            send(.stoppedTransition(identifier: stopTransitionIdentifier))
+        }
     }
 }

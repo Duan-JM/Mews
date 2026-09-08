@@ -3,6 +3,7 @@ import Foundation
 extension MewsAppModelTests {
     static func testRecoverableSessionStateStore() throws {
         try testInitialRecoveryUsesFullEventScan()
+        try testResyncPreservesNewStopTransitions()
         try testSessionIndexRestartRecovery()
         try testRestartReconcilesOfflineEvidence()
         try testFutureEvidenceAdmission()

@@ -29,16 +29,16 @@ struct NotchShellLayout: Equatable {
             )
         case .peek:
             return NotchShellLayout(
-                width: min(snapshot.panelSize.width, max(248, anchorWidth + 120)),
-                height: min(snapshot.panelSize.height, max(48, anchorHeight + 44)),
-                cornerRadius: 16,
+                width: min(snapshot.panelSize.width, max(80, anchorWidth + 28)),
+                height: min(snapshot.panelSize.height, max(20, anchorHeight + 14)),
+                cornerRadius: 10,
                 contentTopInset: anchorHeight
             )
         case .closed:
             return NotchShellLayout(
-                width: min(snapshot.panelSize.width, max(152, anchorWidth + 56)),
-                height: min(snapshot.panelSize.height, max(28, anchorHeight + 22)),
-                cornerRadius: 12,
+                width: min(snapshot.panelSize.width, max(80, anchorWidth + 28)),
+                height: min(snapshot.panelSize.height, max(20, anchorHeight + 14)),
+                cornerRadius: 10,
                 contentTopInset: anchorHeight
             )
         }
@@ -123,25 +123,28 @@ struct NotchShellSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     private var shellBackground: some View {
-        switch NotchSurfaceTreatment.resolved(
-            placementMode: snapshot.placementMode,
-            reduceTransparency: snapshot.reduceTransparency,
-            increaseContrast: snapshot.increaseContrast
-        ) {
-        case .solidBlack:
-            geometry.shape.fill(Color.black)
-        case .adaptiveMaterial:
-            geometry.shape
-                .fill(.regularMaterial)
-                .overlay(geometry.shape.fill(surface.materialTint))
-        case .opaqueFallback:
-            geometry.shape.fill(surface.opaqueBackground)
+        if snapshot.visibility == .expanded {
+            switch NotchSurfaceTreatment.resolved(
+                placementMode: snapshot.placementMode,
+                reduceTransparency: snapshot.reduceTransparency,
+                increaseContrast: snapshot.increaseContrast
+            ) {
+            case .solidBlack:
+                geometry.shape.fill(Color.black)
+            case .adaptiveMaterial:
+                geometry.shape
+                    .fill(.regularMaterial)
+                    .overlay(geometry.shape.fill(surface.materialTint))
+            case .opaqueFallback:
+                geometry.shape.fill(surface.opaqueBackground)
+            }
         }
     }
 
     @ViewBuilder
     private var shellBorder: some View {
-        if snapshot.placementMode == .topCenter {
+        if snapshot.visibility == .expanded &&
+            snapshot.placementMode == .topCenter {
             geometry.shape
                 .stroke(
                     surface.foreground.opacity(surface.outerBorder),

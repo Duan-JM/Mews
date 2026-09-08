@@ -60,10 +60,11 @@ struct NotchShellView: View {
     var body: some View {
         let snapshot = model.snapshot
         let geometry = NotchShellGeometry.resolved(snapshot: snapshot)
+        let glow = NotchGlowPresentation.resolved(snapshot: snapshot)
 
         ZStack(alignment: .top) {
             Color.clear
-            shell(snapshot: snapshot, geometry: geometry)
+            shell(snapshot: snapshot, geometry: geometry, glow: glow)
         }
         .frame(
             width: snapshot.panelSize.width,
@@ -77,7 +78,7 @@ struct NotchShellView: View {
         .accessibilityLabel(
             snapshot.visibility == .expanded
                 ? "Mews status panel"
-                : snapshot.presentationState.accessibilityLabel
+                : glow.accessibilityLabel
         )
         .accessibilityHint(accessibilityHint(for: snapshot.visibility))
     }
@@ -85,7 +86,8 @@ struct NotchShellView: View {
     @ViewBuilder
     private func shell(
         snapshot: NotchShellSnapshot,
-        geometry: NotchShellGeometry
+        geometry: NotchShellGeometry,
+        glow: NotchGlowPresentation
     ) -> some View {
         let layout = geometry.layout
         let surface = NotchSurfacePalette.resolved(
@@ -103,20 +105,14 @@ struct NotchShellView: View {
                     onCopyCommand: onCopyCommand
                 )
                 .transition(.opacity)
-            } else if snapshot.visibility == .peek {
-                previewContent(
-                    snapshot: snapshot,
-                    layout: layout,
-                    surface: surface
+            } else if glow.isVisible {
+                NotchGlowView(
+                    shape: geometry.shape,
+                    presentation: glow,
+                    reduceMotion: snapshot.transitionStyle == .opacityOnly,
+                    increaseContrast: snapshot.increaseContrast
                 )
-                    .transition(.opacity)
-            } else {
-                compactContent(
-                    snapshot: snapshot,
-                    layout: layout,
-                    surface: surface
-                )
-                    .transition(.opacity)
+                .transition(.opacity)
             }
         }
         .frame(width: layout.width, height: layout.height, alignment: .top)
@@ -135,86 +131,6 @@ struct NotchShellView: View {
             opacityAnimation(for: snapshot.transitionStyle),
             value: snapshot.visibility
         )
-    }
-
-    private func compactContent(
-        snapshot: NotchShellSnapshot,
-        layout: NotchShellLayout,
-        surface: NotchSurfacePalette
-    ) -> some View {
-        let copy = NotchStatusCopy.resolved(status: snapshot.presentationState.status)
-        let palette = NotchContrastPalette.resolved(
-            increaseContrast: snapshot.increaseContrast
-        )
-
-        return statusBand(layout: layout) {
-            HStack(spacing: 7) {
-                PixelStatusView(
-                    state: snapshot.presentationState,
-                    size: 14,
-                    color: surface.foreground
-                )
-                    .opacity(max(0.82, palette.badgeText))
-                Text(copy.code)
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(1)
-                    .foregroundStyle(
-                        surface.foreground.opacity(max(0.82, palette.badgeText))
-                    )
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 10)
-        }
-    }
-
-    private func previewContent(
-        snapshot: NotchShellSnapshot,
-        layout: NotchShellLayout,
-        surface: NotchSurfacePalette
-    ) -> some View {
-        let copy = NotchStatusCopy.resolved(status: snapshot.presentationState.status)
-        let palette = NotchContrastPalette.resolved(
-            increaseContrast: snapshot.increaseContrast
-        )
-
-        return statusBand(layout: layout) {
-            HStack(spacing: 10) {
-                PixelStatusView(
-                    state: snapshot.presentationState,
-                    size: 20,
-                    color: surface.foreground
-                )
-                    .opacity(max(0.88, palette.primaryText))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(copy.code)
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .tracking(0.9)
-                        .foregroundStyle(
-                            surface.foreground.opacity(max(0.78, palette.badgeText))
-                        )
-                    Text(copy.detail)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(
-                            surface.foreground.opacity(max(0.9, palette.primaryText))
-                        )
-                        .lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-    }
-
-    private func statusBand<Content: View>(
-        layout: NotchShellLayout,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(spacing: 0) {
-            Color.clear
-                .frame(height: layout.contentTopInset)
-            content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(width: layout.width, height: layout.height, alignment: .top)
     }
 
     private func spatialAnimation(
@@ -237,31 +153,11 @@ struct NotchShellView: View {
     ) -> String {
         switch visibility {
         case .closed:
-            return "Click the compact Mews status to expand"
+            return "Click the Mews notch glow to expand"
         case .peek:
-            return "Click the Mews status preview to expand"
+            return "Click the pulsing Mews notch glow to expand"
         case .expanded:
             return "Mews status panel is expanded"
-        }
-    }
-}
-
-struct NotchStatusCopy: Equatable {
-    let code: String
-    let detail: String
-
-    static func resolved(status: MewsPresentationStatus) -> NotchStatusCopy {
-        switch status {
-        case .idle:
-            return NotchStatusCopy(code: "IDLE", detail: "Standing by")
-        case .running:
-            return NotchStatusCopy(code: "RUN", detail: "Agent running")
-        case .needsInput:
-            return NotchStatusCopy(code: "ASK", detail: "Needs input")
-        case .done:
-            return NotchStatusCopy(code: "DONE", detail: "Task complete")
-        case .failed:
-            return NotchStatusCopy(code: "FAIL", detail: "Task failed")
         }
     }
 }

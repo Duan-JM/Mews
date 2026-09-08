@@ -16,10 +16,18 @@ Mews 是一个运行在 macOS 菜单栏的本地小工具，用来查看终端 A
 
 ## 基础功能
 
-- MacBook 刘海可用时显示紧凑状态，其他场景使用通知中心。
+- MacBook 刘海可用时以绿色或红色光晕显示当前 Agent 状态，其他场景使用通知中心。
 - 在菜单栏查看当前会话，并在本机保留最近的事件历史。
 - 支持 Claude Code、Codex、Copilot CLI，也可以通过 `mw run` 监控长时间运行的命令。
 - 本地上下文有效时可以返回原终端；确认来自 Codex App 的会话会直接在 App 中打开，也可以复制查看本地历史的命令。
+
+## 界面预览
+
+![Mews 刘海在空闲、运行、等待输入、完成和失败状态下的合成光晕预览](assets/screenshots/mews-status-states.png)
+
+![Mews 活跃会话面板合成预览](assets/screenshots/mews-multi-session.png)
+
+![Mews 运行健康降级面板合成预览](assets/screenshots/mews-degraded-health.png)
 
 ## 安装
 

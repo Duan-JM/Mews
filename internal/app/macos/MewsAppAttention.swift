@@ -57,18 +57,49 @@ extension MewsApp {
         }
     }
 
-    func currentSession(
-        for event: MewsEvent?,
-        in sessions: [CurrentSessionState]
-    ) -> CurrentSessionState? {
-        guard let event,
-              let identity = SessionIdentity(
-                  source: event.source,
-                  sessionID: event.sessionID
-              ) else {
-            return nil
+    func routeAttentionCandidates(
+        _ candidates: [SessionAttentionCandidate],
+        presentation: SessionPresentation,
+        stopTransitions: [SessionStopTransition],
+        stopTransitionWillPresent: Bool,
+        physicalNotchAvailable: Bool
+    ) {
+        for candidate in candidates {
+            let represented = presentation.rows.contains { row in
+                row.identity == candidate.identity &&
+                    row.status == candidate.status
+            }
+            let stopTransitionIsRepresented = stopTransitions.contains {
+                $0.key == candidate.key
+            }
+            switch AttentionAlertRoutingPolicy.channel(
+                status: candidate.status,
+                candidateIsRepresented: represented,
+                stopTransitionIsRepresented: stopTransitionIsRepresented,
+                stopTransitionWillPresent: stopTransitionWillPresent,
+                physicalNotchAvailable: physicalNotchAvailable
+            ) {
+            case .none:
+                break
+            case .notch:
+                break
+            case .systemNotification:
+                notifications.send(for: candidate)
+            }
         }
-        return sessions.first { $0.identity == identity }
+    }
+
+    func notifyUnmatchedStopTransitions(
+        _ stopTransitions: [SessionStopTransition],
+        attentionCandidates: [SessionAttentionCandidate]
+    ) {
+        let candidates = AttentionAlertRoutingPolicy.unmatchedStopCandidates(
+            transitions: stopTransitions,
+            attentionCandidates: attentionCandidates
+        )
+        for candidate in candidates {
+            notifications.send(for: candidate)
+        }
     }
 
     private func recordAttentionError(_ message: String) {

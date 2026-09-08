@@ -29,6 +29,7 @@ enum MewsAppModelTests {
         try testRuntimeHealthSnapshot()
         try testPixelStatusLogoPlans()
         try testNotchInteractionPolicy()
+        try testNotchGlowPresentation()
         try testNotchShellPresentation()
         try testNotchPanelContent()
         try testSessionListScrollContainer()

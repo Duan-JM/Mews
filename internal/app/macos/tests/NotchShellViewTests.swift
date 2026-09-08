@@ -7,7 +7,6 @@ extension MewsAppModelTests {
         try testNotchShellHitGeometry(snapshot: snapshot)
         try testTopCenterShellGeometry()
         try testExpandedHeaderNotchAvoidance()
-        try testNotchStatusCopies()
         try testNotchAccessibilityPreferences()
         try testNotchPresentationPolicy()
     }
@@ -73,14 +72,14 @@ extension MewsAppModelTests {
 
         try shellExpect(
             compact.contentTopInset == anchorSize.height &&
-                compact.contentHeight >= 22,
-            "compact status content should sit below the physical notch"
+                compact.contentHeight == 14,
+            "the collapsed glow should hug the physical notch"
         )
         try shellExpect(
-            preview.width > compact.width &&
-                preview.height > compact.height &&
-                preview.contentHeight >= 44,
-            "the bounded preview should grow from the compact notch shell"
+            preview == compact &&
+                compact.width == anchorSize.width + 28 &&
+                compact.contentHeight == 14,
+            "collapsed glow states should stay tight to the physical notch"
         )
         try shellExpect(
             expanded.width == panelSize.width &&
@@ -107,10 +106,10 @@ extension MewsAppModelTests {
         )
         try shellExpect(
             compactGeometry.contains(
-                CGPoint(x: panelFrame.midX, y: compactFrame.minY + 11),
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY + 7),
                 in: panelFrame
             ),
-            "the visible compact status band should be part of the hit region"
+            "the visible glow below the notch should be part of the hit region"
         )
         try shellExpect(
             !compactGeometry.contains(
@@ -176,37 +175,6 @@ extension MewsAppModelTests {
         )
     }
 
-    private static func testNotchStatusCopies() throws {
-        let expectedCopies = [
-            NotchStatusCopyExpectation(
-                status: .idle,
-                copy: NotchStatusCopy(code: "IDLE", detail: "Standing by")
-            ),
-            NotchStatusCopyExpectation(
-                status: .running,
-                copy: NotchStatusCopy(code: "RUN", detail: "Agent running")
-            ),
-            NotchStatusCopyExpectation(
-                status: .needsInput,
-                copy: NotchStatusCopy(code: "ASK", detail: "Needs input")
-            ),
-            NotchStatusCopyExpectation(
-                status: .done,
-                copy: NotchStatusCopy(code: "DONE", detail: "Task complete")
-            ),
-            NotchStatusCopyExpectation(
-                status: .failed,
-                copy: NotchStatusCopy(code: "FAIL", detail: "Task failed")
-            )
-        ]
-        for expectation in expectedCopies {
-            try shellExpect(
-                NotchStatusCopy.resolved(status: expectation.status) == expectation.copy,
-                "\(expectation.status) should have distinct compact and preview copy"
-            )
-        }
-    }
-
     private static func testNotchAccessibilityPreferences() throws {
         try shellExpect(
             NotchShellTransitionStyle.resolved(reduceMotion: false) == .spatial,
@@ -254,24 +222,27 @@ extension MewsAppModelTests {
 
     private static func testNotchPresentationPolicy() throws {
         try shellExpect(
-            NotchPanelPresentationPolicy.isVisible(
+            !NotchPanelPresentationPolicy.isVisible(
                 visibility: .closed,
-                placementMode: .notch
+                placementMode: .notch,
+                hasCollapsedSignal: false
             ),
-            "a physical notch should keep the compact status visible"
+            "an idle physical notch should not keep an empty overlay visible"
         )
         try shellExpect(
             NotchPanelPresentationPolicy.isVisible(
                 visibility: .peek,
-                placementMode: .notch
+                placementMode: .notch,
+                hasCollapsedSignal: true
             ),
-            "a physical notch should show bounded status previews"
+            "a physical notch should show a transient stop glow"
         )
         for visibility in [NotchVisibility.closed, .peek] {
             try shellExpect(
                 !NotchPanelPresentationPolicy.isVisible(
                     visibility: visibility,
-                    placementMode: .topCenter
+                    placementMode: .topCenter,
+                    hasCollapsedSignal: true
                 ),
                 "top-center fallback should hide automatic status surfaces"
             )
@@ -279,7 +250,8 @@ extension MewsAppModelTests {
         try shellExpect(
             NotchPanelPresentationPolicy.isVisible(
                 visibility: .expanded,
-                placementMode: .topCenter
+                placementMode: .topCenter,
+                hasCollapsedSignal: false
             ),
             "top-center fallback should remain available after an explicit action"
         )
@@ -298,11 +270,7 @@ extension MewsAppModelTests {
             throw NotchShellViewTestFailure(message: message)
         }
     }
-}
 
-private struct NotchStatusCopyExpectation {
-    let status: MewsPresentationStatus
-    let copy: NotchStatusCopy
 }
 
 private struct NotchShellViewTestFailure: Error {
