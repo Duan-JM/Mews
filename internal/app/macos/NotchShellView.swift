@@ -97,6 +97,15 @@ struct NotchShellView: View {
             height: snapshot.panelSize.height,
             alignment: .top
         )
+        // Bound the composited shadows outside the animated shell's layout.
+        .mask(alignment: .top) {
+            Rectangle()
+                .frame(height:
+                    snapshot.placementMode == .notch && snapshot.visibility != .expanded
+                        ? snapshot.anchorSize.height
+                        : snapshot.panelSize.height
+                )
+        }
         .allowsHitTesting(snapshot.visibility == .expanded)
         .accessibilityElement(
             children: snapshot.visibility == .expanded ? .contain : .ignore

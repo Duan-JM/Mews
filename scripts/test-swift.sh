@@ -97,6 +97,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/NotchStopTransitionTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionListScrollContainerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchGlowViewTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchGlowBoundsTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \

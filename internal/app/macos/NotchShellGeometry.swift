@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NotchShellLayout: Equatable {
-    private static let collapsedEdgeInset: CGFloat = 4
+    private static let collapsedHorizontalInset: CGFloat = 4
 
     let width: CGFloat
     let height: CGFloat
@@ -29,28 +29,15 @@ struct NotchShellLayout: Equatable {
                 cornerRadius: usesTopCenter ? 16 : 20,
                 contentTopInset: 0
             )
-        case .peek:
+        case .peek, .closed:
             return NotchShellLayout(
                 width: min(
                     snapshot.panelSize.width,
-                    max(8, anchorWidth + (collapsedEdgeInset * 2))
+                    max(8, anchorWidth + (collapsedHorizontalInset * 2))
                 ),
                 height: min(
                     snapshot.panelSize.height,
-                    max(8, anchorHeight + collapsedEdgeInset)
-                ),
-                cornerRadius: 8,
-                contentTopInset: anchorHeight
-            )
-        case .closed:
-            return NotchShellLayout(
-                width: min(
-                    snapshot.panelSize.width,
-                    max(8, anchorWidth + (collapsedEdgeInset * 2))
-                ),
-                height: min(
-                    snapshot.panelSize.height,
-                    max(8, anchorHeight + collapsedEdgeInset)
+                    usesTopCenter ? 8 : anchorHeight
                 ),
                 cornerRadius: 8,
                 contentTopInset: anchorHeight

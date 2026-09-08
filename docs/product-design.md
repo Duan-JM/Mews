@@ -139,7 +139,7 @@ Events stay deliberately small:
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
-- Keep collapsed status inside a four-point contour around the visible left, right, and bottom notch edges. Do not add a persistent strip below the hardware.
+- Keep collapsed status at the measured notch safe-area height, with four points of contour padding on each horizontal side only. Clip the stroke and glow vertically to the menu-bar band; no collapsed pixels may extend above or below it.
 - Carry the active glow color and breathing or stop-pulse timing onto the expanded shell edge without restarting the effect.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.

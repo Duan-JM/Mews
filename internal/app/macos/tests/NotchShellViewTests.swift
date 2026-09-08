@@ -72,13 +72,13 @@ extension MewsAppModelTests {
 
         try shellExpect(
             compact.contentTopInset == anchorSize.height &&
-                compact.contentHeight == 4,
-            "the collapsed glow should hug the physical notch"
+                compact.contentHeight == 0,
+            "the collapsed glow must not add any height below the physical notch"
         )
         try shellExpect(
             preview == compact &&
                 compact.width == anchorSize.width + 8 &&
-                compact.contentHeight == 4,
+                compact.height == anchorSize.height,
             "collapsed glow states should stay tight to the physical notch"
         )
         try shellExpect(
@@ -97,8 +97,15 @@ extension MewsAppModelTests {
         let compactFrame = compactGeometry.screenFrame(in: panelFrame)
         try shellExpect(
             compactFrame.maxY == panelFrame.maxY &&
-                compactFrame.minY < panelFrame.maxY - anchorSize.height,
-            "the compact hit region should include the visible notch edge"
+                compactFrame.minY == panelFrame.maxY - anchorSize.height,
+            "the compact hit region must stay within the measured menu bar height"
+        )
+        try shellExpect(
+            !compactGeometry.contains(
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 1),
+                in: panelFrame
+            ),
+            "the space below the menu bar must not become a compact hit target"
         )
         try shellExpect(
             !compactFrame.contains(CGPoint(x: panelFrame.midX, y: panelFrame.minY + 20)),
