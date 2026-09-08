@@ -335,7 +335,8 @@ extension SessionStateIndex {
                 merged[identity] = candidate
                 continue
             }
-            if candidate.evidenceID == existing.evidenceID {
+            if candidate.evidenceID == existing.evidenceID,
+               candidate.orderingKey == existing.orderingKey {
                 merged[identity] = existing.orderingKnown
                     ? existing.mergingEquivalentEvidence(from: candidate)
                     : existing.attachingOrdering(from: candidate)

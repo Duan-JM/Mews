@@ -60,6 +60,8 @@ extension MewsApp {
     func routeAttentionCandidates(
         _ candidates: [SessionAttentionCandidate],
         presentation: SessionPresentation,
+        stopTransitions: [SessionStopTransition],
+        stopTransitionWillPresent: Bool,
         physicalNotchAvailable: Bool
     ) {
         for candidate in candidates {
@@ -67,9 +69,14 @@ extension MewsApp {
                 row.identity == candidate.identity &&
                     row.status == candidate.status
             }
+            let stopTransitionIsRepresented = stopTransitions.contains {
+                $0.key == candidate.key
+            }
             switch AttentionAlertRoutingPolicy.channel(
                 status: candidate.status,
                 candidateIsRepresented: represented,
+                stopTransitionIsRepresented: stopTransitionIsRepresented,
+                stopTransitionWillPresent: stopTransitionWillPresent,
                 physicalNotchAvailable: physicalNotchAvailable
             ) {
             case .none:
@@ -79,6 +86,19 @@ extension MewsApp {
             case .systemNotification:
                 notifications.send(for: candidate)
             }
+        }
+    }
+
+    func notifyUnmatchedStopTransitions(
+        _ stopTransitions: [SessionStopTransition],
+        attentionCandidates: [SessionAttentionCandidate]
+    ) {
+        let candidates = AttentionAlertRoutingPolicy.unmatchedStopCandidates(
+            transitions: stopTransitions,
+            attentionCandidates: attentionCandidates
+        )
+        for candidate in candidates {
+            notifications.send(for: candidate)
         }
     }
 

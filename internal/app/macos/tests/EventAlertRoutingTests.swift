@@ -7,6 +7,8 @@ extension MewsAppModelTests {
         try testLegacyAlertRouting()
         try testAggregateNotchRouting()
         try testTransientStopDetection()
+        try testUnmatchedStopFallback()
+        try testReusedEventIDKeepsDistinctStopRounds()
     }
 
     private static func testCurrentAlertRouting() throws {
@@ -96,14 +98,28 @@ extension MewsAppModelTests {
             AttentionAlertRoutingPolicy.channel(
                 status: .done,
                 candidateIsRepresented: false,
+                stopTransitionIsRepresented: true,
+                stopTransitionWillPresent: true,
                 physicalNotchAvailable: true
             ) == .notch,
             "a generic stop pulse should represent any completion at a physical notch"
         )
         try alertRoutingExpect(
             AttentionAlertRoutingPolicy.channel(
+                status: .failed,
+                candidateIsRepresented: true,
+                stopTransitionIsRepresented: false,
+                stopTransitionWillPresent: true,
+                physicalNotchAvailable: true
+            ) == .systemNotification,
+            "a completion without a deliverable pulse should retain notification fallback"
+        )
+        try alertRoutingExpect(
+            AttentionAlertRoutingPolicy.channel(
                 status: .needsInput,
                 candidateIsRepresented: true,
+                stopTransitionIsRepresented: false,
+                stopTransitionWillPresent: false,
                 physicalNotchAvailable: true
             ) == .notch,
             "a displayed needs-input session should use the persistent notch signal"
@@ -112,6 +128,8 @@ extension MewsAppModelTests {
             AttentionAlertRoutingPolicy.channel(
                 status: .needsInput,
                 candidateIsRepresented: false,
+                stopTransitionIsRepresented: false,
+                stopTransitionWillPresent: false,
                 physicalNotchAvailable: true
             ) == .systemNotification,
             "a hidden needs-input session should retain its notification fallback"
@@ -135,7 +153,11 @@ extension MewsAppModelTests {
             now: stopped.timestamp.addingTimeInterval(1)
         )
         try alertRoutingExpect(
-            result.stopTransitionIdentifier == "stop-event|transient-stop",
+            result.stopTransitions.count == 1 &&
+                result.stopTransitionIdentifier?
+                    .hasPrefix("stop-event|copilot|routing-session|done|") == true &&
+                result.stopTransitionIdentifier?
+                    .hasSuffix("|transient-stop") == true,
             "a stop superseded before reconciliation should still pulse the notch"
         )
         let duplicate = index.applyTrackingStopTransitions(
@@ -145,6 +167,75 @@ extension MewsAppModelTests {
         try alertRoutingExpect(
             duplicate.stopTransitionIdentifier == nil,
             "duplicate stop evidence should not pulse the notch"
+        )
+        var staleIndex = SessionStateIndex()
+        let stale = staleIndex.applyTrackingStopTransitions(
+            [stopped],
+            now: stopped.timestamp.addingTimeInterval(
+                SessionFreshnessPolicy.standard.settledLifetime + 1
+            )
+        )
+        try alertRoutingExpect(
+            stale.stopTransitions.isEmpty,
+            "stale completion evidence should not look like a new stop"
+        )
+    }
+
+    private static func testUnmatchedStopFallback() throws {
+        let stopped = try alertRoutingEvent(
+            id: "fallback-stop",
+            agentScope: "main"
+        )
+        var index = SessionStateIndex()
+        let transitions = index.applyTrackingStopTransitions(
+            [stopped],
+            now: stopped.timestamp.addingTimeInterval(1)
+        ).stopTransitions
+        let candidates = transitions.map(\.candidate)
+        try alertRoutingExpect(
+            AttentionAlertRoutingPolicy.unmatchedStopCandidates(
+                transitions: transitions,
+                attentionCandidates: []
+            ) == candidates,
+            "a transient stop should retain fallback without a final candidate"
+        )
+        try alertRoutingExpect(
+            AttentionAlertRoutingPolicy.unmatchedStopCandidates(
+                transitions: transitions,
+                attentionCandidates: candidates
+            ).isEmpty,
+            "a final attention candidate should cover its stop transition"
+        )
+    }
+
+    private static func testReusedEventIDKeepsDistinctStopRounds() throws {
+        let firstStop = try alertRoutingEvent(
+            id: "reused-stop",
+            agentScope: "main"
+        )
+        let resumed = try alertRoutingEvent(
+            id: "resumed-between-stops",
+            agentScope: "main",
+            status: "running",
+            timestamp: "2026-07-20T12:00:01Z"
+        )
+        let secondStop = try alertRoutingEvent(
+            id: "reused-stop",
+            agentScope: "main",
+            timestamp: "2026-07-20T12:00:02Z"
+        )
+        var index = SessionStateIndex()
+        let first = index.applyTrackingStopTransitions(
+            [firstStop, resumed],
+            now: secondStop.timestamp
+        )
+        let second = index.applyTrackingStopTransitions(
+            [secondStop],
+            now: secondStop.timestamp
+        )
+        try alertRoutingExpect(
+            first.stopTransitionIdentifier != second.stopTransitionIdentifier,
+            "reused event IDs should not collapse distinct stopped rounds"
         )
     }
 }

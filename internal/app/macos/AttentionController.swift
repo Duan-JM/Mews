@@ -64,9 +64,21 @@ final class AttentionController {
 }
 
 struct AttentionAlertRoutingPolicy {
+    static func unmatchedStopCandidates(
+        transitions: [SessionStopTransition],
+        attentionCandidates: [SessionAttentionCandidate]
+    ) -> [SessionAttentionCandidate] {
+        let attentionKeys = Set(attentionCandidates.map(\.key))
+        return transitions.compactMap {
+            attentionKeys.contains($0.key) ? nil : $0.candidate
+        }
+    }
+
     static func channel(
         status: SessionStatus,
         candidateIsRepresented: Bool,
+        stopTransitionIsRepresented: Bool,
+        stopTransitionWillPresent: Bool,
         physicalNotchAvailable: Bool
     ) -> EventAlertChannel {
         guard physicalNotchAvailable else {
@@ -74,7 +86,10 @@ struct AttentionAlertRoutingPolicy {
         }
         switch status {
         case .done, .failed:
-            return .notch
+            return stopTransitionIsRepresented &&
+                stopTransitionWillPresent
+                ? .notch
+                : .systemNotification
         case .needsInput:
             return candidateIsRepresented
                 ? .notch

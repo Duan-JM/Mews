@@ -73,6 +73,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateTests.swift" \
   "$ROOT/internal/app/macos/tests/ActiveSessionPanelTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateStoreTests.swift" \
+  "$ROOT/internal/app/macos/tests/SessionStateTransitionStoreTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalBoundaryTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionDismissalControllerTests.swift" \
@@ -86,6 +87,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionStateFoundationTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRecoveryTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionStateRegressionTests.swift" \
+  "$ROOT/internal/app/macos/tests/EventLogReplacementTests.swift" \
   "$ROOT/internal/app/macos/tests/SessionReplayOrderingTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionReconcilerTests.swift" \
   "$ROOT/internal/app/macos/tests/AttentionControllerTests.swift" \

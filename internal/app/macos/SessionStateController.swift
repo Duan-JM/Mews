@@ -5,20 +5,20 @@ struct SessionControllerSnapshot: Equatable {
     let sessions: [CurrentSessionState]
     let reconciliationAnchor: SessionReconciliationAnchor?
     let orderingKnown: Bool
-    let stopTransitionIdentifier: String?
+    let stopTransitions: [SessionStopTransition]
 
     init(
         revision: UInt64,
         sessions: [CurrentSessionState],
         reconciliationAnchor: SessionReconciliationAnchor?,
         orderingKnown: Bool,
-        stopTransitionIdentifier: String? = nil
+        stopTransitions: [SessionStopTransition] = []
     ) {
         self.revision = revision
         self.sessions = sessions
         self.reconciliationAnchor = reconciliationAnchor
         self.orderingKnown = orderingKnown
-        self.stopTransitionIdentifier = stopTransitionIdentifier
+        self.stopTransitions = stopTransitions
     }
 }
 
@@ -116,14 +116,14 @@ final class SessionStateController {
     }
 
     private func makeSnapshot(
-        stopTransitionIdentifier: String? = nil
+        stopTransitions: [SessionStopTransition] = []
     ) -> SessionControllerSnapshot {
         return SessionControllerSnapshot(
             revision: revision,
             sessions: repository.snapshot(),
             reconciliationAnchor: anchor,
             orderingKnown: repository.orderingKnown,
-            stopTransitionIdentifier: stopTransitionIdentifier
+            stopTransitions: stopTransitions
         )
     }
 
@@ -148,7 +148,7 @@ final class SessionStateController {
         )
         let sessionReload = EventReload(
             events: reload.events,
-            newEvents: scan.didResync ? [] : scan.events,
+            newEvents: scan.didResync ? reload.newEvents : scan.events,
             recoveryEvents: scan.events,
             sessionResyncEvents: scan.didResync ? scan.events : [],
             sessionCandidateAnchor: scan.candidateAnchor,
@@ -158,7 +158,7 @@ final class SessionStateController {
         anchor = scan.candidateAnchor
         revision += 1
         return makeSnapshot(
-            stopTransitionIdentifier: result.stopTransitionIdentifier
+            stopTransitions: result.stopTransitions
         )
     }
 }

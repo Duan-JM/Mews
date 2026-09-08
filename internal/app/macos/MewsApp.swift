@@ -149,12 +149,21 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             now: now,
             sessionRevision: presentationInput.revision
         )
-        let stopTransitionIdentifier = physicalNotchAvailable
-            ? sessionSnapshot?.stopTransitionIdentifier
-            : nil
+        let attentionCandidates = attentionUpdate?.reconciliation.newlyAlertable ?? []
+        let stopTransitions = sessionSnapshot?.stopTransitions ?? []
+        let stopTransitionWillPresent =
+            interactionCoordinator?.canPresentStopTransition == true
+        if !stopTransitionWillPresent {
+            notifyUnmatchedStopTransitions(
+                stopTransitions,
+                attentionCandidates: attentionCandidates
+            )
+        }
         routeAttentionCandidates(
-            attentionUpdate?.reconciliation.newlyAlertable ?? [],
+            attentionCandidates,
             presentation: sessionPresentation,
+            stopTransitions: stopTransitions,
+            stopTransitionWillPresent: stopTransitionWillPresent,
             physicalNotchAvailable: physicalNotchAvailable
         )
         notifications.remove(
@@ -163,7 +172,9 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         updateStatusItem(
             now: now,
             sessionPresentation: sessionPresentation,
-            stopTransitionIdentifier: stopTransitionIdentifier
+            stopTransitionIdentifier: stopTransitionWillPresent
+                ? stopTransitions.last?.identifier
+                : nil
         )
     }
 

@@ -25,12 +25,32 @@ struct EventReload {
     }
 }
 
+private struct EventNotificationAnchor: Equatable {
+    let id: String?
+    let source: String
+    let status: String
+    let hookEvent: String?
+    let agentScope: String?
+    let sessionID: String?
+    let timestamp: Date
+
+    init(event: MewsEvent) {
+        id = event.id
+        source = event.source
+        status = event.status
+        hookEvent = event.hookEvent
+        agentScope = event.agentScope
+        sessionID = event.sessionID
+        timestamp = event.timestamp
+    }
+}
+
 final class EventLogReader {
     private let url: URL
     private var events: [MewsEvent] = []
     private var eventOffset: UInt64 = 0
     private var eventFileNumber: UInt64?
-    private var lastEventID: String?
+    private var notificationAnchor: EventNotificationAnchor?
     private var eventAnchor: SessionReconciliationAnchor?
     private var didInitialEventScan = false
 
@@ -77,7 +97,7 @@ final class EventLogReader {
         events = []
         eventOffset = 0
         eventFileNumber = nil
-        lastEventID = nil
+        notificationAnchor = nil
         eventAnchor = nil
         didInitialEventScan = true
     }
@@ -87,7 +107,7 @@ final class EventLogReader {
         events = Array(allEvents.suffix(10))
         eventOffset = scan.completeOffset
         eventFileNumber = scan.fileIdentity
-        lastEventID = allEvents.last?.id
+        notificationAnchor = allEvents.last.map(EventNotificationAnchor.init)
         eventAnchor = scan.anchor
         let newEvents = didInitialEventScan ? allEvents : []
         didInitialEventScan = true
@@ -107,7 +127,7 @@ final class EventLogReader {
         events = Array(events.suffix(10))
         eventOffset = scan.completeOffset
         eventFileNumber = scan.fileIdentity
-        lastEventID = events.last?.id
+        notificationAnchor = events.last.map(EventNotificationAnchor.init)
         eventAnchor = scan.anchor
         return EventReload(
             events: events,
@@ -119,8 +139,10 @@ final class EventLogReader {
     private func installReplacement(scan: EventLogFileScan) -> EventReload {
         let allEvents = scan.records.map(\.event)
         let newEvents: [MewsEvent]
-        if let lastEventID,
-           let index = allEvents.lastIndex(where: { $0.id == lastEventID }) {
+        if let notificationAnchor,
+           let index = allEvents.firstIndex(where: {
+               EventNotificationAnchor(event: $0) == notificationAnchor
+           }) {
             newEvents = Array(allEvents.suffix(from: allEvents.index(after: index)))
         } else {
             newEvents = []
@@ -128,7 +150,7 @@ final class EventLogReader {
         events = Array(allEvents.suffix(10))
         eventOffset = scan.completeOffset
         eventFileNumber = scan.fileIdentity
-        self.lastEventID = allEvents.last?.id
+        notificationAnchor = allEvents.last.map(EventNotificationAnchor.init)
         eventAnchor = scan.anchor
         return EventReload(
             events: events,

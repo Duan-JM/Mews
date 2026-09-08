@@ -278,6 +278,11 @@ final class NotchInteractionCoordinator: NSObject {
 }
 
 extension NotchInteractionCoordinator {
+    var canPresentStopTransition: Bool {
+        return panelController.canPresentNotchAlert &&
+            model.state.visibility != .expanded
+    }
+
     func placementDidBecomeUnavailable() {
         send(.placementUnavailable)
     }

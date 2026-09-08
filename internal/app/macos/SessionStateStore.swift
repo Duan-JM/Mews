@@ -297,11 +297,21 @@ final class SessionStateRepository {
         _ reload: EventReload
     ) throws -> SessionStateApplicationResult {
         if reload.sessionDidResync {
+            var transitionProjection = index
+            let transitionResult = transitionProjection.applyTrackingStopTransitions(
+                reload.newEvents,
+                now: clock(),
+                policy: policy,
+                cliExecutablePath: cliExecutablePath
+            )
             let changed = try rebuildOrdering(from: reload.sessionResyncEvents)
+            let stopTransitions = transitionResult.stopTransitions.filter {
+                $0.isRepresentedOrSuperseded(by: currentSessions())
+            }
             needsStartupReconciliation = false
             return SessionStateApplicationResult(
                 changed: changed,
-                stopTransitionIdentifier: nil
+                stopTransitions: stopTransitions
             )
         }
         let recovering = needsStartupReconciliation
@@ -322,9 +332,7 @@ final class SessionStateRepository {
         needsStartupReconciliation = false
         return SessionStateApplicationResult(
             changed: result.changed,
-            stopTransitionIdentifier: recovering
-                ? nil
-                : result.stopTransitionIdentifier
+            stopTransitions: recovering ? [] : result.stopTransitions
         )
     }
 
