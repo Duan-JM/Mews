@@ -203,6 +203,7 @@ final class NotchPanelController: NSObject {
         let anchorSize = placement?.anchorFrame.size ?? .zero
         let snapshot = NotchShellSnapshot(
             visibility: interactionState.visibility,
+            stopPulseActive: interactionState.stopPulseActive,
             placementMode: placementMode,
             panelSize: panelSize,
             anchorSize: anchorSize,

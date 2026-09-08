@@ -194,8 +194,8 @@ extension MewsAppModelTests {
             "controller should start on the available notched display"
         )
         try controllerExpect(
-            controller.containsNotchTrigger(CGPoint(x: 756, y: 940)) &&
-                !controller.containsVisibleShell(CGPoint(x: 756, y: 940)),
+            controller.containsNotchTrigger(CGPoint(x: 756, y: 954)) &&
+                !controller.containsVisibleShell(CGPoint(x: 756, y: 954)),
             "the idle notch should remain a trigger without showing an empty strip"
         )
         try controllerExpect(
@@ -225,7 +225,7 @@ extension MewsAppModelTests {
         ))
         try controllerExpect(
             controller.panel.isVisible &&
-                controller.containsVisibleShell(CGPoint(x: 756, y: 940)),
+                controller.containsVisibleShell(CGPoint(x: 756, y: 954)),
             "a content-only running update should reveal the collapsed glow"
         )
         controller.update(content: controllerContent(rows: [], revision: 2))

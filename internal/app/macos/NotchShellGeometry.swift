@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct NotchShellLayout: Equatable {
+    private static let collapsedEdgeInset: CGFloat = 4
+
     let width: CGFloat
     let height: CGFloat
     let cornerRadius: CGFloat
@@ -29,16 +31,28 @@ struct NotchShellLayout: Equatable {
             )
         case .peek:
             return NotchShellLayout(
-                width: min(snapshot.panelSize.width, max(80, anchorWidth + 28)),
-                height: min(snapshot.panelSize.height, max(20, anchorHeight + 14)),
-                cornerRadius: 10,
+                width: min(
+                    snapshot.panelSize.width,
+                    max(8, anchorWidth + (collapsedEdgeInset * 2))
+                ),
+                height: min(
+                    snapshot.panelSize.height,
+                    max(8, anchorHeight + collapsedEdgeInset)
+                ),
+                cornerRadius: 8,
                 contentTopInset: anchorHeight
             )
         case .closed:
             return NotchShellLayout(
-                width: min(snapshot.panelSize.width, max(80, anchorWidth + 28)),
-                height: min(snapshot.panelSize.height, max(20, anchorHeight + 14)),
-                cornerRadius: 10,
+                width: min(
+                    snapshot.panelSize.width,
+                    max(8, anchorWidth + (collapsedEdgeInset * 2))
+                ),
+                height: min(
+                    snapshot.panelSize.height,
+                    max(8, anchorHeight + collapsedEdgeInset)
+                ),
+                cornerRadius: 8,
                 contentTopInset: anchorHeight
             )
         }
@@ -56,6 +70,7 @@ struct NotchShellLayout: Equatable {
 
 struct NotchShellGeometry {
     let layout: NotchShellLayout
+    let visibility: NotchVisibility
     let placementMode: OverlayPlacementMode
     let anchorWidth: CGFloat
     let anchorHeight: CGFloat
@@ -74,6 +89,7 @@ struct NotchShellGeometry {
             snapshot.placementMode == .notch
         return NotchShellGeometry(
             layout: layout,
+            visibility: resolvedVisibility,
             placementMode: snapshot.placementMode,
             anchorWidth: usesPhysicalNeck ? snapshot.anchorSize.width : layout.width,
             anchorHeight: snapshot.placementMode == .notch
@@ -102,6 +118,7 @@ struct NotchShellGeometry {
 
     var shape: NotchShellShape {
         return NotchShellShape(
+            visibility: visibility,
             placementMode: placementMode,
             cornerRadius: layout.cornerRadius,
             anchorWidth: anchorWidth,
@@ -155,6 +172,7 @@ struct NotchShellSurfaceModifier: ViewModifier {
 }
 
 struct NotchShellShape: Shape {
+    let visibility: NotchVisibility
     let placementMode: OverlayPlacementMode
     let cornerRadius: CGFloat
     let anchorWidth: CGFloat
@@ -163,6 +181,11 @@ struct NotchShellShape: Shape {
     func path(in rect: CGRect) -> Path {
         switch placementMode {
         case .notch:
+            if visibility != .expanded {
+                return PhysicalNotchGlowShape(
+                    cornerRadius: cornerRadius
+                ).path(in: rect)
+            }
             return TopAnchoredShellShape(
                 cornerRadius: cornerRadius,
                 anchorWidth: anchorWidth,
@@ -173,6 +196,29 @@ struct NotchShellShape: Shape {
                 cornerRadius: cornerRadius,
                 style: .continuous
             ).path(in: rect)
+        }
+    }
+
+    struct PhysicalNotchGlowShape: Shape {
+        let cornerRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            let radius = min(cornerRadius, min(rect.width, rect.height) / 2)
+            var path = Path()
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.maxX - radius, y: rect.maxY),
+                control: CGPoint(x: rect.maxX, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.minX + radius, y: rect.maxY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.minX, y: rect.maxY - radius),
+                control: CGPoint(x: rect.minX, y: rect.maxY)
+            )
+            path.closeSubpath()
+            return path
         }
     }
 }
