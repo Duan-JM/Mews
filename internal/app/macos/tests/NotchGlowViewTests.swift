@@ -7,6 +7,7 @@ extension MewsAppModelTests {
         try testEmptySessionPresentationGlow()
         try testAttentionGlow()
         try testTransientStopGlow()
+        try testExpandedGlowInheritance()
     }
 
     private static func testEmptySessionPresentationGlow() throws {
@@ -92,9 +93,46 @@ extension MewsAppModelTests {
         )
     }
 
+    private static func testExpandedGlowInheritance() throws {
+        let running = NotchGlowPresentation.resolved(
+            snapshot: try glowSnapshot(
+                status: .running,
+                visibility: .expanded,
+                rows: [try glowRow(id: "expanded-running", status: .running)]
+            )
+        )
+        let attention = NotchGlowPresentation.resolved(
+            snapshot: try glowSnapshot(
+                status: .needsInput,
+                visibility: .expanded,
+                rows: [try glowRow(id: "expanded-input", status: .needsInput)]
+            )
+        )
+        let stopPulse = NotchGlowPresentation.resolved(
+            snapshot: try glowSnapshot(
+                status: .running,
+                visibility: .expanded,
+                stopPulseActive: true
+            )
+        )
+        try glowExpect(
+            running == NotchGlowPresentation(signal: .running, pulses: false),
+            "an expanded running panel should inherit the green glow"
+        )
+        try glowExpect(
+            attention == NotchGlowPresentation(signal: .attention, pulses: true),
+            "an expanded needs-input panel should inherit the breathing red glow"
+        )
+        try glowExpect(
+            stopPulse == NotchGlowPresentation(signal: .stopped, pulses: true),
+            "an expanded panel should retain an active stop pulse"
+        )
+    }
+
     private static func glowSnapshot(
         status: MewsPresentationStatus,
         visibility: NotchVisibility = .closed,
+        stopPulseActive: Bool = false,
         rows: [SessionPresentationRow] = [],
         aggregateStatuses: [SessionStatus]? = nil
     ) throws -> NotchShellSnapshot {
@@ -105,6 +143,7 @@ extension MewsAppModelTests {
         )
         return NotchShellSnapshot(
             visibility: visibility,
+            stopPulseActive: stopPulseActive,
             placementMode: .notch,
             panelSize: CGSize(width: 420, height: 220),
             anchorSize: CGSize(width: 52, height: 32),

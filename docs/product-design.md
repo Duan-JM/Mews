@@ -91,10 +91,10 @@ Mews first handles five states:
 
 | State | Meaning | UI expression |
 |---|---|---|
-| `running` | Agent is working | Steady green physical-notch glow and running menu-bar pose |
-| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Red breathing physical-notch glow until resolved, or a system notification without a physical notch |
-| `done` | Main task finished | Two-second red breathing glow, then green while another session runs or steady red when all sessions stop |
-| `failed` | Main task failed or a command exited unexpectedly | Two-second red breathing glow, then the same aggregate running/stopped state as completion |
+| `running` | Agent is working | Steady green physical-notch or expanded-shell edge glow and running menu-bar pose |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Red breathing physical-notch or expanded-shell edge glow until resolved, or a system notification without a physical notch |
+| `done` | Main task finished | Two-second red breathing edge glow, preserved across expansion, then green while another session runs or steady red when all sessions stop |
+| `failed` | Main task failed or a command exited unexpectedly | Two-second red breathing edge glow, preserved across expansion, then the same aggregate running/stopped state as completion |
 | `idle` | No active task | No collapsed physical-notch surface |
 
 UI freshness is separate from stored history. `running` and `needs_input` can drive the collapsed notch signal for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code, Codex, or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while legacy or hookless sources remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
@@ -139,7 +139,8 @@ Events stay deliberately small:
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
-- Keep collapsed status inside a tight glow around the visible left, right, and bottom notch edges. Do not add a persistent strip below the hardware.
+- Keep collapsed status inside a four-point contour around the visible left, right, and bottom notch edges. Do not add a persistent strip below the hardware.
+- Carry the active glow color and breathing or stop-pulse timing onto the expanded shell edge without restarting the effect.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
 - Keep only the expanded physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
@@ -159,13 +160,13 @@ Collapsed physical-notch glows in light and dark appearance:
 
 ![Synthetic Mews physical-notch glows in light and dark appearance for idle, running, needs-input, done, and failed states](../assets/screenshots/mews-status-states.png)
 
-The light top-center panel shows multiple active sessions and enabled or disabled return actions:
+The light top-center panel inherits the red needs-input edge glow while showing multiple active sessions and enabled or disabled return actions:
 
-![Synthetic light-appearance top-center panel reporting five active sessions, with visible needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
+![Synthetic light-appearance top-center panel with a red needs-input edge glow, reporting five active sessions with needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
 
-The dark top-center panel shows a degraded health message and session actions:
+The dark top-center panel inherits the green running edge glow while showing a degraded health message and session actions:
 
-![Synthetic dark-appearance top-center panel reporting two active sessions, with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled stopped session](../assets/screenshots/mews-degraded-health.png)
+![Synthetic dark-appearance top-center panel with a green running edge glow, reporting two active sessions with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled stopped session](../assets/screenshots/mews-degraded-health.png)
 
 ## Install and Distribution
 

@@ -3,6 +3,7 @@ import SwiftUI
 
 struct NotchShellSnapshot: Equatable {
     let visibility: NotchVisibility
+    let stopPulseActive: Bool
     let placementMode: OverlayPlacementMode
     let panelSize: CGSize
     let anchorSize: CGSize
@@ -14,6 +15,7 @@ struct NotchShellSnapshot: Equatable {
 
     static let initial = NotchShellSnapshot(
         visibility: .closed,
+        stopPulseActive: false,
         placementMode: .topCenter,
         panelSize: OverlayPlacementCalculator.maximumSize,
         anchorSize: .zero,
@@ -23,6 +25,30 @@ struct NotchShellSnapshot: Equatable {
         reduceTransparency: false,
         increaseContrast: false
     )
+
+    init(
+        visibility: NotchVisibility,
+        stopPulseActive: Bool = false,
+        placementMode: OverlayPlacementMode,
+        panelSize: CGSize,
+        anchorSize: CGSize,
+        presentationState: MewsPresentationState,
+        content: NotchPanelContent,
+        transitionStyle: NotchShellTransitionStyle,
+        reduceTransparency: Bool,
+        increaseContrast: Bool
+    ) {
+        self.visibility = visibility
+        self.stopPulseActive = stopPulseActive
+        self.placementMode = placementMode
+        self.panelSize = panelSize
+        self.anchorSize = anchorSize
+        self.presentationState = presentationState
+        self.content = content
+        self.transitionStyle = transitionStyle
+        self.reduceTransparency = reduceTransparency
+        self.increaseContrast = increaseContrast
+    }
 }
 
 @MainActor
@@ -105,14 +131,8 @@ struct NotchShellView: View {
                     onCopyCommand: onCopyCommand
                 )
                 .transition(.opacity)
-            } else if glow.isVisible {
-                NotchGlowView(
-                    shape: geometry.shape,
-                    presentation: glow,
-                    reduceMotion: snapshot.transitionStyle == .opacityOnly,
-                    increaseContrast: snapshot.increaseContrast
-                )
-                .transition(.opacity)
+            } else {
+                Color.clear
             }
         }
         .frame(width: layout.width, height: layout.height, alignment: .top)
@@ -123,6 +143,17 @@ struct NotchShellView: View {
                 surface: surface
             )
         )
+        .overlay {
+            if glow.isVisible {
+                NotchGlowView(
+                    shape: geometry.shape,
+                    presentation: glow,
+                    reduceMotion: snapshot.transitionStyle == .opacityOnly,
+                    increaseContrast: snapshot.increaseContrast
+                )
+                .transition(.opacity)
+            }
+        }
         .animation(
             spatialAnimation(for: snapshot.transitionStyle),
             value: layout

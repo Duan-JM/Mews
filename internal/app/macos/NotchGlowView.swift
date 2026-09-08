@@ -31,7 +31,7 @@ struct NotchGlowPresentation: Equatable {
     static func resolved(
         snapshot: NotchShellSnapshot
     ) -> NotchGlowPresentation {
-        if snapshot.visibility == .peek {
+        if snapshot.stopPulseActive || snapshot.visibility == .peek {
             return NotchGlowPresentation(signal: .stopped, pulses: true)
         }
 

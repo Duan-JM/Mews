@@ -75,6 +75,7 @@ struct NotchInteractionState: Equatable {
     fileprivate(set) var visibility: NotchVisibility
     fileprivate(set) var openReason: NotchOpenReason?
     fileprivate(set) var presentationState: MewsPresentationState
+    var stopPulseActive: Bool { activeNotificationPeekSequence != nil }
 
     fileprivate var pointerInsideNotch = false
     fileprivate var pointerInsideInteractiveSurface = false
@@ -156,7 +157,7 @@ struct NotchInteractionModel {
         case let .notificationPeekTimerFired(sequence):
             return handleNotificationPeekTimer(sequence: sequence)
         case .placementUnavailable:
-            return close()
+            return close(preservingStopPulse: false)
         case let .stoppedTransition(identifier):
             return beginTransitionPeek(
                 identifier: identifier,
@@ -277,14 +278,15 @@ struct NotchInteractionModel {
     private mutating func handleNotificationPeekTimer(
         sequence: Int
     ) -> [NotchInteractionEffect] {
-        guard state.activeNotificationPeekSequence == sequence,
-              state.visibility == .peek,
-              state.openReason == .notification else {
+        guard state.activeNotificationPeekSequence == sequence else {
             return []
         }
         state.activeNotificationPeekSequence = nil
-        state.visibility = .closed
-        state.openReason = nil
+        if state.visibility == .peek,
+           state.openReason == .notification {
+            state.visibility = .closed
+            state.openReason = nil
+        }
         return []
     }
 
@@ -358,11 +360,10 @@ struct NotchInteractionModel {
     private mutating func beginNotificationPeek(
         duration: TimeInterval?
     ) -> [NotchInteractionEffect] {
-        guard state.visibility != .expanded else {
-            return []
+        if state.visibility != .expanded {
+            state.visibility = .peek
+            state.openReason = .notification
         }
-        state.visibility = .peek
-        state.openReason = .notification
         state.nextNotificationPeekSequence += 1
 
         guard let duration else {
@@ -379,22 +380,26 @@ private extension NotchInteractionModel {
     private mutating func expand(
         reason: NotchOpenReason
     ) -> [NotchInteractionEffect] {
-        var effects = cancelPendingTimers()
+        let effects = cancelPendingTimers()
         state.visibility = .expanded
         state.openReason = reason
         if reason != .hover {
             state.pointerInsideNotch = false
             state.pointerInsideInteractiveSurface = false
         }
-        effects.append(contentsOf: cancelNotificationPeekIfNeeded())
         return effects
     }
 
-    private mutating func close() -> [NotchInteractionEffect] {
+    private mutating func close(preservingStopPulse: Bool = true) -> [NotchInteractionEffect] {
         var effects = cancelPendingTimers()
-        effects.append(contentsOf: cancelNotificationPeekIfNeeded())
-        state.visibility = .closed
-        state.openReason = nil
+        if preservingStopPulse, state.stopPulseActive {
+            state.visibility = .peek
+            state.openReason = .notification
+        } else {
+            effects.append(contentsOf: cancelNotificationPeekIfNeeded())
+            state.visibility = .closed
+            state.openReason = nil
+        }
         state.pointerInsideNotch = false
         state.pointerInsideInteractiveSurface = false
         return effects

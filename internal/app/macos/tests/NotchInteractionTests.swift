@@ -359,8 +359,6 @@ extension MewsAppModelTests {
         _ = model.send(.logoPrimaryClick)
 
         for (id, status) in [
-            ("expanded-done", "done"),
-            ("expanded-failed", "failed"),
             ("expanded-running", "running"),
             ("expanded-idle", "idle")
         ] {
@@ -369,7 +367,7 @@ extension MewsAppModelTests {
             )
             try notchExpect(
                 model.send(.presentationChanged(presentation)).isEmpty,
-                "expanded status updates should not schedule automatic peeks"
+                "expanded \(status) should not schedule a stop pulse"
             )
             try notchExpect(
                 model.state.visibility == .expanded && model.state.openReason == .click,

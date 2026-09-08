@@ -72,13 +72,13 @@ extension MewsAppModelTests {
 
         try shellExpect(
             compact.contentTopInset == anchorSize.height &&
-                compact.contentHeight == 14,
+                compact.contentHeight == 4,
             "the collapsed glow should hug the physical notch"
         )
         try shellExpect(
             preview == compact &&
-                compact.width == anchorSize.width + 28 &&
-                compact.contentHeight == 14,
+                compact.width == anchorSize.width + 8 &&
+                compact.contentHeight == 4,
             "collapsed glow states should stay tight to the physical notch"
         )
         try shellExpect(
@@ -98,7 +98,7 @@ extension MewsAppModelTests {
         try shellExpect(
             compactFrame.maxY == panelFrame.maxY &&
                 compactFrame.minY < panelFrame.maxY - anchorSize.height,
-            "the compact hit region should include the visible strip below the notch"
+            "the compact hit region should include the visible notch edge"
         )
         try shellExpect(
             !compactFrame.contains(CGPoint(x: panelFrame.midX, y: panelFrame.minY + 20)),
@@ -109,14 +109,7 @@ extension MewsAppModelTests {
                 CGPoint(x: panelFrame.midX, y: compactFrame.minY + 7),
                 in: panelFrame
             ),
-            "the visible glow below the notch should be part of the hit region"
-        )
-        try shellExpect(
-            !compactGeometry.contains(
-                CGPoint(x: compactFrame.minX + 4, y: compactFrame.maxY - 4),
-                in: panelFrame
-            ),
-            "transparent space beside the hardware-width neck should not be clickable"
+            "the bottom notch edge should be part of the hit region"
         )
     }
 
