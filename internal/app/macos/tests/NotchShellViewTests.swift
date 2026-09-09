@@ -73,11 +73,11 @@ extension MewsAppModelTests {
         try shellExpect(
             compact.contentTopInset == anchorSize.height &&
                 compact.contentHeight == 0,
-            "the collapsed glow must not add any height below the physical notch"
+            "the collapsed contour must use the measured hardware height before applying its stroke"
         )
         try shellExpect(
             preview == compact &&
-                compact.width == anchorSize.width + 8 &&
+                compact.width == anchorSize.width &&
                 compact.height == anchorSize.height,
             "collapsed glow states should stay tight to the physical notch"
         )
@@ -98,14 +98,24 @@ extension MewsAppModelTests {
         try shellExpect(
             compactFrame.maxY == panelFrame.maxY &&
                 compactFrame.minY == panelFrame.maxY - anchorSize.height,
-            "the compact hit region must stay within the measured menu bar height"
+            "the compact anchor frame must stay aligned with the measured hardware"
         )
         try shellExpect(
             !compactGeometry.contains(
-                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 1),
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 3),
                 in: panelFrame
             ),
-            "the space below the menu bar must not become a compact hit target"
+            "soft glow beyond the solid edge must not become a compact hit target"
+        )
+        try shellExpect(
+            compactGeometry.contains(
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 0.75),
+                in: panelFrame
+            ) && compactGeometry.contains(
+                CGPoint(x: compactFrame.minX - 0.75, y: compactFrame.midY),
+                in: panelFrame
+            ),
+            "the visible outside stroke should remain clickable at the bottom and sides"
         )
         try shellExpect(
             !compactFrame.contains(CGPoint(x: panelFrame.midX, y: panelFrame.minY + 20)),

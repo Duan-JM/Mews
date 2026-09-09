@@ -75,13 +75,7 @@ struct NotchGlowView: View {
             )
         ) { context in
             let intensity = pulseIntensity(at: context.date)
-            shape
-                .stroke(
-                    signalColor.opacity(
-                        (increaseContrast ? 1 : 0.82) * intensity
-                    ),
-                    lineWidth: increaseContrast ? 2 : 1.5
-                )
+            outline(color: signalColor.opacity((increaseContrast ? 1 : 0.82) * intensity))
                 .shadow(
                     color: signalColor.opacity(0.9 * intensity),
                     radius: 3 + (3 * intensity)
@@ -92,6 +86,13 @@ struct NotchGlowView: View {
                 )
         }
         .accessibilityHidden(true)
+    }
+
+    private func outline(color: Color) -> some View {
+        let width = NotchShellShape.outlineWidth(increaseContrast: increaseContrast)
+        let hardwareOccludesInnerHalf = shape.placementMode == .notch && shape.visibility != .expanded
+        // Let hardware hide the inner half; a second antialiased cutout would thin the corner pixels.
+        return shape.stroke(color, lineWidth: hardwareOccludesInnerHalf ? width * 2 : width)
     }
 
     private var signalColor: Color {
