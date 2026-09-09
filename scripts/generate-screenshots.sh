@@ -209,6 +209,7 @@ SOURCES=(
   "$ROOT/internal/app/macos/SessionListScrollContainer.swift"
   "$ROOT/internal/app/macos/NotchSessionContentView.swift"
   "$ROOT/internal/app/macos/NotchShellView.swift"
+  "$ROOT/internal/app/macos/NotchShellAnimation.swift"
   "$ROOT/scripts/screenshot-fixtures.swift"
   "$ROOT/scripts/screenshot-fixture-data.swift"
   "$ROOT/scripts/render-screenshots.swift"

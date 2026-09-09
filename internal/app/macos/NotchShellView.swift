@@ -54,13 +54,53 @@ struct NotchShellSnapshot: Equatable {
 @MainActor
 final class NotchShellViewModel: ObservableObject {
     @Published private(set) var snapshot: NotchShellSnapshot
+    @Published private(set) var layout: NotchShellLayout
+    private var animation: NotchShellAnimation?
+    private let animationClock: () -> TimeInterval
 
-    init(snapshot: NotchShellSnapshot = .initial) {
+    var geometry: NotchShellGeometry {
+        return .resolved(snapshot: snapshot, layout: layout)
+    }
+
+    init(
+        snapshot: NotchShellSnapshot = .initial,
+        animationClock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    ) {
         self.snapshot = snapshot
+        self.animationClock = animationClock
+        layout = .resolved(snapshot: snapshot)
     }
 
     func update(snapshot: NotchShellSnapshot) {
+        let target = NotchShellLayout.resolved(snapshot: snapshot)
+        let changed = NotchShellLayout.resolved(snapshot: self.snapshot) != target
+        let canAnimate = snapshot.transitionStyle == .spatial &&
+            self.snapshot.placementMode == snapshot.placementMode &&
+            self.snapshot.panelSize == snapshot.panelSize &&
+            self.snapshot.anchorSize == snapshot.anchorSize
         self.snapshot = snapshot
+        guard changed || !canAnimate else {
+            return
+        }
+        let velocity = animation?.currentFrame.velocity ?? .zero
+        animation?.stop()
+        animation = nil
+        guard canAnimate else {
+            layout = target
+            return
+        }
+        let animation = NotchShellAnimation(from: layout, to: target, velocity: velocity, clock: animationClock)
+        animation.onFrame = { [weak self] frame in
+            self?.layout = frame.layout
+        }
+        self.animation = animation
+        animation.start()
+    }
+
+    func finishAnimation() {
+        animation?.stop()
+        animation = nil
+        layout = .resolved(snapshot: snapshot)
     }
 }
 
@@ -69,23 +109,26 @@ struct NotchShellView: View {
     @ObservedObject var sessionListModel: SessionListPresentationModel
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
+    let showsGlow: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     init(
         model: NotchShellViewModel,
         sessionListModel: SessionListPresentationModel,
+        showsGlow: Bool = true,
         onReturnToCLI: @escaping (CLIContextPayload, SessionIdentity?) -> Void = { _, _ in },
         onCopyCommand: @escaping (String) -> Void = { _ in }
     ) {
         self.model = model
         self.sessionListModel = sessionListModel
+        self.showsGlow = showsGlow
         self.onReturnToCLI = onReturnToCLI
         self.onCopyCommand = onCopyCommand
     }
 
     var body: some View {
         let snapshot = model.snapshot
-        let geometry = NotchShellGeometry.resolved(snapshot: snapshot)
+        let geometry = model.geometry
         let glow = NotchGlowPresentation.resolved(snapshot: snapshot)
 
         ZStack(alignment: .top) {
@@ -121,7 +164,8 @@ struct NotchShellView: View {
             colorScheme: colorScheme,
             increaseContrast: snapshot.increaseContrast
         )
-        Group {
+        // Keep the animated shell's identity stable when its content is replaced.
+        ZStack(alignment: .top) {
             if snapshot.visibility == .expanded {
                 NotchExpandedContentView(
                     snapshot: snapshot,
@@ -135,7 +179,12 @@ struct NotchShellView: View {
                 Color.clear
             }
         }
+        .animation(
+            opacityAnimation(for: snapshot.transitionStyle),
+            value: snapshot.visibility
+        )
         .frame(width: layout.width, height: layout.height, alignment: .top)
+        .clipShape(geometry.shape)
         .modifier(
             NotchShellSurfaceModifier(
                 snapshot: snapshot,
@@ -143,34 +192,30 @@ struct NotchShellView: View {
                 surface: surface
             )
         )
-        .overlay {
-            if glow.isVisible {
-                NotchGlowView(
-                    shape: geometry.shape,
-                    presentation: glow,
-                    reduceMotion: snapshot.transitionStyle == .opacityOnly,
-                    increaseContrast: snapshot.increaseContrast
-                )
-                .transition(.opacity)
+        .background {
+            if snapshot.placementMode == .notch {
+                glowView(snapshot: snapshot, geometry: geometry, glow: glow)
             }
         }
-        .animation(
-            spatialAnimation(for: snapshot.transitionStyle),
-            value: layout
-        )
-        .animation(
-            opacityAnimation(for: snapshot.transitionStyle),
-            value: snapshot.visibility
-        )
+        .overlay {
+            if snapshot.placementMode == .topCenter {
+                glowView(snapshot: snapshot, geometry: geometry, glow: glow)
+            }
+        }
     }
 
-    private func spatialAnimation(
-        for style: NotchShellTransitionStyle
-    ) -> Animation? {
-        guard style == .spatial else {
-            return nil
+    @ViewBuilder
+    private func glowView(
+        snapshot: NotchShellSnapshot, geometry: NotchShellGeometry, glow: NotchGlowPresentation
+    ) -> some View {
+        if showsGlow && glow.isVisible {
+            NotchGlowView(
+                shape: geometry.shape, presentation: glow,
+                reduceMotion: snapshot.transitionStyle == .opacityOnly,
+                increaseContrast: snapshot.increaseContrast
+            )
+            .transition(.opacity)
         }
-        return .spring(response: 0.3, dampingFraction: 0.88)
     }
 
     private func opacityAnimation(

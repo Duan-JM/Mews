@@ -202,8 +202,9 @@ private struct GlowContourRaster {
     }
 
     private func contourSamples() -> [GlowContourSample] {
-        let left = 40 + (snapshot.panelSize.width - snapshot.anchorSize.width) / 2
-        let right = left + snapshot.anchorSize.width
+        let width = NotchShellLayout.resolved(snapshot: snapshot).width
+        let left = 40 + (snapshot.panelSize.width - width) / 2
+        let right = left + width
         let bottom = 40 + snapshot.anchorSize.height
         let middle = 40 + snapshot.anchorSize.height / 2
         let radius: CGFloat = 8

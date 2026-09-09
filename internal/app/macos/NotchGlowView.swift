@@ -90,9 +90,21 @@ struct NotchGlowView: View {
 
     private func outline(color: Color) -> some View {
         let width = NotchShellShape.outlineWidth(increaseContrast: increaseContrast)
-        let hardwareOccludesInnerHalf = shape.placementMode == .notch && shape.visibility != .expanded
-        // Let hardware hide the inner half; a second antialiased cutout would thin the corner pixels.
-        return shape.stroke(color, lineWidth: hardwareOccludesInnerHalf ? width * 2 : width)
+        // The opaque backing covers the inner half, independently of the hardware corner curve.
+        return NotchGlowOutline(shape: shape)
+            .stroke(color, lineWidth: shape.placementMode == .notch ? width * 2 : width)
+    }
+
+    private struct NotchGlowOutline: Shape {
+        let shape: NotchShellShape
+
+        func path(in rect: CGRect) -> Path {
+            if shape.placementMode == .notch {
+                return NotchShellShape.PhysicalNotchGlowShape(cornerRadius: shape.cornerRadius)
+                    .edgePath(in: rect)
+            }
+            return shape.path(in: rect)
+        }
     }
 
     private var signalColor: Color {

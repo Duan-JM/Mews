@@ -208,10 +208,7 @@ enum RenderSyntheticScreenshots {
         )
         let hostingView = NSHostingView(rootView: rootView)
         hostingView.appearance = NSAppearance(named: appearance)
-        hostingView.frame = CGRect(
-            origin: .zero,
-            size: SyntheticScreenshotCatalog.pointSize
-        )
+        hostingView.frame = CGRect(origin: .zero, size: SyntheticScreenshotCatalog.pointSize)
         return hostingView
     }
 
@@ -379,15 +376,15 @@ private struct SyntheticPanelScene: View {
     }
 
     var body: some View {
-        ZStack {
-            syntheticDesktopBackground(colorScheme: colorScheme)
-            NotchShellView(model: model, sessionListModel: sessionListModel)
-                .environment(\.colorScheme, colorScheme)
-        }
-        .frame(
-            width: SyntheticScreenshotCatalog.pointSize.width,
-            height: SyntheticScreenshotCatalog.pointSize.height
-        )
+        NotchShellView(model: model, sessionListModel: sessionListModel)
+            .environment(\.colorScheme, colorScheme)
+            .scaleEffect(0.86, anchor: .top)
+            .offset(y: model.snapshot.placementMode == .notch ? 0 : 14)
+            .frame(
+                width: SyntheticScreenshotCatalog.pointSize.width,
+                height: SyntheticScreenshotCatalog.pointSize.height
+            )
+            .background(syntheticDesktopBackground(colorScheme: colorScheme))
     }
 }
 

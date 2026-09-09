@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct NotchShellLayout: Equatable {
+    static let collapsedCornerRadius: CGFloat = 8
+
     let width: CGFloat
     let height: CGFloat
     let cornerRadius: CGFloat
@@ -31,13 +33,13 @@ struct NotchShellLayout: Equatable {
             return NotchShellLayout(
                 width: min(
                     snapshot.panelSize.width,
-                    usesTopCenter ? 8 : anchorWidth
+                    usesTopCenter ? 8 : anchorWidth + Self.collapsedCornerRadius * 2
                 ),
                 height: min(
                     snapshot.panelSize.height,
                     usesTopCenter ? 8 : anchorHeight
                 ),
-                cornerRadius: 8,
+                cornerRadius: Self.collapsedCornerRadius,
                 contentTopInset: anchorHeight
             )
         }
@@ -63,10 +65,11 @@ struct NotchShellGeometry {
 
     static func resolved(
         snapshot: NotchShellSnapshot,
-        visibility: NotchVisibility? = nil
+        visibility: NotchVisibility? = nil,
+        layout: NotchShellLayout? = nil
     ) -> NotchShellGeometry {
         let resolvedVisibility = visibility ?? snapshot.visibility
-        let layout = NotchShellLayout.resolved(
+        let layout = layout ?? NotchShellLayout.resolved(
             snapshot: snapshot,
             visibility: resolvedVisibility
         )
@@ -91,7 +94,7 @@ struct NotchShellGeometry {
 
     func contains(_ screenPoint: CGPoint, in panelFrame: CGRect) -> Bool {
         let frame = screenFrame(in: panelFrame)
-        let outerWidth = placementMode == .notch && visibility != .expanded ? outlineWidth : 0
+        let outerWidth = placementMode == .notch ? outlineWidth : 0
         guard frame.insetBy(dx: -outerWidth, dy: -outerWidth).contains(screenPoint) else {
             return false
         }
@@ -131,7 +134,10 @@ struct NotchShellSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     private var shellBackground: some View {
-        if snapshot.visibility == .expanded {
+        if snapshot.placementMode == .notch &&
+            (snapshot.visibility == .expanded || NotchGlowPresentation.resolved(snapshot: snapshot).isVisible) {
+            geometry.shape.fill(Color.black)
+        } else if snapshot.visibility == .expanded {
             switch NotchSurfaceTreatment.resolved(
                 placementMode: snapshot.placementMode,
                 reduceTransparency: snapshot.reduceTransparency,
@@ -198,10 +204,15 @@ struct NotchShellShape: Shape {
         let cornerRadius: CGFloat
 
         func path(in rect: CGRect) -> Path {
+            var path = edgePath(in: rect)
+            path.closeSubpath()
+            return path
+        }
+
+        func edgePath(in rect: CGRect) -> Path {
             let radius = min(cornerRadius, min(rect.width, rect.height) / 2)
             var path = Path()
-            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
             path.addQuadCurve(
                 to: CGPoint(x: rect.maxX - radius, y: rect.maxY),
@@ -212,7 +223,7 @@ struct NotchShellShape: Shape {
                 to: CGPoint(x: rect.minX, y: rect.maxY - radius),
                 control: CGPoint(x: rect.minX, y: rect.maxY)
             )
-            path.closeSubpath()
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
             return path
         }
     }
