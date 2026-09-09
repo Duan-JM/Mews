@@ -124,7 +124,8 @@ struct NotchShellView: View {
             colorScheme: colorScheme,
             increaseContrast: snapshot.increaseContrast
         )
-        Group {
+        // Keep the animated shell's identity stable when its content is replaced.
+        ZStack(alignment: .top) {
             if snapshot.visibility == .expanded {
                 NotchExpandedContentView(
                     snapshot: snapshot,
@@ -139,6 +140,7 @@ struct NotchShellView: View {
             }
         }
         .frame(width: layout.width, height: layout.height, alignment: .top)
+        .clipShape(geometry.shape)
         .modifier(
             NotchShellSurfaceModifier(
                 snapshot: snapshot,
