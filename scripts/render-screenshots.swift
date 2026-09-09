@@ -198,14 +198,13 @@ enum RenderSyntheticScreenshots {
         colorScheme: ColorScheme,
         appearance: NSAppearance.Name
     ) -> NSHostingView<AnyView> {
+        let size = SyntheticScreenshotCatalog.pointSize
         let rootView = AnyView(
             view
                 .environment(\.locale, Locale(identifier: "en_US_POSIX"))
                 .environment(\.colorScheme, colorScheme)
-                .frame(
-                    width: SyntheticScreenshotCatalog.pointSize.width,
-                    height: SyntheticScreenshotCatalog.pointSize.height
-                )
+                .environment(\.displayScale, CGFloat(SyntheticScreenshotCatalog.pixelWidth) / size.width)
+                .frame(width: size.width, height: size.height)
         )
         let hostingView = NSHostingView(rootView: rootView)
         hostingView.appearance = NSAppearance(named: appearance)
@@ -327,6 +326,8 @@ private struct SyntheticStatusCard: View {
         VStack(spacing: 4) {
             NotchShellView(model: model, sessionListModel: sessionListModel)
                 .frame(width: 116, height: 38)
+                .overlay(SyntheticHardwareNotch(size: model.snapshot.anchorSize), alignment: .top)
+                .clipped()
                 .environment(\.colorScheme, colorScheme)
             Text("\(label) · \(appearanceLabel)")
                 .font(.system(size: 9, weight: .medium, design: .monospaced))

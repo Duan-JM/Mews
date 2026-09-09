@@ -8,6 +8,7 @@ extension MewsAppModelTests {
         try testAttentionGlow()
         try testTransientStopGlow()
         try testExpandedGlowInheritance()
+        try testNotchGlowBounds()
     }
 
     private static func testEmptySessionPresentationGlow() throws {

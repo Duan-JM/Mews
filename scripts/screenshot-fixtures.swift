@@ -25,6 +25,16 @@ struct SyntheticPanelSnapshot {
     let snapshot: NotchShellSnapshot
 }
 
+struct SyntheticHardwareNotch: View {
+    let size: CGSize
+
+    var body: some View {
+        NotchShellShape.PhysicalNotchGlowShape(cornerRadius: 8)
+            .fill(Color.black)
+            .frame(width: size.width, height: size.height)
+    }
+}
+
 struct SyntheticScreenshotCatalog {
     static let pointSize = CGSize(width: 420, height: 220)
     static let pixelWidth = 840

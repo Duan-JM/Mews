@@ -72,13 +72,13 @@ extension MewsAppModelTests {
 
         try shellExpect(
             compact.contentTopInset == anchorSize.height &&
-                compact.contentHeight == 4,
-            "the collapsed glow should hug the physical notch"
+                compact.contentHeight == 0,
+            "the collapsed contour must use the measured hardware height before applying its stroke"
         )
         try shellExpect(
             preview == compact &&
-                compact.width == anchorSize.width + 8 &&
-                compact.contentHeight == 4,
+                compact.width == anchorSize.width &&
+                compact.height == anchorSize.height,
             "collapsed glow states should stay tight to the physical notch"
         )
         try shellExpect(
@@ -97,8 +97,25 @@ extension MewsAppModelTests {
         let compactFrame = compactGeometry.screenFrame(in: panelFrame)
         try shellExpect(
             compactFrame.maxY == panelFrame.maxY &&
-                compactFrame.minY < panelFrame.maxY - anchorSize.height,
-            "the compact hit region should include the visible notch edge"
+                compactFrame.minY == panelFrame.maxY - anchorSize.height,
+            "the compact anchor frame must stay aligned with the measured hardware"
+        )
+        try shellExpect(
+            !compactGeometry.contains(
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 3),
+                in: panelFrame
+            ),
+            "soft glow beyond the solid edge must not become a compact hit target"
+        )
+        try shellExpect(
+            compactGeometry.contains(
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 0.75),
+                in: panelFrame
+            ) && compactGeometry.contains(
+                CGPoint(x: compactFrame.minX - 0.75, y: compactFrame.midY),
+                in: panelFrame
+            ),
+            "the visible outside stroke should remain clickable at the bottom and sides"
         )
         try shellExpect(
             !compactFrame.contains(CGPoint(x: panelFrame.midX, y: panelFrame.minY + 20)),
