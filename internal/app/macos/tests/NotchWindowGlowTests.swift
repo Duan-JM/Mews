@@ -316,13 +316,20 @@ private struct NotchWindowMotionProbe {
         var maximumError = 0.0
         repeat {
             RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+            let captureStarted = ProcessInfo.processInfo.systemUptime
             let edges = try captureEdges()
+            let captureDuration = ProcessInfo.processInfo.systemUptime - captureStarted
             for (backing, glow) in zip(edges.backing, edges.glow) {
                 maximumError = max(maximumError, abs(backing - glow))
             }
             guard maximumError <= 1 else {
+                let repeated = try captureEdges()
+                let reversed = try captureEdges(glowFirst: true)
                 throw NotchWindowGlowFailure(
-                    message: "motion \(scale)x: backing \(edges.backing), glow \(edges.glow), error \(maximumError)px"
+                    message: "motion \(scale)x: backing \(edges.backing), glow \(edges.glow), " +
+                        "error \(maximumError)px; capture \(captureDuration)s; " +
+                        "same-turn repeat \(repeated); reversed \(reversed); " +
+                        ProcessInfo.processInfo.operatingSystemVersionString
                 )
             }
             let bottom = edges.backing[2] / scale
@@ -347,14 +354,20 @@ private struct NotchWindowMotionProbe {
         throw NotchWindowGlowFailure(message: "native shell motion did not reach \(height)pt")
     }
 
-    private func captureEdges() throws -> (backing: [Double], glow: [Double]) {
+    private func captureEdges(glowFirst: Bool = false) throws -> (backing: [Double], glow: [Double]) {
         guard let glowPanel = controller.panel.childWindows?.first,
               let backingView = controller.panel.contentView,
               let glowView = glowPanel.contentView else {
             throw NotchWindowGlowFailure(message: "motion requires both native windows")
         }
-        let backing = try NotchWindowRaster.capture(backingView, size: controller.panel.frame.size, scale: scale)
-        let glow = try NotchWindowRaster.capture(glowView, size: glowPanel.frame.size, scale: scale)
+        let firstView = glowFirst ? glowView : backingView
+        let secondView = glowFirst ? backingView : glowView
+        let firstSize = glowFirst ? glowPanel.frame.size : controller.panel.frame.size
+        let secondSize = glowFirst ? controller.panel.frame.size : glowPanel.frame.size
+        let first = try NotchWindowRaster.capture(firstView, size: firstSize, scale: scale)
+        let second = try NotchWindowRaster.capture(secondView, size: secondSize, scale: scale)
+        let backing = glowFirst ? second : first
+        let glow = glowFirst ? first : second
         let backingEdges = try backing.motionEdges(glow: false)
         try backing.assertContentBounds(backingEdges)
         return try (backingEdges, glow.motionEdges(glow: true))
