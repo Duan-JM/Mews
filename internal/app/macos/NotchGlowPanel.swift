@@ -46,7 +46,7 @@ private struct NotchGlowWindowView: View {
 
     var body: some View {
         let snapshot = model.snapshot
-        let geometry = NotchShellGeometry.resolved(snapshot: snapshot)
+        let geometry = model.geometry
         let glow = NotchGlowPresentation.resolved(snapshot: snapshot)
         ZStack(alignment: .top) {
             Color.clear

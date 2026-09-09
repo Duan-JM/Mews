@@ -117,6 +117,7 @@ final class NotchPanelController: NSObject {
             panel.orderOut(nil)
             glowPanel.orderOut(nil)
             refreshShell()
+            shellModel.finishAnimation()
             onPlacementUnavailable()
             return nil
         }
@@ -169,6 +170,7 @@ final class NotchPanelController: NSObject {
     }
 
     func hide() {
+        shellModel.finishAnimation()
         sessionListModel.cancelForLifecycle()
         panel.ignoresMouseEvents = true
         panel.orderOut(nil)
@@ -232,6 +234,7 @@ final class NotchPanelController: NSObject {
 
     private func applyWindowPresentation() {
         guard let placement else {
+            shellModel.finishAnimation()
             panel.hasShadow = false
             panel.ignoresMouseEvents = true
             panel.orderOut(nil)
@@ -246,6 +249,7 @@ final class NotchPanelController: NSObject {
             hasCollapsedSignal: glow.isVisible
         )
         guard isVisible else {
+            shellModel.finishAnimation()
             panel.ignoresMouseEvents = true
             panel.orderOut(nil)
             glowPanel.orderOut(nil)

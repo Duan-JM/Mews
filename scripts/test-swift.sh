@@ -59,6 +59,7 @@ swiftc \
   "$ROOT/internal/app/macos/NotchPanelContent.swift" \
   "$ROOT/internal/app/macos/PixelStatusLogo.swift" \
   "$ROOT/internal/app/macos/NotchShellGeometry.swift" \
+  "$ROOT/internal/app/macos/NotchShellAnimation.swift" \
   "$ROOT/internal/app/macos/NotchGlowView.swift" \
   "$ROOT/internal/app/macos/NotchGlowPanel.swift" \
   "$ROOT/internal/app/macos/NotchExpandedContentView.swift" \

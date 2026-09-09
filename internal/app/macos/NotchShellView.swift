@@ -54,17 +54,48 @@ struct NotchShellSnapshot: Equatable {
 @MainActor
 final class NotchShellViewModel: ObservableObject {
     @Published private(set) var snapshot: NotchShellSnapshot
+    @Published private(set) var layout: NotchShellLayout
+    private var animation: NotchShellAnimation?
+
+    var geometry: NotchShellGeometry {
+        return .resolved(snapshot: snapshot, layout: layout)
+    }
 
     init(snapshot: NotchShellSnapshot = .initial) {
         self.snapshot = snapshot
+        layout = .resolved(snapshot: snapshot)
     }
 
     func update(snapshot: NotchShellSnapshot) {
-        let layoutChanged = NotchShellLayout.resolved(snapshot: self.snapshot) !=
-            NotchShellLayout.resolved(snapshot: snapshot)
-        withAnimation(layoutChanged ? snapshot.transitionStyle.spatialAnimation : nil) {
-            self.snapshot = snapshot
+        let target = NotchShellLayout.resolved(snapshot: snapshot)
+        let changed = NotchShellLayout.resolved(snapshot: self.snapshot) != target
+        let canAnimate = snapshot.transitionStyle == .spatial &&
+            self.snapshot.placementMode == snapshot.placementMode &&
+            self.snapshot.panelSize == snapshot.panelSize &&
+            self.snapshot.anchorSize == snapshot.anchorSize
+        self.snapshot = snapshot
+        guard changed || !canAnimate else {
+            return
         }
+        let velocity = animation?.currentFrame.velocity ?? .zero
+        animation?.stop()
+        animation = nil
+        guard canAnimate else {
+            layout = target
+            return
+        }
+        let animation = NotchShellAnimation(from: layout, to: target, velocity: velocity)
+        animation.onFrame = { [weak self] frame in
+            self?.layout = frame.layout
+        }
+        self.animation = animation
+        animation.start()
+    }
+
+    func finishAnimation() {
+        animation?.stop()
+        animation = nil
+        layout = .resolved(snapshot: snapshot)
     }
 }
 
@@ -92,7 +123,7 @@ struct NotchShellView: View {
 
     var body: some View {
         let snapshot = model.snapshot
-        let geometry = NotchShellGeometry.resolved(snapshot: snapshot)
+        let geometry = model.geometry
         let glow = NotchGlowPresentation.resolved(snapshot: snapshot)
 
         ZStack(alignment: .top) {
@@ -199,12 +230,6 @@ struct NotchShellView: View {
         case .expanded:
             return "Mews status panel is expanded"
         }
-    }
-}
-
-extension NotchShellTransitionStyle {
-    var spatialAnimation: Animation? {
-        return self == .spatial ? .spring(response: 0.3, dampingFraction: 0.88) : nil
     }
 }
 

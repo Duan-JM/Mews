@@ -1,9 +1,12 @@
 import Foundation
+import SwiftUI
 
 extension MewsAppModelTests {
     static func testNotchShellPresentation() throws {
         let snapshot = notchShellSnapshot()
         try testNotchShellLayout(snapshot: snapshot)
+        try testNotchSharedSpring(snapshot: snapshot)
+        try testNotchSpringClock(snapshot: snapshot)
         try testNotchShellHitGeometry(snapshot: snapshot)
         try testTopCenterShellGeometry()
         try testExpandedHeaderNotchAvoidance()
@@ -23,6 +26,69 @@ extension MewsAppModelTests {
             reduceTransparency: false,
             increaseContrast: false
         )
+    }
+
+    private static func testNotchSharedSpring(snapshot: NotchShellSnapshot) throws {
+        let from = NotchShellLayout.resolved(snapshot: snapshot)
+        let to = NotchShellLayout.resolved(snapshot: snapshot, visibility: .expanded)
+        let animation = NotchShellAnimation(from: from, to: to)
+        try shellExpect(
+            animation.frame(at: 0).layout == from && animation.frame(at: 0).velocity == .zero,
+            "a shared spring must begin at the displayed layout without inventing velocity"
+        )
+        let middle = animation.frame(at: 0.09)
+        let reversed = NotchShellAnimation(from: middle.layout, to: from, velocity: middle.velocity)
+        try shellExpect(
+            abs(reversed.frame(at: 0).layout.height - middle.layout.height) < 0.000001,
+            "reversing a spring must preserve the displayed position"
+        )
+        for index in 0..<4 {
+            try shellExpect(
+                abs(reversed.frame(at: 0).velocity[index] - middle.velocity[index]) < 0.000001,
+                "reversing a spring must preserve every geometry component's velocity"
+            )
+        }
+        for (driver, target) in [(animation, to), (reversed, from)] {
+            try shellExpect(
+                driver.frame(at: driver.duration).layout == target &&
+                    driver.frame(at: driver.duration).velocity == .zero,
+                "a completed spring must settle at the exact target and stop moving"
+            )
+        }
+        if #available(macOS 14, *) {
+            let reference = Spring(response: 0.3, dampingRatio: 0.88)
+            for time in [0.02, 0.09, 0.2, 0.3] {
+                let expected = reference.value(target: Double(to.height - from.height), time: time)
+                let reverseExpected = reference.value(
+                    target: Double(from.height - middle.layout.height),
+                    initialVelocity: middle.velocity[1], time: time
+                )
+                try shellExpect(
+                    abs(Double(animation.frame(at: time).layout.height - from.height) - expected) < 0.000001 &&
+                        abs(Double(reversed.frame(at: time).layout.height - middle.layout.height) -
+                            reverseExpected) < 0.000001,
+                    "the shared clock must preserve SwiftUI's spring response, damping, and reversal curve"
+                )
+            }
+        }
+    }
+
+    private static func testNotchSpringClock(snapshot: NotchShellSnapshot) throws {
+        let driver = NotchShellAnimation(
+            from: .resolved(snapshot: snapshot), to: .resolved(snapshot: snapshot, visibility: .expanded)
+        )
+        var frames = 0
+        driver.onFrame = { _ in frames += 1 }
+        driver.start()
+        let deadline = Date().addingTimeInterval(1)
+        while frames == 0 && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+        }
+        driver.stop()
+        try shellExpect(frames > 0, "the shared animation clock must publish real intermediate frames")
+        let stoppedFrames = frames
+        RunLoop.main.run(until: Date().addingTimeInterval(0.04))
+        try shellExpect(frames == stoppedFrames, "stopping or hiding must stop the shared animation clock")
     }
 
     private static func testTopCenterShellGeometry() throws {

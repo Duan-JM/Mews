@@ -65,10 +65,11 @@ struct NotchShellGeometry {
 
     static func resolved(
         snapshot: NotchShellSnapshot,
-        visibility: NotchVisibility? = nil
+        visibility: NotchVisibility? = nil,
+        layout: NotchShellLayout? = nil
     ) -> NotchShellGeometry {
         let resolvedVisibility = visibility ?? snapshot.visibility
-        let layout = NotchShellLayout.resolved(
+        let layout = layout ?? NotchShellLayout.resolved(
             snapshot: snapshot,
             visibility: resolvedVisibility
         )

@@ -41,6 +41,11 @@ extension MewsAppModelTests {
                 try probe.sample(until: 100, expectsMotion: true, crossesHeight: true)
                 probe.show(.closed)
                 try probe.sample(until: 32, expectsMotion: true)
+                probe.show(.expanded)
+                try probe.sample(until: 100, expectsMotion: true, crossesHeight: true)
+                let reduced = NotchWindowMotionProbe(controller: controller, scale: scale, reduceMotion: true)
+                reduced.show(.expanded)
+                try reduced.sample(until: 220, expectsMotion: false)
             }
         }
     }
@@ -302,9 +307,6 @@ private struct NotchWindowMotionProbe {
     let reduceMotion: Bool
 
     func show(_ visibility: NotchVisibility) {
-        FileHandle.standardError.write(Data(
-            "Notch probe: \(scale)x, reduceMotion=\(reduceMotion), visibility=\(visibility)\n".utf8
-        ))
         controller.update(
             interactionState: NotchInteractionState(
                 visibility: visibility, presentationState: MewsPresentationState(event: nil)
