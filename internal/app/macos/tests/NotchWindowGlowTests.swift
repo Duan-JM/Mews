@@ -260,8 +260,12 @@ private struct NotchWindowRaster {
 
     private func peakCenter(_ scores: ArraySlice<Int>) throws -> Double {
         guard let peak = scores.max(), peak > 30 else {
+            if let png = bitmap.representation(using: .png, properties: [:]) {
+                FileHandle.standardError.write(Data("Notch glow PNG: \(png.base64EncodedString())\n".utf8))
+            }
             throw NotchWindowGlowFailure(
-                message: "motion capture must contain a solid colored edge; peak \(scores.max() ?? -1)"
+                message: "motion capture must contain a solid colored edge; peak \(scores.max() ?? -1), " +
+                    "axis \(scores.startIndex)..<\(scores.endIndex)"
             )
         }
         let indices = scores.indices.filter { scores[$0] >= peak - 3 }
@@ -307,6 +311,9 @@ private struct NotchWindowMotionProbe {
     let reduceMotion: Bool
 
     func show(_ visibility: NotchVisibility) {
+        FileHandle.standardError.write(Data(
+            "Notch probe: \(scale)x, reduceMotion=\(reduceMotion), visibility=\(visibility)\n".utf8
+        ))
         controller.update(
             interactionState: NotchInteractionState(
                 visibility: visibility, presentationState: MewsPresentationState(event: nil)
@@ -323,17 +330,14 @@ private struct NotchWindowMotionProbe {
         var maximumError = 0.0
         repeat {
             RunLoop.main.run(until: Date().addingTimeInterval(0.01))
-            let captureStarted = ProcessInfo.processInfo.systemUptime
             let edges = try captureEdges()
-            let captureDuration = ProcessInfo.processInfo.systemUptime - captureStarted
             for (backing, glow) in zip(edges.backing, edges.glow) {
                 maximumError = max(maximumError, abs(backing - glow))
             }
             guard maximumError <= 1 else {
                 throw NotchWindowGlowFailure(
                     message: "motion \(scale)x: backing \(edges.backing), glow \(edges.glow), " +
-                        "error \(maximumError)px; capture \(captureDuration)s; " +
-                        "same-turn repeat \(diagnosticCapture()); reversed \(diagnosticCapture(glowFirst: true)); " +
+                        "error \(maximumError)px; " +
                         ProcessInfo.processInfo.operatingSystemVersionString
                 )
             }
@@ -359,28 +363,14 @@ private struct NotchWindowMotionProbe {
         throw NotchWindowGlowFailure(message: "native shell motion did not reach \(height)pt")
     }
 
-    private func diagnosticCapture(glowFirst: Bool = false) -> String {
-        do {
-            return "\(try captureEdges(glowFirst: glowFirst))"
-        } catch {
-            return "capture failed: \(error)"
-        }
-    }
-
-    private func captureEdges(glowFirst: Bool = false) throws -> (backing: [Double], glow: [Double]) {
+    private func captureEdges() throws -> (backing: [Double], glow: [Double]) {
         guard let glowPanel = controller.panel.childWindows?.first,
               let backingView = controller.panel.contentView,
               let glowView = glowPanel.contentView else {
             throw NotchWindowGlowFailure(message: "motion requires both native windows")
         }
-        let firstView = glowFirst ? glowView : backingView
-        let secondView = glowFirst ? backingView : glowView
-        let firstSize = glowFirst ? glowPanel.frame.size : controller.panel.frame.size
-        let secondSize = glowFirst ? controller.panel.frame.size : glowPanel.frame.size
-        let first = try NotchWindowRaster.capture(firstView, size: firstSize, scale: scale)
-        let second = try NotchWindowRaster.capture(secondView, size: secondSize, scale: scale)
-        let backing = glowFirst ? second : first
-        let glow = glowFirst ? first : second
+        let backing = try NotchWindowRaster.capture(backingView, size: controller.panel.frame.size, scale: scale)
+        let glow = try NotchWindowRaster.capture(glowView, size: glowPanel.frame.size, scale: scale)
         let backingEdges = try backing.motionEdges(glow: false)
         try backing.assertContentBounds(backingEdges)
         return try (backingEdges, glow.motionEdges(glow: true))
