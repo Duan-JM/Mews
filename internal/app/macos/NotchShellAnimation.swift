@@ -13,16 +13,21 @@ final class NotchShellAnimation {
     private let origin: SIMD4<Double>
     private let target: SIMD4<Double>
     private let initialVelocity: SIMD4<Double>
+    private let clock: () -> TimeInterval
     private var timer: Timer?
     private(set) var currentFrame: Frame
     // Settle the displacement envelope to 0.01% before snapping to the exact target.
     let duration = -log(0.0001) / NotchShellAnimation.decay
     var onFrame: ((Frame) -> Void)?
 
-    init(from: NotchShellLayout, to: NotchShellLayout, velocity: SIMD4<Double> = .zero) {
+    init(
+        from: NotchShellLayout, to: NotchShellLayout, velocity: SIMD4<Double> = .zero,
+        clock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    ) {
         origin = from.components
         target = to.components
         initialVelocity = velocity
+        self.clock = clock
         currentFrame = Frame(layout: from, velocity: velocity)
     }
 
@@ -32,14 +37,14 @@ final class NotchShellAnimation {
 
     func start() {
         stop()
-        let startedAt = ProcessInfo.processInfo.systemUptime
+        let startedAt = clock()
         let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] timer in
             MainActor.assumeIsolated {
                 guard let self else {
                     timer.invalidate()
                     return
                 }
-                let elapsed = ProcessInfo.processInfo.systemUptime - startedAt
+                let elapsed = self.clock() - startedAt
                 self.currentFrame = self.frame(at: elapsed)
                 self.onFrame?(self.currentFrame)
                 if elapsed >= self.duration {

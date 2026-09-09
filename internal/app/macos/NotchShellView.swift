@@ -56,13 +56,18 @@ final class NotchShellViewModel: ObservableObject {
     @Published private(set) var snapshot: NotchShellSnapshot
     @Published private(set) var layout: NotchShellLayout
     private var animation: NotchShellAnimation?
+    private let animationClock: () -> TimeInterval
 
     var geometry: NotchShellGeometry {
         return .resolved(snapshot: snapshot, layout: layout)
     }
 
-    init(snapshot: NotchShellSnapshot = .initial) {
+    init(
+        snapshot: NotchShellSnapshot = .initial,
+        animationClock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    ) {
         self.snapshot = snapshot
+        self.animationClock = animationClock
         layout = .resolved(snapshot: snapshot)
     }
 
@@ -84,7 +89,7 @@ final class NotchShellViewModel: ObservableObject {
             layout = target
             return
         }
-        let animation = NotchShellAnimation(from: layout, to: target, velocity: velocity)
+        let animation = NotchShellAnimation(from: layout, to: target, velocity: velocity, clock: animationClock)
         animation.onFrame = { [weak self] frame in
             self?.layout = frame.layout
         }

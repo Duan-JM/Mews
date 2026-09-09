@@ -25,13 +25,23 @@ extension MewsAppModelTests {
 
     private static func checkWindowMotion(scale: CGFloat) throws {
         for reduceMotion in [false, true] {
-            let controller = NotchPanelController(screenProvider: { [windowGlowScreen(mode: .notch)] })
+            var time: TimeInterval = 0
+            let controller = NotchPanelController(
+                screenProvider: { [windowGlowScreen(mode: .notch)] }, animationClock: { time }
+            )
             defer { controller.hide() }
             controller.update(content: windowGlowSnapshot(visibility: .closed).content)
-            let probe = NotchWindowMotionProbe(controller: controller, scale: scale, reduceMotion: reduceMotion)
+            let probe = NotchWindowMotionProbe(
+                controller: controller, scale: scale, reduceMotion: reduceMotion,
+                advanceClock: { time += 1.0 / 60 }
+            )
             probe.show(.closed)
             try probe.sample(until: 32, expectsMotion: false)
             probe.show(.expanded)
+            if scale == 2 {
+                // A slow renderer must not advance the frame being tested.
+                Thread.sleep(forTimeInterval: 0.35)
+            }
             try probe.sample(until: 220, expectsMotion: !reduceMotion)
             probe.show(.closed)
             try probe.sample(until: 32, expectsMotion: !reduceMotion)
@@ -43,7 +53,9 @@ extension MewsAppModelTests {
                 try probe.sample(until: 32, expectsMotion: true)
                 probe.show(.expanded)
                 try probe.sample(until: 100, expectsMotion: true, crossesHeight: true)
-                let reduced = NotchWindowMotionProbe(controller: controller, scale: scale, reduceMotion: true)
+                let reduced = NotchWindowMotionProbe(
+                    controller: controller, scale: scale, reduceMotion: true, advanceClock: probe.advanceClock
+                )
                 reduced.show(.expanded)
                 try reduced.sample(until: 220, expectsMotion: false)
             }
@@ -260,9 +272,6 @@ private struct NotchWindowRaster {
 
     private func peakCenter(_ scores: ArraySlice<Int>) throws -> Double {
         guard let peak = scores.max(), peak > 30 else {
-            if let png = bitmap.representation(using: .png, properties: [:]) {
-                FileHandle.standardError.write(Data("Notch glow PNG: \(png.base64EncodedString())\n".utf8))
-            }
             throw NotchWindowGlowFailure(
                 message: "motion capture must contain a solid colored edge; peak \(scores.max() ?? -1), " +
                     "axis \(scores.startIndex)..<\(scores.endIndex)"
@@ -309,11 +318,9 @@ private struct NotchWindowMotionProbe {
     let controller: NotchPanelController
     let scale: CGFloat
     let reduceMotion: Bool
+    let advanceClock: () -> Void
 
     func show(_ visibility: NotchVisibility) {
-        FileHandle.standardError.write(Data(
-            "Notch probe: \(scale)x, reduceMotion=\(reduceMotion), visibility=\(visibility)\n".utf8
-        ))
         controller.update(
             interactionState: NotchInteractionState(
                 visibility: visibility, presentationState: MewsPresentationState(event: nil)
@@ -325,10 +332,10 @@ private struct NotchWindowMotionProbe {
     }
 
     func sample(until height: Double, expectsMotion: Bool, crossesHeight: Bool = false) throws {
-        let deadline = Date().addingTimeInterval(2)
         var intermediateFrames = 0
         var maximumError = 0.0
-        repeat {
+        for _ in 0..<60 {
+            advanceClock()
             RunLoop.main.run(until: Date().addingTimeInterval(0.01))
             let edges = try captureEdges()
             for (backing, glow) in zip(edges.backing, edges.glow) {
@@ -359,7 +366,7 @@ private struct NotchWindowMotionProbe {
                     "maximum edge error \(maximumError)px")
                 return
             }
-        } while Date() < deadline
+        }
         throw NotchWindowGlowFailure(message: "native shell motion did not reach \(height)pt")
     }
 

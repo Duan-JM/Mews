@@ -25,7 +25,7 @@ final class NotchPanelController: NSObject {
     private var onPlacementUnavailable: () -> Void = {}
     private let resolver = OverlayScreenResolver()
     private let calculator = OverlayPlacementCalculator()
-    private let shellModel = NotchShellViewModel()
+    private let shellModel: NotchShellViewModel
     private lazy var glowPanel = NotchGlowPanel(model: shellModel)
     private var content = NotchPanelContent.empty
     private var canonicalContent = NotchPanelContent.empty
@@ -59,6 +59,7 @@ final class NotchPanelController: NSObject {
         notificationCenter: NotificationCenter = .default,
         screenChangeNotification: Notification.Name? = nil,
         screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens,
+        animationClock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
         onOpenContext: @escaping OpenContextHandler = { _, _ in },
         onCopyCommand: @escaping CopyCommandHandler = { _ in },
         onHideSession: @escaping HideSessionHandler = { _, completion in
@@ -70,6 +71,7 @@ final class NotchPanelController: NSObject {
         self.screenChangeNotification =
             screenChangeNotification ?? NSApplication.didChangeScreenParametersNotification
         self.screenProvider = screenProvider
+        shellModel = NotchShellViewModel(animationClock: animationClock)
         self.onOpenContext = onOpenContext
         self.onCopyCommand = onCopyCommand
         self.onHideSession = onHideSession
