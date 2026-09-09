@@ -29,7 +29,7 @@ struct SessionSwipeActionGeometry: Equatable {
     }
 
     var verticalOffset: CGFloat {
-        return -SessionRowLayout.contentBottomInset / 2
+        return 0
     }
 
     var labelOpacity: Double {

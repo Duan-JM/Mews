@@ -128,7 +128,6 @@ private struct NotchSessionRowsView: View {
                 }
             }
         )
-        .padding(.bottom, SessionRowLayout.contentBottomInset)
         .frame(height: SessionRowLayout.rowHeight)
         .overlay(rule, alignment: .bottom)
         .accessibilityElement(children: .contain)

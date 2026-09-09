@@ -9,7 +9,6 @@ enum SessionRowLayout {
     static let actionButtonCornerRadius: CGFloat = 4
     static let actionFontSize: CGFloat = 9
     static let actionTracking: CGFloat = 0.35
-    static let contentBottomInset: CGFloat = 4
 }
 
 struct SessionSwipeRowVisual: Equatable {

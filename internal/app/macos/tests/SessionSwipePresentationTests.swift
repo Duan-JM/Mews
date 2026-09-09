@@ -61,7 +61,7 @@ extension MewsAppModelTests {
                 fullSwipe.actionWidth(rowWidth: 320) == 308 &&
                 fullSwipe.actionHeight(rowWidth: 320) == 24 &&
                 fullSwipe.actionCornerRadius(rowWidth: 320) == 4 &&
-                fullSwipe.actionVerticalOffset(rowWidth: 320) == -2 &&
+                fullSwipe.actionVerticalOffset(rowWidth: 320) == 0 &&
                 fullSwipe.usesFullWidthAction(rowWidth: 320),
             "commit-ready should stretch HIDE across the inset track at the shared button height"
         )
@@ -81,7 +81,7 @@ extension MewsAppModelTests {
                 shortSwipe.contentOffset(rowWidth: 320) == -56 &&
                 shortSwipe.actionHeight(rowWidth: 320) == 24 &&
                 shortSwipe.actionCornerRadius(rowWidth: 320) == 4 &&
-                shortSwipe.actionVerticalOffset(rowWidth: 320) == -2 &&
+                shortSwipe.actionVerticalOffset(rowWidth: 320) == 0 &&
                 !shortSwipe.usesFullWidthAction(rowWidth: 320) &&
                 shortSwipe.acceptsSwipeInput,
             "a short swipe should reveal a COPY-sized HIDE button"
