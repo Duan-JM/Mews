@@ -255,7 +255,9 @@ private struct NotchWindowRaster {
 
     private func peakCenter(_ scores: ArraySlice<Int>) throws -> Double {
         guard let peak = scores.max(), peak > 30 else {
-            throw NotchWindowGlowFailure(message: "motion capture must contain a solid colored edge")
+            throw NotchWindowGlowFailure(
+                message: "motion capture must contain a solid colored edge; peak \(scores.max() ?? -1)"
+            )
         }
         let indices = scores.indices.filter { scores[$0] >= peak - 3 }
         return Double(indices.reduce(0, +)) / Double(indices.count) + 0.5
@@ -300,6 +302,9 @@ private struct NotchWindowMotionProbe {
     let reduceMotion: Bool
 
     func show(_ visibility: NotchVisibility) {
+        FileHandle.standardError.write(Data(
+            "Notch probe: \(scale)x, reduceMotion=\(reduceMotion), visibility=\(visibility)\n".utf8
+        ))
         controller.update(
             interactionState: NotchInteractionState(
                 visibility: visibility, presentationState: MewsPresentationState(event: nil)
@@ -323,12 +328,10 @@ private struct NotchWindowMotionProbe {
                 maximumError = max(maximumError, abs(backing - glow))
             }
             guard maximumError <= 1 else {
-                let repeated = try captureEdges()
-                let reversed = try captureEdges(glowFirst: true)
                 throw NotchWindowGlowFailure(
                     message: "motion \(scale)x: backing \(edges.backing), glow \(edges.glow), " +
                         "error \(maximumError)px; capture \(captureDuration)s; " +
-                        "same-turn repeat \(repeated); reversed \(reversed); " +
+                        "same-turn repeat \(diagnosticCapture()); reversed \(diagnosticCapture(glowFirst: true)); " +
                         ProcessInfo.processInfo.operatingSystemVersionString
                 )
             }
@@ -352,6 +355,14 @@ private struct NotchWindowMotionProbe {
             }
         } while Date() < deadline
         throw NotchWindowGlowFailure(message: "native shell motion did not reach \(height)pt")
+    }
+
+    private func diagnosticCapture(glowFirst: Bool = false) -> String {
+        do {
+            return "\(try captureEdges(glowFirst: glowFirst))"
+        } catch {
+            return "capture failed: \(error)"
+        }
     }
 
     private func captureEdges(glowFirst: Bool = false) throws -> (backing: [Double], glow: [Double]) {
