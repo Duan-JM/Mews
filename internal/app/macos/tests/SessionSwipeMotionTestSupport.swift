@@ -15,6 +15,7 @@ final class SwipeMotionFixture {
 
     init(
         reduceMotion: Bool = false,
+        placementMode: OverlayPlacementMode = .topCenter,
         colorScheme: ColorScheme = .light,
         reduceTransparency: Bool = true,
         increaseContrast: Bool = false
@@ -33,8 +34,14 @@ final class SwipeMotionFixture {
         model.updateAccessibility(reduceMotion: reduceMotion)
         model.update(canonicalRows: [row], revision: 1)
         let content = Self.content(
-            model: model, reduceMotion: reduceMotion, colorScheme: colorScheme,
-            reduceTransparency: reduceTransparency, increaseContrast: increaseContrast
+            model: model,
+            reduceMotion: reduceMotion,
+            appearance: SwipeMotionAppearance(
+                placementMode: placementMode,
+                colorScheme: colorScheme,
+                reduceTransparency: reduceTransparency,
+                increaseContrast: increaseContrast
+            )
         )
         host = NSHostingView(rootView: content)
         host.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
@@ -115,20 +122,6 @@ final class SwipeMotionFixture {
         return (button, label)
     }
 
-    func captureTrackWidth() throws -> CGFloat {
-        guard let bitmap = try captureDocument(), let pixels = bitmap.bitmapData else {
-            throw SwipeMotionTestError.expectation("the track must have a rendered document")
-        }
-        var width = 0
-        for column in 0..<bitmap.pixelsWide {
-            let pixel = pixels + 2 * bitmap.bytesPerRow + column * 4
-            if pixel[3] > 8 {
-                width += 1
-            }
-        }
-        return CGFloat(width)
-    }
-
     func captureTrackOpacity(column: Int = 318, row: Int = 2) throws -> Double {
         guard let bitmap = try captureDocument(), let pixels = bitmap.bitmapData,
               column >= 0, row >= 0, bitmap.pixelsWide > column, bitmap.pixelsHigh > row else {
@@ -153,7 +146,7 @@ final class SwipeMotionFixture {
         return CGRect(x: column, y: first, width: 1, height: last - first + 1)
     }
 
-    private func captureDocument() throws -> NSBitmapImageRep? {
+    fileprivate func captureDocument() throws -> NSBitmapImageRep? {
         host.layoutSubtreeIfNeeded()
         guard let document = Self.sessionDocument(in: host) else {
             guard model.snapshot.rows.isEmpty else {
@@ -227,19 +220,20 @@ final class SwipeMotionFixture {
     private static func content(
         model: SessionListPresentationModel,
         reduceMotion: Bool,
-        colorScheme: ColorScheme,
-        reduceTransparency: Bool,
-        increaseContrast: Bool
+        appearance: SwipeMotionAppearance
     ) -> some View {
         let snapshot = NotchShellSnapshot(
-            visibility: .expanded, placementMode: .topCenter,
+            visibility: .expanded, placementMode: appearance.placementMode,
             panelSize: CGSize(width: 356, height: 180), anchorSize: .zero,
             presentationState: MewsPresentationState(event: nil), content: .empty,
             transitionStyle: reduceMotion ? .opacityOnly : .spatial,
-            reduceTransparency: reduceTransparency, increaseContrast: increaseContrast
+            reduceTransparency: appearance.reduceTransparency,
+            increaseContrast: appearance.increaseContrast
         )
         let surface = NotchSurfacePalette.resolved(
-            placementMode: .topCenter, colorScheme: colorScheme, increaseContrast: increaseContrast
+            placementMode: appearance.placementMode,
+            colorScheme: appearance.colorScheme,
+            increaseContrast: appearance.increaseContrast
         )
         return NotchExpandedContentView(
             snapshot: snapshot, sessionListModel: model, surface: surface,
@@ -249,7 +243,48 @@ final class SwipeMotionFixture {
         .modifier(NotchShellSurfaceModifier(
             snapshot: snapshot, geometry: .resolved(snapshot: snapshot), surface: surface
         ))
-        .environment(\.colorScheme, colorScheme)
+        .environment(\.colorScheme, appearance.colorScheme)
+    }
+}
+
+private struct SwipeMotionAppearance {
+    let placementMode: OverlayPlacementMode
+    let colorScheme: ColorScheme
+    let reduceTransparency: Bool
+    let increaseContrast: Bool
+}
+
+extension SwipeMotionFixture {
+    func captureTrackWidth(row: Int = 2) throws -> CGFloat {
+        guard let bitmap = try captureDocument(), let pixels = bitmap.bitmapData else {
+            throw SwipeMotionTestError.expectation("the track must have a rendered document")
+        }
+        guard row >= 0, bitmap.pixelsHigh > row else {
+            throw SwipeMotionTestError.expectation("the track sample row must be inside the document")
+        }
+        let painted = (0..<bitmap.pixelsWide).filter { column in
+            pixels[row * bitmap.bytesPerRow + column * 4 + 3] > 8
+        }
+        return CGFloat(painted.count)
+    }
+
+    func capturePaintedSegments(row: Int) throws -> [Range<Int>] {
+        guard let bitmap = try captureDocument(), let pixels = bitmap.bitmapData,
+              row >= 0, bitmap.pixelsHigh > row else {
+            throw SwipeMotionTestError.expectation("the row must have a rendered document")
+        }
+        let painted = (0..<bitmap.pixelsWide).filter { column in
+            pixels[row * bitmap.bytesPerRow + column * 4 + 3] > 8
+        }
+        var segments: [Range<Int>] = []
+        for column in painted {
+            if let last = segments.last, last.upperBound == column {
+                segments[segments.count - 1] = last.lowerBound..<(column + 1)
+            } else {
+                segments.append(column..<(column + 1))
+            }
+        }
+        return segments
     }
 }
 

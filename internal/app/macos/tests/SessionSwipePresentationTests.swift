@@ -70,15 +70,15 @@ extension MewsAppModelTests {
     private static func assertCompactSwipe() throws {
         let initial = swipeVisual(phase: .dragging, offset: -28)
         try swipePresentationExpect(
-            initial.actionWidth(rowWidth: 320) == 16 &&
-                initial.actionHeight(rowWidth: 320) == 16 &&
-                initial.actionCornerRadius(rowWidth: 320) == 8,
+            initial.actionWidth(rowWidth: 320) == 9 &&
+                initial.actionHeight(rowWidth: 320) == 9 &&
+                initial.actionCornerRadius(rowWidth: 320) == 4.5,
             "the first visible part of HIDE must have equal width and height, not an oval"
         )
-        let shortSwipe = swipeVisual(phase: .revealed, offset: -56)
+        let shortSwipe = swipeVisual(phase: .revealed, offset: -63)
         try swipePresentationExpect(
             shortSwipe.actionWidth(rowWidth: 320) == 44 &&
-                shortSwipe.contentOffset(rowWidth: 320) == -56 &&
+                shortSwipe.contentOffset(rowWidth: 320) == -63 &&
                 shortSwipe.actionHeight(rowWidth: 320) == 24 &&
                 shortSwipe.actionCornerRadius(rowWidth: 320) == 4 &&
                 shortSwipe.actionVerticalOffset(rowWidth: 320) == 0 &&
@@ -89,10 +89,10 @@ extension MewsAppModelTests {
     }
 
     private static func assertExpandingSwipe() throws {
-        let visual = swipeVisual(phase: .dragging, offset: -63)
+        let visual = swipeVisual(phase: .dragging, offset: -70)
         try swipePresentationExpect(
             visual.actionWidth(rowWidth: 320) == 51 &&
-                visual.contentOffset(rowWidth: 320) == -63 &&
+                visual.contentOffset(rowWidth: 320) == -70 &&
                 visual.actionHeight(rowWidth: 320) == 24 &&
                 visual.actionCornerRadius(rowWidth: 320) == 4,
             "before twenty percent, HIDE should follow the exposed width without growing taller"
@@ -111,7 +111,7 @@ extension MewsAppModelTests {
         }
         let disarmed = swipeVisual(phase: .dragging, offset: -47)
         try swipePresentationExpect(
-            disarmed.actionWidth(rowWidth: 320) == 35 &&
+            disarmed.actionWidth(rowWidth: 320) == 28 &&
                 disarmed.contentOffset(rowWidth: 320) == -47 &&
                 disarmed.actionHeight(rowWidth: 320) == 24,
             "retreat past hysteresis should return to the exposed button without submitting"

@@ -56,8 +56,8 @@ extension MewsAppModelTests {
             let opacity = try fixture.captureTrackOpacity()
             let button = try fixture.captureActionBounds()
             try motionExpect(
-                opacity > 0.5 && abs(button.minX - 263) <= 1 &&
-                    abs(button.width - 51) <= 1 && fixture.persistence.requests.isEmpty,
+                opacity > 0.5 && abs(button.minX - 270) <= 1 &&
+                    abs(button.width - 44) <= 1 && fixture.persistence.requests.isEmpty,
                 "normal appearance must render native material behind the separate HIDE button; alpha \(opacity)"
             )
         }
@@ -90,7 +90,9 @@ extension MewsAppModelTests {
         try motionExpect(
             action.geometry.trackWidth == 240 && action.geometry.buttonWidth == 228 &&
                 action.geometry.height == 24 && action.geometry.cornerRadius == 4 &&
-                action.geometry.verticalOffset == 0,
+                action.geometry.verticalOffset == 0 &&
+                action.geometry.edgeHorizontalRadius == 11 &&
+                action.geometry.edgeVerticalRadius == 13,
             "a longer track must elongate the red button while preserving its height, corners and centering"
         )
     }
@@ -109,8 +111,8 @@ extension MewsAppModelTests {
         fixture.beginDrag(distance: 28)
         let dragged = try fixture.captureActionBounds()
         try motionExpect(
-            abs(dragged.width - 16) <= 1 && abs(dragged.height - 16) <= 1,
-            "a narrow native reveal must show a 16-point circle inside the track; rendered \(dragged)"
+            abs(dragged.width - 9) <= 1 && abs(dragged.height - 9) <= 1,
+            "a narrow native reveal must preserve the gutter before showing a circular action; rendered \(dragged)"
         )
         fixture.model.inputRouter.end(velocityX: 0)
         let frames = try fixture.sampleActionBounds(until: { abs($0.width - 44) <= 1 })
@@ -129,45 +131,69 @@ extension MewsAppModelTests {
     }
 
     private static func testNativeSwipeTrack() throws {
-        for colorScheme in [ColorScheme.light, .dark] {
-            for increaseContrast in [false, true] {
-                let fixture = try SwipeMotionFixture(
-                    colorScheme: colorScheme, increaseContrast: increaseContrast
-                )
-                defer { fixture.close() }
-                fixture.beginDrag(distance: 56)
-                let initiallyRevealed = try fixture.captureActionFrame()
-                fixture.model.inputRouter.change(translationX: -63, velocityX: -240)
-                RunLoop.main.run(until: Date().addingTimeInterval(0.03))
-                let dragged = try fixture.captureActionFrame()
-                let draggedTrack = try fixture.captureTrackWidth()
-                try motionExpect(
-                    abs(dragged.button.width - 51) <= 1 && abs(draggedTrack - 63) <= 1 &&
-                        abs(initiallyRevealed.button.minX - dragged.button.minX - 7) <= 1 &&
-                        abs(initiallyRevealed.button.maxX - dragged.button.maxX) <= 1 &&
-                        abs(initiallyRevealed.label.midX - dragged.label.midX - 3.5) <= 1,
-                    "the red button must grow seven points left with its right edge fixed; rendered \(dragged)"
-                )
-                fixture.model.inputRouter.end(velocityX: 0)
-                _ = try fixture.sampleActionBounds(until: { abs($0.width - 44) <= 1 })
-                let settledTrack = try fixture.captureTrackWidth()
-                try motionExpect(
-                    abs(settledTrack - 56) <= 1 && fixture.persistence.requests.isEmpty,
-                    "release below twenty percent must return to an inset 56-point action slot"
-                )
-                fixture.beginDrag(distance: 9)
-                let full = try fixture.sampleActionBounds(until: { abs($0.width - 308) <= 1 })
-                let fullTrack = try fixture.captureTrackWidth()
-                try motionExpect(
-                    abs(fullTrack - 320) <= 1 &&
-                        abs((full.last?.width ?? 0) - 308) <= 1 &&
-                        full.allSatisfy {
-                            abs($0.maxX - 314) <= 1 && abs($0.height - 24) <= 1
-                        },
-                    "full reveal must stretch the red button left across the neutral track, never translate it"
-                )
+        for placementMode in [OverlayPlacementMode.notch, .topCenter] {
+            for reduceTransparency in [false, true] {
+                for increaseContrast in [false, true] {
+                    try assertNativeSwipeTrack(
+                        placementMode: placementMode,
+                        reduceTransparency: reduceTransparency,
+                        increaseContrast: increaseContrast
+                    )
+                }
             }
         }
+    }
+
+    private static func assertNativeSwipeTrack(
+        placementMode: OverlayPlacementMode,
+        reduceTransparency: Bool,
+        increaseContrast: Bool
+    ) throws {
+        let fixture = try SwipeMotionFixture(
+            placementMode: placementMode,
+            reduceTransparency: reduceTransparency,
+            increaseContrast: increaseContrast
+        )
+        defer { fixture.close() }
+        fixture.beginDrag(distance: 56)
+        let initiallyRevealed = try fixture.captureActionFrame()
+        fixture.model.inputRouter.change(translationX: -63, velocityX: -240)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.03))
+        let dragged = try fixture.captureActionFrame()
+        let cornerTrack = try fixture.captureTrackWidth(row: 2)
+        let segments = try fixture.capturePaintedSegments(row: 21)
+        let trailingSegments = Array(segments.suffix(2))
+        let draggedTrack = CGFloat(trailingSegments.last?.count ?? 0)
+        try motionExpect(
+            abs(dragged.button.width - 44) <= 1 && abs(draggedTrack - 56) <= 1 &&
+                abs(initiallyRevealed.button.minX - dragged.button.minX - 7) <= 1 &&
+                abs(initiallyRevealed.button.maxX - dragged.button.maxX) <= 1 &&
+                cornerTrack > draggedTrack && cornerTrack <= draggedTrack + 11 &&
+                trailingSegments.count == 2 &&
+                trailingSegments[1].lowerBound - trailingSegments[0].upperBound == 7,
+            "the red button must grow seven points left with its right edge fixed; "
+                + "initial \(initiallyRevealed), rendered \(dragged), "
+                + "track \(draggedTrack), corner \(cornerTrack), segments \(segments)"
+        )
+        fixture.model.inputRouter.end(velocityX: 0)
+        _ = try fixture.sampleActionBounds(until: { abs($0.width - 44) <= 1 })
+        let settledSegments = try fixture.capturePaintedSegments(row: 21)
+        let settledTrack = CGFloat(settledSegments.last?.count ?? 0)
+        try motionExpect(
+            abs(settledTrack - 56) <= 1 && fixture.persistence.requests.isEmpty,
+            "release below twenty percent must preserve the seven-point gutter"
+        )
+        fixture.beginDrag(distance: 9)
+        let full = try fixture.sampleActionBounds(until: { abs($0.width - 308) <= 1 })
+        let fullTrack = try fixture.captureTrackWidth(row: 2)
+        try motionExpect(
+            abs(fullTrack - 320) <= 1 &&
+                abs((full.last?.width ?? 0) - 308) <= 1 &&
+                full.allSatisfy {
+                    abs($0.maxX - 314) <= 1 && abs($0.height - 24) <= 1
+                },
+            "full reveal must stretch the red button left across the neutral track, never translate it"
+        )
     }
 
     private static func testNativeFullSwipeRetreat() throws {
@@ -203,15 +229,17 @@ extension MewsAppModelTests {
             "armed hysteresis must retain full-row feedback without submitting"
         )
         fixture.model.inputRouter.change(translationX: -47, velocityX: 240)
-        let retreatFrames = try fixture.sampleActionBounds(until: { abs($0.width - 35) <= 1 })
+        let retreatFrames = try fixture.sampleActionBounds(until: { abs($0.width - 28) <= 1 })
         try motionExpect(
             retreatFrames.contains { $0.width > 40 && $0.width < 300 } &&
                 retreatFrames.allSatisfy {
                     abs($0.maxX - 314) <= 1 && abs($0.height - 24) <= 1
             } &&
-                abs((retreatFrames.last?.width ?? 0) - 35) <= 1 &&
+                abs((retreatFrames.last?.width ?? 0) - 28) <= 1 &&
                 fixture.model.snapshot.visual(for: fixture.row).phase == .dragging,
-            "disarming must contract the same right-anchored button back to finger tracking without submitting"
+            "disarming must contract the same right-anchored button back to finger tracking without "
+                + "submitting; frames \(retreatFrames), phase "
+                + "\(fixture.model.snapshot.visual(for: fixture.row).phase)"
         )
         fixture.model.inputRouter.cancel()
         let cancelled = try fixture.sampleActionBounds(until: { $0 == .zero })
