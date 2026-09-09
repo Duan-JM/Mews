@@ -91,10 +91,10 @@ Mews first handles five states:
 
 | State | Meaning | UI expression |
 |---|---|---|
-| `running` | Agent is working | Steady green physical-notch or expanded-shell edge glow and running menu-bar pose |
-| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Red breathing physical-notch or expanded-shell edge glow until resolved, or a system notification without a physical notch |
-| `done` | Main task finished | Two-second red breathing edge glow, preserved across expansion, then green while another session runs or steady red when all sessions stop |
-| `failed` | Main task failed or a command exited unexpectedly | Two-second red breathing edge glow, preserved across expansion, then the same aggregate running/stopped state as completion |
+| `running` | Agent is working | Steady green physical-notch edge glow, including its expanded shell, and running menu-bar pose |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Red breathing physical-notch edge glow, including its expanded shell, until resolved, or a system notification without a physical notch |
+| `done` | Main task finished | Two-second red breathing physical-notch edge glow, preserved across expansion, then green while another session runs or steady red when all sessions stop |
+| `failed` | Main task failed or a command exited unexpectedly | Two-second red breathing physical-notch edge glow, preserved across expansion, then the same aggregate running/stopped state as completion |
 | `idle` | No active task | No collapsed physical-notch surface |
 
 UI freshness is separate from stored history. `running` and `needs_input` can drive the collapsed notch signal for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code, Codex, or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while legacy or hookless sources remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
@@ -140,7 +140,7 @@ Events stay deliberately small:
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
 - Join the active collapsed signal to the hardware with a continuous black backing derived from the safe-area rectangle. Widen only the sides enough for the backing's rounded corners; keep its height at the safe-area height. Trace that software boundary with uniform solid thickness rather than promising an exact hardware curve. Idle still hides the overlay.
-- Use only left, right, and bottom glow edges on a physical notch, collapsed or expanded. Carry the active color and breathing or stop-pulse timing across expansion without restarting the effect. Soft glow may extend past the menu bar and content window; its drawing space must never enlarge the input region.
+- Use only left, right, and bottom glow edges on a physical notch, collapsed or expanded. Carry the active color and breathing or stop-pulse timing across expansion without restarting the effect. Soft glow may extend past the menu bar and content window; its drawing space must never enlarge the input region. Top-center placement keeps its native window shadow without a colored outline or glow.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
 - Keep the active collapsed backing and expanded physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
@@ -160,9 +160,9 @@ Collapsed physical-notch glows in light and dark appearance:
 
 ![Synthetic Mews physical-notch glows in light and dark appearance for idle, running, needs-input, done, and failed states](../assets/screenshots/mews-status-states.png)
 
-The light top-center panel inherits the red needs-input edge glow while showing multiple active sessions and enabled or disabled return actions:
+The light top-center panel uses its detached material and native window shadow without a colored edge glow while showing multiple active sessions and enabled or disabled return actions:
 
-![Synthetic light-appearance top-center panel with a red needs-input edge glow, reporting five active sessions with needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
+![Synthetic light-appearance top-center panel without a colored edge glow, reporting five active sessions with needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
 
 The dark physical-notch panel inherits the green running glow on its sides and bottom, without a top border, while showing a degraded health message and session actions:
 

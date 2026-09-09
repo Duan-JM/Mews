@@ -16,6 +16,16 @@ extension MewsAppModelTests {
                     )
                 }
             }
+            for preferences in [(true, false, false), (false, true, false), (false, false, true)] {
+                try checkWindowGlow(
+                    snapshot: windowGlowSnapshot(
+                        visibility: .expanded, mode: .topCenter, status: .needsInput,
+                        reduceMotion: preferences.0, reduceTransparency: preferences.1,
+                        increaseContrast: preferences.2
+                    ),
+                    scale: scale, failures: &failures
+                )
+            }
         }
         guard failures.isEmpty else {
             throw NotchWindowGlowFailure(message: failures.joined(separator: "\n"))
@@ -115,67 +125,17 @@ extension MewsAppModelTests {
         }
     }
 
-    private static func checkWindowGlow(
-        snapshot: NotchShellSnapshot, scale: CGFloat, failures: inout [String]
-    ) throws {
-        var screens = [windowGlowScreen(mode: snapshot.placementMode)]
-        let controller = NotchPanelController(screenProvider: { screens })
-        defer { controller.hide() }
-        showWindowGlow(controller, snapshot: snapshot)
-        let glowPanel = controller.panel.childWindows?.first ?? controller.panel
-        guard let placement = controller.placement, let host = glowPanel.contentView else {
-            throw NotchWindowGlowFailure(message: "missing real panel content")
-        }
-        let window = glowPanel.frame
-        if !glowPanel.ignoresMouseEvents || controller.panel.frame.size != placement.frame.size {
-            failures.append("native \(scale)x: halo must not enlarge the input window")
-        }
-        let shell = controller.panel.frame
-        let probes = [
-            CGPoint(x: shell.minX - 6, y: shell.midY),
-            CGPoint(x: shell.maxX + 6, y: shell.midY),
-            CGPoint(x: shell.midX, y: shell.minY - 6)
-        ]
-        let raster = try NotchWindowRaster.capture(host, size: window.size, scale: scale)
-        for point in probes {
-            if !window.contains(point) {
-                failures.append("native \(scale)x: window clips halo at \(point)")
-                continue
-            }
-            let localPoint = CGPoint(x: point.x - window.minX, y: window.maxY - point.y)
-            if raster.colorScore(at: localPoint) < 3 {
-                failures.append("native \(scale)x: missing halo at \(point)")
-            }
-            if controller.containsVisibleShell(point) {
-                failures.append("native \(scale)x: transparent halo intercepts clicks")
-            }
-        }
-        if !controller.containsVisibleShell(CGPoint(x: shell.midX, y: shell.minY + 30)) {
-            failures.append("native \(scale)x: actual shell must remain interactive")
-        }
-        controller.hide()
-        if glowPanel.isVisible {
-            failures.append("native \(scale)x: hiding must remove the passive glow")
-        }
-        showWindowGlow(controller, snapshot: snapshot)
-        if controller.panel.childWindows?.contains(where: { $0 === glowPanel }) != true || !glowPanel.isVisible {
-            failures.append("native \(scale)x: reopening must reattach the passive glow")
-        }
-        screens = []
-        controller.reposition()
-        if controller.panel.isVisible || glowPanel.isVisible {
-            failures.append("native \(scale)x: screen loss must hide both windows")
-        }
-    }
-
-    private static func showWindowGlow(_ controller: NotchPanelController, snapshot: NotchShellSnapshot) {
+    static func showWindowGlow(_ controller: NotchPanelController, snapshot: NotchShellSnapshot) {
         controller.update(content: snapshot.content)
         controller.update(
             interactionState: NotchInteractionState(
-                visibility: .expanded, openReason: .click, presentationState: snapshot.presentationState
+                visibility: .expanded, openReason: .click,
+                presentationState: snapshot.presentationState
             ),
             accessibilityPreferences: NotchAccessibilityPreferences(
-                reduceMotion: true, reduceTransparency: false, increaseContrast: false
+                reduceMotion: snapshot.transitionStyle == .opacityOnly,
+                reduceTransparency: snapshot.reduceTransparency,
+                increaseContrast: snapshot.increaseContrast
             )
         )
     }
@@ -183,7 +143,10 @@ extension MewsAppModelTests {
     private static func windowGlowSnapshot(
         visibility: NotchVisibility,
         mode: OverlayPlacementMode = .notch,
-        status: SessionStatus = .running
+        status: SessionStatus = .running,
+        reduceMotion: Bool = true,
+        reduceTransparency: Bool = false,
+        increaseContrast: Bool = false
     ) -> NotchShellSnapshot {
         return NotchShellSnapshot(
             visibility: visibility, placementMode: mode,
@@ -194,11 +157,13 @@ extension MewsAppModelTests {
                 presentation: SessionPresentation(rows: [], aggregateStatuses: [status], health: nil),
                 events: [], currentEvent: nil
             ),
-            transitionStyle: .opacityOnly, reduceTransparency: false, increaseContrast: false
+            transitionStyle: reduceMotion ? .opacityOnly : .spatial,
+            reduceTransparency: reduceTransparency,
+            increaseContrast: increaseContrast
         )
     }
 
-    private static func windowGlowScreen(mode: OverlayPlacementMode) -> ScreenSnapshot {
+    static func windowGlowScreen(mode: OverlayPlacementMode) -> ScreenSnapshot {
         return ScreenSnapshot(
             id: "glow-fixture", frame: CGRect(x: 0, y: 0, width: 1470, height: 956),
             visibleFrame: CGRect(x: 0, y: 0, width: 1470, height: 924),
@@ -211,7 +176,7 @@ extension MewsAppModelTests {
 }
 
 @MainActor
-private struct NotchWindowRaster {
+struct NotchWindowRaster {
     let bitmap: NSBitmapImageRep
     let scale: CGFloat
 
@@ -390,6 +355,6 @@ private struct NotchRasterPixel {
     let blue: Int
 }
 
-private struct NotchWindowGlowFailure: Error {
+struct NotchWindowGlowFailure: Error {
     let message: String
 }

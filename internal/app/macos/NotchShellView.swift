@@ -197,11 +197,6 @@ struct NotchShellView: View {
                 glowView(snapshot: snapshot, geometry: geometry, glow: glow)
             }
         }
-        .overlay {
-            if snapshot.placementMode == .topCenter {
-                glowView(snapshot: snapshot, geometry: geometry, glow: glow)
-            }
-        }
     }
 
     @ViewBuilder

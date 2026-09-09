@@ -28,14 +28,28 @@ extension MewsAppModelTests {
                     scale: scale
                 )
             }
-            for mode in [OverlayPlacementMode.notch, .topCenter] {
-                try assertGlowPixels(
-                    snapshot: boundedGlowSnapshot(visibility: .expanded, mode: mode),
-                    scale: scale
-                )
-            }
+            try assertGlowPixels(
+                snapshot: boundedGlowSnapshot(visibility: .expanded, mode: .notch),
+                scale: scale
+            )
+            try assertNoGlowPixels(
+                snapshot: boundedGlowSnapshot(visibility: .expanded, mode: .topCenter),
+                scale: scale
+            )
+            try assertGlowPixels(
+                snapshot: boundedGlowSnapshot(
+                    visibility: .expanded, mode: .notch, stopPulseActive: true
+                ),
+                scale: scale
+            )
+            try assertNoGlowPixels(
+                snapshot: boundedGlowSnapshot(
+                    visibility: .expanded, mode: .topCenter, stopPulseActive: true
+                ),
+                scale: scale
+            )
         }
-        print("Notch glow: 32 collapsed and 4 expanded renders passed; contact/normal-width tolerance 0.75px at 1x/2x")
+        print("Notch glow: collapsed, expanded, stop-pulse, and glow-free top-center renders passed at 1x/2x")
     }
 
     private static func boundedGlowSnapshot(
@@ -43,10 +57,12 @@ extension MewsAppModelTests {
         visibility: NotchVisibility = .closed,
         mode: OverlayPlacementMode = .notch,
         status: SessionStatus = .running,
-        width: CGFloat = 180
+        width: CGFloat = 180,
+        stopPulseActive: Bool = false
     ) -> NotchShellSnapshot {
         return NotchShellSnapshot(
             visibility: visibility,
+            stopPulseActive: stopPulseActive,
             placementMode: mode,
             panelSize: CGSize(width: 420, height: 220),
             anchorSize: CGSize(width: width, height: height),
@@ -84,6 +100,20 @@ extension MewsAppModelTests {
             guard bounds.minX < notchLeft, bounds.maxX > notchRight else {
                 throw GlowBoundsFailure("horizontal glow must remain visible beside the hardware")
             }
+        }
+    }
+
+    private static func assertNoGlowPixels(
+        snapshot: NotchShellSnapshot,
+        scale: CGFloat
+    ) throws {
+        let bitmap = try renderGlow(snapshot: snapshot, scale: scale)
+        do {
+            let bounds = try coloredPixelBounds(bitmap)
+            throw GlowBoundsFailure("top-center must not render colored glow pixels in \(bounds)")
+        } catch let error as GlowBoundsFailure
+            where error.message == "native glow capture must contain colored pixels" {
+            return
         }
     }
 

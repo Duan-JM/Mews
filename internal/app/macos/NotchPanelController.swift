@@ -262,7 +262,7 @@ final class NotchPanelController: NSObject {
             visibility: interactionState.visibility
         )
         panel.orderFrontRegardless()
-        if glow.isVisible {
+        if placement.mode == .notch && glow.isVisible {
             glowPanel.show(below: panel)
         } else {
             glowPanel.orderOut(nil)

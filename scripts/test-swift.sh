@@ -101,6 +101,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/NotchGlowViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchGlowBoundsTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchWindowGlowTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchWindowGlowPlacementTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \

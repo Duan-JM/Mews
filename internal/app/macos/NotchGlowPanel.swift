@@ -50,7 +50,7 @@ private struct NotchGlowWindowView: View {
         let glow = NotchGlowPresentation.resolved(snapshot: snapshot)
         ZStack(alignment: .top) {
             Color.clear
-            if glow.isVisible {
+            if snapshot.placementMode == .notch && glow.isVisible {
                 NotchGlowView(
                     shape: geometry.shape, presentation: glow,
                     reduceMotion: snapshot.transitionStyle == .opacityOnly,
