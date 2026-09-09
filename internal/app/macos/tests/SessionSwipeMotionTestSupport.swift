@@ -138,7 +138,7 @@ final class SwipeMotionFixture {
         return Double(pixel[3]) / 255
     }
 
-    func captureControlHeight(column: Int) throws -> CGFloat {
+    func captureControlBounds(column: Int) throws -> CGRect {
         let rowHeight = Int(SessionRowLayout.rowHeight)
         guard let bitmap = try captureDocument(), let pixels = bitmap.bitmapData,
               column >= 0, bitmap.pixelsWide > column, bitmap.pixelsHigh >= rowHeight else {
@@ -150,7 +150,7 @@ final class SwipeMotionFixture {
         guard let first = paintedRows.first, let last = paintedRows.last else {
             throw SwipeMotionTestError.expectation("the resting control must contain rendered pixels")
         }
-        return CGFloat(last - first + 1)
+        return CGRect(x: column, y: first, width: 1, height: last - first + 1)
     }
 
     private func captureDocument() throws -> NSBitmapImageRep? {

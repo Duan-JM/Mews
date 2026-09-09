@@ -90,7 +90,7 @@ extension MewsAppModelTests {
         try motionExpect(
             action.geometry.trackWidth == 240 && action.geometry.buttonWidth == 228 &&
                 action.geometry.height == 24 && action.geometry.cornerRadius == 4 &&
-                action.geometry.verticalOffset == -2,
+                action.geometry.verticalOffset == 0,
             "a longer track must elongate the red button while preserving its height, corners and centering"
         )
     }
@@ -98,10 +98,13 @@ extension MewsAppModelTests {
     private static func testNativeSwipeSettle() throws {
         let fixture = try SwipeMotionFixture()
         defer { fixture.close() }
-        let controlHeights = try [238, 298].map { try fixture.captureControlHeight(column: $0) }
+        let controlBounds = try [238, 298].map { try fixture.captureControlBounds(column: $0) }
         try motionExpect(
-            controlHeights.allSatisfy { $0 == 24 },
-            "RETURN and COPY must render at the same 24-point height as HIDE; rendered \(controlHeights)"
+            controlBounds.allSatisfy {
+                $0.height == SessionRowLayout.actionButtonHeight &&
+                    abs($0.midY - SessionRowLayout.rowHeight / 2) <= 0.5
+            },
+            "RETURN and COPY must render at the vertical center of the row; rendered \(controlBounds)"
         )
         fixture.beginDrag(distance: 28)
         let dragged = try fixture.captureActionBounds()
@@ -118,6 +121,10 @@ extension MewsAppModelTests {
         try motionExpect(
             abs((frames.last?.width ?? 0) - 44) <= 1 && fixture.persistence.requests.isEmpty,
             "a short swipe should settle to one 44-point HIDE button without submitting"
+        )
+        try motionExpect(
+            abs((frames.last?.midY ?? 0) - SessionRowLayout.rowHeight / 2) <= 0.5,
+            "the settled HIDE button must use the same vertical center as RETURN and COPY"
         )
     }
 
