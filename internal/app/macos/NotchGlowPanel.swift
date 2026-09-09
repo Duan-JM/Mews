@@ -57,10 +57,6 @@ private struct NotchGlowWindowView: View {
                     increaseContrast: snapshot.increaseContrast
                 )
                 .frame(width: geometry.layout.width, height: geometry.layout.height)
-                .animation(
-                    snapshot.transitionStyle.spatialAnimation,
-                    value: geometry.layout
-                )
             }
         }
         .frame(width: snapshot.panelSize.width, height: snapshot.panelSize.height)

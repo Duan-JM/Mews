@@ -60,7 +60,11 @@ final class NotchShellViewModel: ObservableObject {
     }
 
     func update(snapshot: NotchShellSnapshot) {
-        self.snapshot = snapshot
+        let layoutChanged = NotchShellLayout.resolved(snapshot: self.snapshot) !=
+            NotchShellLayout.resolved(snapshot: snapshot)
+        withAnimation(layoutChanged ? snapshot.transitionStyle.spatialAnimation : nil) {
+            self.snapshot = snapshot
+        }
     }
 }
 
@@ -139,6 +143,10 @@ struct NotchShellView: View {
                 Color.clear
             }
         }
+        .animation(
+            opacityAnimation(for: snapshot.transitionStyle),
+            value: snapshot.visibility
+        )
         .frame(width: layout.width, height: layout.height, alignment: .top)
         .clipShape(geometry.shape)
         .modifier(
@@ -158,14 +166,6 @@ struct NotchShellView: View {
                 glowView(snapshot: snapshot, geometry: geometry, glow: glow)
             }
         }
-        .animation(
-            snapshot.transitionStyle.spatialAnimation,
-            value: layout
-        )
-        .animation(
-            opacityAnimation(for: snapshot.transitionStyle),
-            value: snapshot.visibility
-        )
     }
 
     @ViewBuilder
