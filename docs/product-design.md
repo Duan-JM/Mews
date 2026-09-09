@@ -139,11 +139,11 @@ Events stay deliberately small:
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
-- Anchor the collapsed solid outline directly to the measured notch contour, with no padded gap. Keep its visible thickness uniform along straight edges and corners. Soft glow may fade outward to the sides and below the menu bar; do not clip the solid bottom edge or its shadow to the menu-band height.
-- Carry the active glow color and breathing or stop-pulse timing onto the expanded shell edge without restarting the effect.
+- Join the active collapsed signal to the hardware with a continuous black backing derived from the safe-area rectangle. Widen only the sides enough for the backing's rounded corners; keep its height at the safe-area height. Trace that software boundary with uniform solid thickness rather than promising an exact hardware curve. Idle still hides the overlay.
+- Use only left, right, and bottom glow edges on a physical notch, collapsed or expanded. Carry the active color and breathing or stop-pulse timing across expansion without restarting the effect. Soft glow may extend past the menu bar and content window; its drawing space must never enlarge the input region.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
-- Keep only the expanded physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
+- Keep the active collapsed backing and expanded physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
 - Reduce Transparency and Increase Contrast replace top-center material with an opaque high-contrast surface.
 - Increase Contrast strengthens secondary copy, separators, borders, status labels, and disabled controls.
@@ -164,9 +164,9 @@ The light top-center panel inherits the red needs-input edge glow while showing 
 
 ![Synthetic light-appearance top-center panel with a red needs-input edge glow, reporting five active sessions with needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
 
-The dark top-center panel inherits the green running edge glow while showing a degraded health message and session actions:
+The dark physical-notch panel inherits the green running glow on its sides and bottom, without a top border, while showing a degraded health message and session actions:
 
-![Synthetic dark-appearance top-center panel with a green running edge glow, reporting two active sessions with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled stopped session](../assets/screenshots/mews-degraded-health.png)
+![Synthetic dark physical-notch panel with a green running glow on its sides and bottom, no top border, two active sessions, a degraded event-delivery row, Copy Fix, an actionable running session, and a disabled stopped session](../assets/screenshots/mews-degraded-health.png)
 
 ## Install and Distribution
 

@@ -26,6 +26,7 @@ final class NotchPanelController: NSObject {
     private let resolver = OverlayScreenResolver()
     private let calculator = OverlayPlacementCalculator()
     private let shellModel = NotchShellViewModel()
+    private lazy var glowPanel = NotchGlowPanel(model: shellModel)
     private var content = NotchPanelContent.empty
     private var canonicalContent = NotchPanelContent.empty
     private var interactionState = NotchInteractionState(
@@ -48,6 +49,7 @@ final class NotchPanelController: NSObject {
         rootView: NotchShellView(
             model: shellModel,
             sessionListModel: sessionListModel,
+            showsGlow: false,
             onReturnToCLI: onOpenContext,
             onCopyCommand: onCopyCommand
         )
@@ -113,6 +115,7 @@ final class NotchPanelController: NSObject {
             panel.hasShadow = false
             sessionListModel.cancelForLifecycle()
             panel.orderOut(nil)
+            glowPanel.orderOut(nil)
             refreshShell()
             onPlacementUnavailable()
             return nil
@@ -120,6 +123,7 @@ final class NotchPanelController: NSObject {
         let placement = calculator.placement(for: target)
         panel.setFrame(placement.frame, display: false)
         self.placement = placement
+        glowPanel.place(around: panel.frame, mode: placement.mode)
         refreshShell()
         applyWindowPresentation()
         return placement
@@ -168,6 +172,7 @@ final class NotchPanelController: NSObject {
         sessionListModel.cancelForLifecycle()
         panel.ignoresMouseEvents = true
         panel.orderOut(nil)
+        glowPanel.orderOut(nil)
     }
 
     @objc private func screenParametersDidChange(_ notification: Notification) {
@@ -230,6 +235,7 @@ final class NotchPanelController: NSObject {
             panel.hasShadow = false
             panel.ignoresMouseEvents = true
             panel.orderOut(nil)
+            glowPanel.orderOut(nil)
             return
         }
         panel.hasShadow = placement.mode == .topCenter
@@ -242,6 +248,7 @@ final class NotchPanelController: NSObject {
         guard isVisible else {
             panel.ignoresMouseEvents = true
             panel.orderOut(nil)
+            glowPanel.orderOut(nil)
             return
         }
 
@@ -249,8 +256,15 @@ final class NotchPanelController: NSObject {
             visibility: interactionState.visibility
         )
         panel.orderFrontRegardless()
+        if glow.isVisible {
+            glowPanel.show(below: panel)
+        } else {
+            glowPanel.orderOut(nil)
+        }
     }
+}
 
+extension NotchPanelController {
     private func shellGeometry(
         visibility: NotchVisibility
     ) -> NotchShellGeometry {
@@ -270,9 +284,7 @@ final class NotchPanelController: NSObject {
             ]
         )
     }
-}
 
-extension NotchPanelController {
     func setPlacementUnavailableHandler(
         _ handler: @escaping () -> Void
     ) {
@@ -323,7 +335,7 @@ extension NotchPanelController {
             : interactionState.visibility
         return shellGeometry(visibility: visibility).contains(
             point,
-            in: placement.frame
+            in: panel.frame
         )
     }
 
@@ -339,7 +351,7 @@ extension NotchPanelController {
         }
         return shellGeometry(visibility: interactionState.visibility).contains(
             point,
-            in: placement.frame
+            in: panel.frame
         )
     }
 }

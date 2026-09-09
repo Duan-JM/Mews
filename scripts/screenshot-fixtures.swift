@@ -29,9 +29,10 @@ struct SyntheticHardwareNotch: View {
     let size: CGSize
 
     var body: some View {
-        NotchShellShape.PhysicalNotchGlowShape(cornerRadius: 8)
+        RoundedRectangle(cornerRadius: 6, style: .circular)
             .fill(Color.black)
-            .frame(width: size.width, height: size.height)
+            .overlay(alignment: .top) { Color.black.frame(height: 6) }
+            .frame(width: size.width, height: max(8, size.height - 4))
     }
 }
 
@@ -115,7 +116,7 @@ struct SyntheticScreenshotCatalog {
                     health: health.presentation,
                     status: .running,
                     now: now,
-                    placementMode: .topCenter
+                    placementMode: .notch
                 )
             ),
             fixtureText: fixtureText(sessions: allSessions, health: health),

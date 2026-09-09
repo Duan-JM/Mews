@@ -69,16 +69,19 @@ struct NotchShellView: View {
     @ObservedObject var sessionListModel: SessionListPresentationModel
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
+    let showsGlow: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     init(
         model: NotchShellViewModel,
         sessionListModel: SessionListPresentationModel,
+        showsGlow: Bool = true,
         onReturnToCLI: @escaping (CLIContextPayload, SessionIdentity?) -> Void = { _, _ in },
         onCopyCommand: @escaping (String) -> Void = { _ in }
     ) {
         self.model = model
         self.sessionListModel = sessionListModel
+        self.showsGlow = showsGlow
         self.onReturnToCLI = onReturnToCLI
         self.onCopyCommand = onCopyCommand
     }
@@ -143,19 +146,18 @@ struct NotchShellView: View {
                 surface: surface
             )
         )
+        .background {
+            if snapshot.placementMode == .notch {
+                glowView(snapshot: snapshot, geometry: geometry, glow: glow)
+            }
+        }
         .overlay {
-            if glow.isVisible {
-                NotchGlowView(
-                    shape: geometry.shape,
-                    presentation: glow,
-                    reduceMotion: snapshot.transitionStyle == .opacityOnly,
-                    increaseContrast: snapshot.increaseContrast
-                )
-                .transition(.opacity)
+            if snapshot.placementMode == .topCenter {
+                glowView(snapshot: snapshot, geometry: geometry, glow: glow)
             }
         }
         .animation(
-            spatialAnimation(for: snapshot.transitionStyle),
+            snapshot.transitionStyle.spatialAnimation,
             value: layout
         )
         .animation(
@@ -164,13 +166,18 @@ struct NotchShellView: View {
         )
     }
 
-    private func spatialAnimation(
-        for style: NotchShellTransitionStyle
-    ) -> Animation? {
-        guard style == .spatial else {
-            return nil
+    @ViewBuilder
+    private func glowView(
+        snapshot: NotchShellSnapshot, geometry: NotchShellGeometry, glow: NotchGlowPresentation
+    ) -> some View {
+        if showsGlow && glow.isVisible {
+            NotchGlowView(
+                shape: geometry.shape, presentation: glow,
+                reduceMotion: snapshot.transitionStyle == .opacityOnly,
+                increaseContrast: snapshot.increaseContrast
+            )
+            .transition(.opacity)
         }
-        return .spring(response: 0.3, dampingFraction: 0.88)
     }
 
     private func opacityAnimation(
@@ -190,6 +197,12 @@ struct NotchShellView: View {
         case .expanded:
             return "Mews status panel is expanded"
         }
+    }
+}
+
+extension NotchShellTransitionStyle {
+    var spatialAnimation: Animation? {
+        return self == .spatial ? .spring(response: 0.3, dampingFraction: 0.88) : nil
     }
 }
 

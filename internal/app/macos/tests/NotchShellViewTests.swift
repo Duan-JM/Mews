@@ -77,7 +77,7 @@ extension MewsAppModelTests {
         )
         try shellExpect(
             preview == compact &&
-                compact.width == anchorSize.width &&
+                compact.width == anchorSize.width + NotchShellLayout.collapsedCornerRadius * 2 &&
                 compact.height == anchorSize.height,
             "collapsed glow states should stay tight to the physical notch"
         )

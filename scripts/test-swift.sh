@@ -60,6 +60,7 @@ swiftc \
   "$ROOT/internal/app/macos/PixelStatusLogo.swift" \
   "$ROOT/internal/app/macos/NotchShellGeometry.swift" \
   "$ROOT/internal/app/macos/NotchGlowView.swift" \
+  "$ROOT/internal/app/macos/NotchGlowPanel.swift" \
   "$ROOT/internal/app/macos/NotchExpandedContentView.swift" \
   "$ROOT/internal/app/macos/SessionListScrollContainer.swift" \
   "$ROOT/internal/app/macos/NotchSessionContentView.swift" \
@@ -98,6 +99,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/SessionListScrollContainerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchGlowViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchGlowBoundsTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchWindowGlowTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \

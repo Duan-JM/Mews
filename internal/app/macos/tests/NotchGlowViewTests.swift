@@ -2,6 +2,7 @@ import Foundation
 
 extension MewsAppModelTests {
     static func testNotchGlowPresentation() throws {
+        try testNotchWindowGlow()
         try testIdleGlow()
         try testAggregateGlow()
         try testEmptySessionPresentationGlow()
