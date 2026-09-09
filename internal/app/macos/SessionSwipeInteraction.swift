@@ -12,6 +12,7 @@ struct SessionSwipeMetrics: Equatable {
     )
 
     static let actionInset: CGFloat = 6
+    static let trailingGutter: CGFloat = 7
 
     let inputSlop: CGFloat
     let horizontalLockRatio: CGFloat
@@ -26,7 +27,13 @@ struct SessionSwipeMetrics: Equatable {
     }
 
     func revealedWidth(rowWidth: CGFloat) -> CGFloat {
-        return min(max(0, rowWidth), max(rowWidth * 0.1, actionWidth + 2 * Self.actionInset))
+        return min(
+            max(0, rowWidth),
+            max(
+                rowWidth * 0.1,
+                actionWidth + 2 * Self.actionInset + Self.trailingGutter
+            )
+        )
     }
 }
 

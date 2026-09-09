@@ -38,7 +38,7 @@ extension MewsAppModelTests {
         model.inputRouter.end(velocityX: -120)
         try listExpect(
             model.snapshot.visual(for: first).phase == .revealed &&
-                model.snapshot.visual(for: first).offset == -56,
+                model.snapshot.visual(for: first).offset == -63,
             "a short swipe should reveal the first row"
         )
 
@@ -186,7 +186,7 @@ extension MewsAppModelTests {
         let visual = model.snapshot.visual(for: row)
         try listExpect(
             visual.phase == .failed &&
-                visual.offset == -56 &&
+                visual.offset == -63 &&
                 model.snapshot.errorMessage == "COULD NOT HIDE SESSION",
             "a failed write should keep the row revealed and retryable"
         )

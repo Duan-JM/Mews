@@ -49,12 +49,16 @@ struct SessionSwipeRowVisual: Equatable {
     func actionGeometry(rowWidth: CGFloat) -> SessionSwipeActionGeometry {
         let expanded = usesFullWidthAction(rowWidth: rowWidth)
         return SessionSwipeActionGeometry(
-            trackWidth: expanded ? rowWidth : min(rowWidth, revealWidth)
+            trackWidth: expanded
+                ? rowWidth
+                : max(0, min(rowWidth, revealWidth) - SessionSwipeMetrics.trailingGutter)
         )
     }
 
     func contentOffset(rowWidth: CGFloat) -> CGFloat {
-        return -actionGeometry(rowWidth: rowWidth).trackWidth
+        return usesFullWidthAction(rowWidth: rowWidth)
+            ? -rowWidth
+            : -min(rowWidth, revealWidth)
     }
 
     func actionWidth(rowWidth: CGFloat) -> CGFloat {

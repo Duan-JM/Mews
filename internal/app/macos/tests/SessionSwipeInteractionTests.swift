@@ -94,8 +94,8 @@ extension MewsAppModelTests {
         try swipeExpect(
             interaction.end(velocityX: 0) == .revealed &&
                 interaction.phase == .revealed &&
-                interaction.offset == -56,
-            "a deliberate short swipe should leave room for HIDE and its insets"
+                interaction.offset == -63,
+            "a deliberate short swipe should leave room for HIDE, its insets, and the gutter"
         )
         interaction.reset()
         interaction.begin(target: target, rowWidth: 640)
@@ -147,7 +147,7 @@ extension MewsAppModelTests {
         try swipeExpect(
             interaction.cancel() == .revealed &&
                 interaction.phase == .revealed &&
-                interaction.offset == -56,
+                interaction.offset == -63,
             "cancelling a resumed swipe should restore its revealed origin"
         )
     }
@@ -201,7 +201,7 @@ extension MewsAppModelTests {
         )
         interaction.markFailed()
         try swipeExpect(
-            interaction.phase == .failed && interaction.offset == -56,
+            interaction.phase == .failed && interaction.offset == -63,
             "a failed commit should return to the revealed position"
         )
         try swipeExpect(

@@ -254,7 +254,10 @@ queue.
 
 The swipe track follows the physical offset until the drag crosses 20% of the
 row width. A short swipe past input slop settles at 10% of the row width, with a
-56-point minimum for a 44×24 `HIDE` button and six-point side insets. In
+63-point minimum for a seven-point foreground gutter, a 44×24 `HIDE` button,
+and six-point side insets. The track's leading edge uses an elliptical 11×13
+point curve so its center matches the four-point `COPY` corner after accounting
+for the seven-point horizontal gutter and nine-point vertical inset. In
 top-center mode, the track uses the shell's native regular material with a 4%
 black tint. Opaque accessibility and physical-notch surfaces retain a subtle
 black overlay, 6% normally and 12% with Increase Contrast. Only the separate
