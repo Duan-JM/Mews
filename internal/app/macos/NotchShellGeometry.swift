@@ -125,6 +125,7 @@ struct NotchShellSurfaceModifier: ViewModifier {
     let snapshot: NotchShellSnapshot
     let geometry: NotchShellGeometry
     let surface: NotchSurfacePalette
+    var rendersPhysicalNotchSurface = true
 
     func body(content: Content) -> some View {
         content
@@ -134,7 +135,8 @@ struct NotchShellSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     private var shellBackground: some View {
-        if snapshot.placementMode == .notch &&
+        if rendersPhysicalNotchSurface &&
+            snapshot.placementMode == .notch &&
             (snapshot.visibility == .expanded || NotchGlowPresentation.resolved(snapshot: snapshot).isVisible) {
             geometry.shape.fill(Color.black)
         } else if snapshot.visibility == .expanded {

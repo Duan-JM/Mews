@@ -19,6 +19,7 @@ extension MewsAppModelTests {
 
         try testInitialNotchPresentation(controller)
         try testExpandedRowOrderStaysStable(controller)
+        try testTopCenterAnimationUsesVisibleWindow()
         try testSwipeCancellationOnPlacementLoss(
             controller: controller,
             notifications: notifications,
@@ -30,6 +31,35 @@ extension MewsAppModelTests {
             notifications: notifications,
             screenChangeNotification: screenChangeNotification,
             screens: screens
+        )
+    }
+
+    private static func testTopCenterAnimationUsesVisibleWindow() throws {
+        let controller = NotchPanelController(
+            screenProvider: { [controllerExternalScreen()] }
+        )
+        defer { controller.hide() }
+        controller.update(
+            interactionState: NotchInteractionState(
+                visibility: .expanded,
+                openReason: .click,
+                presentationState: MewsPresentationState(event: nil)
+            ),
+            accessibilityPreferences: NotchAccessibilityPreferences(
+                reduceMotion: false,
+                reduceTransparency: false,
+                increaseContrast: false
+            )
+        )
+        RunLoop.main.run(until: Date().addingTimeInterval(0.7))
+        try controllerExpect(
+            controller.containsVisibleShell(
+                CGPoint(
+                    x: controller.panel.frame.midX,
+                    y: controller.panel.frame.minY + 20
+                )
+            ),
+            "top-center motion must use the visible content window's display link"
         )
     }
 
