@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- changelog release notes start -->
 
+## [0.0.4] - 2026-09-10
+
+### Changed
+
+- Keep a seven-point gutter and concentric trailing corners between session row actions and the swipe-to-hide reveal. ([#142](https://github.com/Duan-JM/Mews/issues/142))
+
+### Fixed
+
+- Replace the persistent physical-notch status strip with quiet aggregate red and green edge glows while preserving the existing expanded panel. ([#132](https://github.com/Duan-JM/Mews/issues/132))
+- Keep the notch glow tight to the hardware edge and carry its color and pulse onto the expanded panel. ([#136](https://github.com/Duan-JM/Mews/issues/136))
+- Align the collapsed notch outline with the measured hardware contour, keep its visible edge thickness uniform, and let the soft glow fade below the menu bar without clipping the bottom edge or changing expanded-panel effects. ([#138](https://github.com/Duan-JM/Mews/issues/138))
+- Unify the collapsed notch signal with a continuous black backing instead of guessing hardware corner geometry. Keep the expanded notch glow on its left, right, and bottom edges, synchronize the backing and glow through one shared animation clock throughout expansion and collapse, and preserve soft glow outside the content window without intercepting clicks. ([#140](https://github.com/Duan-JM/Mews/issues/140))
+- Vertically center the expanded session row actions and keep the swipe-revealed HIDE control aligned throughout its transition. ([#141](https://github.com/Duan-JM/Mews/issues/141))
+- Limit the expanded shell's colored outline, glow, breathing edge, and stop pulse to physical-notch displays while preserving the top-center panel and notification fallback. ([#143](https://github.com/Duan-JM/Mews/issues/143))
+- Improved physical-notch expand and collapse smoothness while keeping the black backing aligned and correctly oriented around the hardware notch. ([#147](https://github.com/Duan-JM/Mews/issues/147))
+
+
 ## [0.0.3] - 2026-09-07
 
 ### Added
