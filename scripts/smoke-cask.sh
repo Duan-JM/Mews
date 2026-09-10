@@ -48,6 +48,7 @@ TAP_URL="file://${TAP_DIR}"
 # Keep Homebrew 6's local-cask trust record inside the disposable smoke workspace.
 export XDG_CONFIG_HOME="$SMOKE_DIR/config"
 TAPPED=0
+TRUSTED=0
 INSTALLED=0
 APP_PID=""
 AGENT_PID=""
@@ -98,6 +99,14 @@ cleanup() {
       cleanup_failed=1
     fi
   fi
+  if ((TRUSTED != 0)); then
+    if brew untrust --tap "$TAP_URL" >/dev/null; then
+      TRUSTED=0
+    else
+      echo "Could not remove trust for smoke tap $TAP_URL." >&2
+      cleanup_failed=1
+    fi
+  fi
   if ((TAPPED != 0)); then
     if brew untap "$TAP_NAME" >/dev/null; then
       TAPPED=0
@@ -145,6 +154,10 @@ git -C "$TAP_DIR" \
   -c user.email="cask-smoke@mews.invalid" \
   commit --quiet -m "Add ${CASK_TOKEN} ${VERSION}"
 
+if brew trust --help >/dev/null 2>&1; then
+  brew trust --tap "$TAP_URL"
+  TRUSTED=1
+fi
 brew tap "$TAP_NAME" "$TAP_URL" >/dev/null
 TAPPED=1
 brew install --cask --appdir="$APP_DIR" "${TAP_NAME}/${CASK_TOKEN}"
@@ -225,6 +238,10 @@ fi
 AGENT_PID=""
 brew uninstall --cask "${TAP_NAME}/${CASK_TOKEN}" >/dev/null
 INSTALLED=0
+if ((TRUSTED != 0)); then
+  brew untrust --tap "$TAP_URL" >/dev/null
+  TRUSTED=0
+fi
 if [[ -e "$APP" || -e "$MW" ]]; then
   echo "Homebrew Cask uninstall left installed artifacts behind." >&2
   exit 1

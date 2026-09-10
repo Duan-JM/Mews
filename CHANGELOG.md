@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vertically center the expanded session row actions and keep the swipe-revealed HIDE control aligned throughout its transition. ([#141](https://github.com/Duan-JM/Mews/issues/141))
 - Limit the expanded shell's colored outline, glow, breathing edge, and stop pulse to physical-notch displays while preserving the top-center panel and notification fallback. ([#143](https://github.com/Duan-JM/Mews/issues/143))
 - Improved physical-notch expand and collapse smoothness while keeping the black backing aligned and correctly oriented around the hardware notch. ([#147](https://github.com/Duan-JM/Mews/issues/147))
+- Keep local Homebrew Cask setup and release smoke checks compatible with Homebrew's tap trust requirements.
 
 
 ## [0.0.3] - 2026-09-07

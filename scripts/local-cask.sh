@@ -22,15 +22,15 @@ TAP_NAME="${TAP_NAME:-duan-jm/mews-local}"
 source "$ROOT/scripts/version.sh"
 mews_require_release_version "$VERSION"
 UNTRUST_ROLLBACK=""
-if brew untrust --help >/dev/null 2>&1; then
-  UNTRUST_ROLLBACK="brew untrust --cask ${TAP_NAME}/${CASK_TOKEN}"
-fi
 
 VERSION="$VERSION" "$ROOT/scripts/package.sh"
 
 ARCHIVE="$ROOT/dist/mews-${VERSION}-darwin.tar.gz"
 TAP_DIR="$ROOT/dist/homebrew-tap"
 TAP_URL="file://${TAP_DIR}"
+if brew untrust --help >/dev/null 2>&1; then
+  UNTRUST_ROLLBACK="brew untrust --tap ${TAP_URL}"
+fi
 rm -rf "$TAP_DIR"
 mkdir -p "$TAP_DIR/Casks"
 
@@ -77,6 +77,9 @@ if brew tap | grep -Fx "$TAP_NAME" >/dev/null; then
     exit 1
   fi
   brew untap "$TAP_NAME"
+fi
+if brew trust --help >/dev/null 2>&1; then
+  brew trust --tap "$TAP_URL"
 fi
 brew tap "$TAP_NAME" "$TAP_URL"
 
