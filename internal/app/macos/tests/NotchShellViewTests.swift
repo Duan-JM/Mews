@@ -6,6 +6,7 @@ extension MewsAppModelTests {
         let snapshot = notchShellSnapshot()
         try testNotchShellLayout(snapshot: snapshot)
         try testNotchSharedSpring(snapshot: snapshot)
+        try testNotchDisplayLinkSelection(snapshot: snapshot)
         try testNotchSpringClock(snapshot: snapshot)
         try testNotchShellHitGeometry(snapshot: snapshot)
         try testTopCenterShellGeometry()
@@ -89,6 +90,29 @@ extension MewsAppModelTests {
         let stoppedFrames = frames
         RunLoop.main.run(until: Date().addingTimeInterval(0.04))
         try shellExpect(frames == stoppedFrames, "stopping or hiding must stop the shared animation clock")
+    }
+
+    private static func testNotchDisplayLinkSelection(snapshot: NotchShellSnapshot) throws {
+        guard #available(macOS 14, *) else {
+            return
+        }
+        let panel = NSPanel(
+            contentRect: CGRect(origin: .zero, size: snapshot.panelSize),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        let driver = NotchShellAnimation(
+            from: .resolved(snapshot: snapshot),
+            to: .resolved(snapshot: snapshot, visibility: .expanded),
+            displayLinkWindow: panel
+        )
+        driver.start()
+        defer { driver.stop() }
+        try shellExpect(
+            driver.frameSource == .displayLink,
+            "visible notch motion must use the window display link instead of a fixed run-loop timer"
+        )
     }
 
     private static func testTopCenterShellGeometry() throws {

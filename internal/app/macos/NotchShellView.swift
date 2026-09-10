@@ -1,6 +1,26 @@
 import AppKit
 import SwiftUI
 
+final class NotchHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        // Custom SwiftUI button styles need explicit click-through on non-key panels on macOS 13-14.
+        return true
+    }
+}
+
+extension NotchVisibility {
+    var accessibilityDescription: String {
+        switch self {
+        case .closed:
+            return "collapsed notch signal"
+        case .peek:
+            return "stop pulse"
+        case .expanded:
+            return "panel expanded"
+        }
+    }
+}
+
 struct NotchShellSnapshot: Equatable {
     let visibility: NotchVisibility
     let stopPulseActive: Bool
@@ -57,6 +77,9 @@ final class NotchShellViewModel: ObservableObject {
     @Published private(set) var layout: NotchShellLayout
     private var animation: NotchShellAnimation?
     private let animationClock: () -> TimeInterval
+    private let prefersDisplayLink: Bool
+    private weak var displayLinkWindow: NSWindow?
+    var onAnimationFrame: (() -> Void)?
 
     var geometry: NotchShellGeometry {
         return .resolved(snapshot: snapshot, layout: layout)
@@ -64,9 +87,13 @@ final class NotchShellViewModel: ObservableObject {
 
     init(
         snapshot: NotchShellSnapshot = .initial,
+        displayLinkWindow: NSWindow? = nil,
+        prefersDisplayLink: Bool = true,
         animationClock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     ) {
         self.snapshot = snapshot
+        self.displayLinkWindow = displayLinkWindow
+        self.prefersDisplayLink = prefersDisplayLink
         self.animationClock = animationClock
         layout = .resolved(snapshot: snapshot)
     }
@@ -89,12 +116,24 @@ final class NotchShellViewModel: ObservableObject {
             layout = target
             return
         }
-        let animation = NotchShellAnimation(from: layout, to: target, velocity: velocity, clock: animationClock)
+        let animation = NotchShellAnimation(
+            from: layout,
+            to: target,
+            velocity: velocity,
+            displayLinkWindow: displayLinkWindow,
+            prefersDisplayLink: prefersDisplayLink,
+            clock: animationClock
+        )
         animation.onFrame = { [weak self] frame in
             self?.layout = frame.layout
+            self?.onAnimationFrame?()
         }
         self.animation = animation
         animation.start()
+    }
+
+    func setDisplayLinkWindow(_ window: NSWindow?) {
+        displayLinkWindow = window
     }
 
     func finishAnimation() {
@@ -104,24 +143,138 @@ final class NotchShellViewModel: ObservableObject {
     }
 }
 
+@MainActor
+final class NotchShellContentViewModel: ObservableObject {
+    @Published private(set) var snapshot: NotchShellSnapshot
+    @Published private(set) var revealsContent = false
+
+    init(snapshot: NotchShellSnapshot = .initial) {
+        self.snapshot = snapshot
+    }
+
+    func update(
+        snapshot: NotchShellSnapshot,
+        revealsContent: Bool
+    ) {
+        self.snapshot = snapshot
+        self.revealsContent = revealsContent
+    }
+
+    func revealContent() {
+        revealsContent = true
+    }
+}
+
+struct NotchPanelRootView: View {
+    @ObservedObject var contentModel: NotchShellContentViewModel
+    let shellModel: NotchShellViewModel
+    @ObservedObject var sessionListModel: SessionListPresentationModel
+    let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
+    let onCopyCommand: (String) -> Void
+
+    var body: some View {
+        if contentModel.snapshot.placementMode == .notch {
+            NotchPhysicalContentView(
+                snapshot: contentModel.snapshot,
+                revealsContent: contentModel.revealsContent,
+                sessionListModel: sessionListModel,
+                onReturnToCLI: onReturnToCLI,
+                onCopyCommand: onCopyCommand
+            )
+        } else {
+            NotchShellView(
+                model: shellModel,
+                sessionListModel: sessionListModel,
+                showsGlow: false,
+                onReturnToCLI: onReturnToCLI,
+                onCopyCommand: onCopyCommand
+            )
+        }
+    }
+}
+
+private struct NotchPhysicalContentView: View {
+    let snapshot: NotchShellSnapshot
+    let revealsContent: Bool
+    @ObservedObject var sessionListModel: SessionListPresentationModel
+    let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
+    let onCopyCommand: (String) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let geometry = NotchShellGeometry.resolved(
+            snapshot: snapshot,
+            visibility: .expanded
+        )
+        let surface = NotchSurfacePalette.resolved(
+            placementMode: snapshot.placementMode,
+            colorScheme: colorScheme,
+            increaseContrast: snapshot.increaseContrast
+        )
+        ZStack(alignment: .top) {
+            Color.clear
+            if revealsContent {
+                NotchExpandedContentView(
+                    snapshot: snapshot,
+                    sessionListModel: sessionListModel,
+                    surface: surface,
+                    onReturnToCLI: onReturnToCLI,
+                    onCopyCommand: onCopyCommand
+                )
+                .frame(
+                    width: geometry.layout.width,
+                    height: geometry.layout.height,
+                    alignment: .top
+                )
+                .clipShape(geometry.shape)
+            }
+        }
+        .frame(
+            width: snapshot.panelSize.width,
+            height: snapshot.panelSize.height,
+            alignment: .top
+        )
+        .allowsHitTesting(snapshot.visibility == .expanded)
+        .transaction { transaction in
+            transaction.disablesAnimations = true
+        }
+        .accessibilityElement(
+            children: snapshot.visibility == .expanded ? .contain : .ignore
+        )
+        .accessibilityLabel(
+            snapshot.visibility == .expanded
+                ? "Mews status panel"
+                : NotchGlowPresentation.resolved(snapshot: snapshot).accessibilityLabel
+        )
+        .accessibilityHint(
+            snapshot.visibility == .expanded
+                ? "Mews status panel is expanded"
+                : "Click the Mews notch glow to expand"
+        )
+    }
+}
+
 struct NotchShellView: View {
     @ObservedObject var model: NotchShellViewModel
     @ObservedObject var sessionListModel: SessionListPresentationModel
     let onReturnToCLI: (CLIContextPayload, SessionIdentity?) -> Void
     let onCopyCommand: (String) -> Void
     let showsGlow: Bool
+    let rendersPhysicalNotchSurface: Bool
     @Environment(\.colorScheme) private var colorScheme
 
     init(
         model: NotchShellViewModel,
         sessionListModel: SessionListPresentationModel,
         showsGlow: Bool = true,
+        rendersPhysicalNotchSurface: Bool = true,
         onReturnToCLI: @escaping (CLIContextPayload, SessionIdentity?) -> Void = { _, _ in },
         onCopyCommand: @escaping (String) -> Void = { _ in }
     ) {
         self.model = model
         self.sessionListModel = sessionListModel
         self.showsGlow = showsGlow
+        self.rendersPhysicalNotchSurface = rendersPhysicalNotchSurface
         self.onReturnToCLI = onReturnToCLI
         self.onCopyCommand = onCopyCommand
     }
@@ -189,7 +342,8 @@ struct NotchShellView: View {
             NotchShellSurfaceModifier(
                 snapshot: snapshot,
                 geometry: geometry,
-                surface: surface
+                surface: surface,
+                rendersPhysicalNotchSurface: rendersPhysicalNotchSurface
             )
         )
         .background {

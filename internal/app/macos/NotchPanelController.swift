@@ -14,6 +14,9 @@ final class NotchPanelController: NSObject {
     var canPresentNotchAlert: Bool {
         placement?.mode == .notch
     }
+    var revealsPhysicalContent: Bool {
+        contentModel.revealsContent
+    }
 
     private let notificationCenter: NotificationCenter
     private let screenChangeNotification: Notification.Name
@@ -26,7 +29,8 @@ final class NotchPanelController: NSObject {
     private let resolver = OverlayScreenResolver()
     private let calculator = OverlayPlacementCalculator()
     private let shellModel: NotchShellViewModel
-    private lazy var glowPanel = NotchGlowPanel(model: shellModel)
+    private let contentModel = NotchShellContentViewModel()
+    private let glowPanel: NotchGlowPanel
     private var content = NotchPanelContent.empty
     private var canonicalContent = NotchPanelContent.empty
     private var interactionState = NotchInteractionState(
@@ -46,10 +50,10 @@ final class NotchPanelController: NSObject {
     )
 
     private lazy var hostingView = NotchHostingView(
-        rootView: NotchShellView(
-            model: shellModel,
+        rootView: NotchPanelRootView(
+            contentModel: contentModel,
+            shellModel: shellModel,
             sessionListModel: sessionListModel,
-            showsGlow: false,
             onReturnToCLI: onOpenContext,
             onCopyCommand: onCopyCommand
         )
@@ -59,6 +63,7 @@ final class NotchPanelController: NSObject {
         notificationCenter: NotificationCenter = .default,
         screenChangeNotification: Notification.Name? = nil,
         screenProvider: @escaping ScreenProvider = ScreenSnapshot.currentScreens,
+        prefersDisplayLink: Bool = true,
         animationClock: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
         onOpenContext: @escaping OpenContextHandler = { _, _ in },
         onCopyCommand: @escaping CopyCommandHandler = { _ in },
@@ -71,20 +76,30 @@ final class NotchPanelController: NSObject {
         self.screenChangeNotification =
             screenChangeNotification ?? NSApplication.didChangeScreenParametersNotification
         self.screenProvider = screenProvider
-        shellModel = NotchShellViewModel(animationClock: animationClock)
         self.onOpenContext = onOpenContext
         self.onCopyCommand = onCopyCommand
         self.onHideSession = onHideSession
         self.log = log
-        panel = NSPanel(
+        let panel = NSPanel(
             contentRect: CGRect(origin: .zero, size: OverlayPlacementCalculator.maximumSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
+        self.panel = panel
+        let glowPanel = NotchGlowPanel()
+        self.glowPanel = glowPanel
+        shellModel = NotchShellViewModel(
+            displayLinkWindow: glowPanel,
+            prefersDisplayLink: prefersDisplayLink,
+            animationClock: animationClock
+        )
 
         super.init()
         configurePanel()
+        shellModel.onAnimationFrame = { [weak self] in
+            self?.displayAnimationFrame()
+        }
         reposition()
         notificationCenter.addObserver(
             self,
@@ -206,34 +221,6 @@ final class NotchPanelController: NSObject {
         hostingView.autoresizingMask = [.width, .height]
     }
 
-    private func refreshShell() {
-        let placementMode = placement?.mode ?? .topCenter
-        let panelSize = placement?.frame.size ?? panel.frame.size
-        let anchorSize = placement?.anchorFrame.size ?? .zero
-        let snapshot = NotchShellSnapshot(
-            visibility: interactionState.visibility,
-            stopPulseActive: interactionState.stopPulseActive,
-            placementMode: placementMode,
-            panelSize: panelSize,
-            anchorSize: anchorSize,
-            presentationState: interactionState.presentationState,
-            content: content,
-            transitionStyle: .resolved(
-                reduceMotion: accessibilityPreferences.reduceMotion
-            ),
-            reduceTransparency: accessibilityPreferences.reduceTransparency,
-            increaseContrast: accessibilityPreferences.increaseContrast
-        )
-        shellModel.update(snapshot: snapshot)
-        let statusLabel = interactionState.visibility == .expanded
-            ? interactionState.presentationState.accessibilityLabel
-            : NotchGlowPresentation.resolved(snapshot: snapshot).accessibilityLabel
-        panel.setAccessibilityLabel(
-            "\(statusLabel), " +
-                "\(interactionState.visibility.accessibilityDescription)"
-        )
-    }
-
     private func applyWindowPresentation() {
         guard let placement else {
             shellModel.finishAnimation()
@@ -262,7 +249,8 @@ final class NotchPanelController: NSObject {
             visibility: interactionState.visibility
         )
         panel.orderFrontRegardless()
-        if placement.mode == .notch && glow.isVisible {
+        if placement.mode == .notch &&
+            (interactionState.visibility == .expanded || glow.isVisible) {
             glowPanel.show(below: panel)
         } else {
             glowPanel.orderOut(nil)
@@ -362,23 +350,74 @@ extension NotchPanelController {
     }
 }
 
-final class NotchHostingView<Content: View>: NSHostingView<Content> {
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
-        // Custom SwiftUI button styles need explicit click-through on non-key panels on macOS 13-14.
-        return true
-    }
-}
-
-private extension NotchVisibility {
-    var accessibilityDescription: String {
-        switch self {
-        case .closed:
-            return "collapsed notch signal"
-        case .peek:
-            return "stop pulse"
-        case .expanded:
-            return "panel expanded"
+private extension NotchPanelController {
+    func displayAnimationFrame() {
+        if shellModel.snapshot.placementMode == .notch {
+            glowPanel.update(
+                snapshot: shellModel.snapshot,
+                geometry: shellModel.geometry
+            )
+            if shellModel.snapshot.visibility == .expanded &&
+                shellModel.layout == NotchShellLayout.resolved(
+                    snapshot: shellModel.snapshot
+                ) {
+                contentModel.revealContent()
+            }
+        } else {
+            hostingView.layoutSubtreeIfNeeded()
+            hostingView.displayIfNeeded()
         }
+    }
+
+    func refreshShell() {
+        let placementMode = placement?.mode ?? .topCenter
+        let panelSize = placement?.frame.size ?? panel.frame.size
+        let anchorSize = placement?.anchorFrame.size ?? .zero
+        let snapshot = NotchShellSnapshot(
+            visibility: interactionState.visibility,
+            stopPulseActive: interactionState.stopPulseActive,
+            placementMode: placementMode,
+            panelSize: panelSize,
+            anchorSize: anchorSize,
+            presentationState: interactionState.presentationState,
+            content: content,
+            transitionStyle: .resolved(
+                reduceMotion: accessibilityPreferences.reduceMotion
+            ),
+            reduceTransparency: accessibilityPreferences.reduceTransparency,
+            increaseContrast: accessibilityPreferences.increaseContrast
+        )
+        shellModel.setDisplayLinkWindow(
+            placementMode == .notch ? glowPanel : panel
+        )
+        shellModel.update(snapshot: snapshot)
+        let revealsContent =
+            placementMode != .notch ||
+            (
+                snapshot.visibility == .expanded &&
+                (
+                    snapshot.transitionStyle == .opacityOnly ||
+                    shellModel.layout == NotchShellLayout.resolved(
+                        snapshot: snapshot
+                    )
+                )
+            )
+        contentModel.update(
+            snapshot: snapshot,
+            revealsContent: revealsContent
+        )
+        if placementMode == .notch {
+            hostingView.layoutSubtreeIfNeeded()
+            hostingView.displayIfNeeded()
+        }
+        glowPanel.update(snapshot: snapshot, geometry: shellModel.geometry)
+        let statusLabel = interactionState.visibility == .expanded
+            ? interactionState.presentationState.accessibilityLabel
+            : NotchGlowPresentation.resolved(snapshot: snapshot).accessibilityLabel
+        panel.setAccessibilityLabel(
+            "\(statusLabel), " +
+                "\(interactionState.visibility.accessibilityDescription)"
+        )
     }
 }
 

@@ -16,6 +16,15 @@ extension MewsAppModelTests {
                     )
                 }
             }
+            try checkWindowGlow(
+                snapshot: windowGlowSnapshot(
+                    visibility: .expanded,
+                    mode: .notch,
+                    status: nil
+                ),
+                scale: scale,
+                failures: &failures
+            )
             for preferences in [(true, false, false), (false, true, false), (false, false, true)] {
                 try checkWindowGlow(
                     snapshot: windowGlowSnapshot(
@@ -37,7 +46,9 @@ extension MewsAppModelTests {
         for reduceMotion in [false, true] {
             var time: TimeInterval = 0
             let controller = NotchPanelController(
-                screenProvider: { [windowGlowScreen(mode: .notch)] }, animationClock: { time }
+                screenProvider: { [windowGlowScreen(mode: .notch)] },
+                prefersDisplayLink: false,
+                animationClock: { time }
             )
             defer { controller.hide() }
             controller.update(content: windowGlowSnapshot(visibility: .closed).content)
@@ -47,6 +58,11 @@ extension MewsAppModelTests {
             )
             probe.show(.closed)
             try probe.sample(until: 32, expectsMotion: false)
+            guard !controller.revealsPhysicalContent else {
+                throw NotchWindowGlowFailure(
+                    message: "collapsed physical-notch content must stay hidden with Reduce Motion"
+                )
+            }
             probe.show(.expanded)
             if scale == 2 {
                 // A slow renderer must not advance the frame being tested.
@@ -143,7 +159,7 @@ extension MewsAppModelTests {
     private static func windowGlowSnapshot(
         visibility: NotchVisibility,
         mode: OverlayPlacementMode = .notch,
-        status: SessionStatus = .running,
+        status: SessionStatus? = .running,
         reduceMotion: Bool = true,
         reduceTransparency: Bool = false,
         increaseContrast: Bool = false
@@ -154,7 +170,11 @@ extension MewsAppModelTests {
             anchorSize: CGSize(width: 179, height: 32),
             presentationState: MewsPresentationState(event: nil),
             content: NotchPanelContent(
-                presentation: SessionPresentation(rows: [], aggregateStatuses: [status], health: nil),
+                presentation: SessionPresentation(
+                    rows: [],
+                    aggregateStatuses: status.map { [$0] } ?? [],
+                    health: nil
+                ),
                 events: [], currentEvent: nil
             ),
             transitionStyle: reduceMotion ? .opacityOnly : .spatial,
@@ -197,9 +217,45 @@ struct NotchWindowRaster {
         return NotchWindowRaster(bitmap: bitmap, scale: scale)
     }
 
+    static func captureLayer(
+        _ host: NSView,
+        size: CGSize,
+        scale: CGFloat
+    ) throws -> NotchWindowRaster {
+        host.frame.size = size
+        host.layoutSubtreeIfNeeded()
+        host.displayIfNeeded()
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width * scale),
+            pixelsHigh: Int(size.height * scale),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+            throw NotchWindowGlowFailure(message: "could not allocate layer capture")
+        }
+        bitmap.size = size
+        context.cgContext.translateBy(x: 0, y: CGFloat(bitmap.pixelsHigh))
+        context.cgContext.scaleBy(x: scale, y: -scale)
+        host.layer?.render(in: context.cgContext)
+        return NotchWindowRaster(bitmap: bitmap, scale: scale)
+    }
+
     func brightness(at point: CGPoint) -> Int {
         let color = pixel(at: point)
         return max(color.red, color.green, color.blue)
+    }
+
+    func alpha(at point: CGPoint) -> Int {
+        let column = Int(point.x * scale)
+        let row = Int(point.y * scale)
+        guard let pixels = bitmap.bitmapData else { return 0 }
+        return Int((pixels + row * bitmap.bytesPerRow + column * 4)[3])
     }
 
     func colorScore(at point: CGPoint) -> Int {
@@ -213,9 +269,11 @@ struct NotchWindowRaster {
         }
         func score(column: Int, row: Int) -> Int {
             let pixel = pixels + row * bitmap.bytesPerRow + column * 4
-            return glow
-                ? Int(max(pixel[0], pixel[1], pixel[2])) - Int(min(pixel[0], pixel[1], pixel[2]))
-                : Int(pixel[3])
+            if glow {
+                return Int(max(pixel[0], pixel[1], pixel[2])) -
+                    Int(min(pixel[0], pixel[1], pixel[2]))
+            }
+            return max(pixel[0], pixel[1], pixel[2]) <= 20 ? Int(pixel[3]) : 0
         }
         let horizontal = (0..<bitmap.pixelsWide).map { score(column: $0, row: Int(4 * scale)) }
         let vertical = (0..<bitmap.pixelsHigh).map { score(column: bitmap.pixelsWide / 2, row: $0) }
@@ -230,7 +288,10 @@ struct NotchWindowRaster {
         guard let left = horizontal.firstIndex(where: { $0 >= 128 }),
               let right = horizontal.lastIndex(where: { $0 >= 128 }),
               let bottom = vertical.lastIndex(where: { $0 >= 128 }) else {
-            throw NotchWindowGlowFailure(message: "motion capture must contain an opaque backing")
+            throw NotchWindowGlowFailure(
+                message: "motion capture must contain an opaque backing; " +
+                    "horizontal max \(horizontal.max() ?? -1), vertical max \(vertical.max() ?? -1)"
+            )
         }
         return [Double(left), Double(right + 1), Double(bottom + 1)]
     }
@@ -244,26 +305,6 @@ struct NotchWindowRaster {
         }
         let indices = scores.indices.filter { scores[$0] >= peak - 3 }
         return Double(indices.reduce(0, +)) / Double(indices.count) + 0.5
-    }
-
-    func assertContentBounds(_ edges: [Double]) throws {
-        guard let pixels = bitmap.bitmapData else {
-            throw NotchWindowGlowFailure(message: "content capture has no pixels")
-        }
-        let left = Int(floor(edges[0])) - 1
-        let right = Int(ceil(edges[1])) + 1
-        let bottom = Int(ceil(edges[2])) + 1
-        for row in 0..<bitmap.pixelsHigh {
-            let ranges = row >= bottom ? [0..<bitmap.pixelsWide] :
-                [0..<max(0, left), min(bitmap.pixelsWide, right)..<bitmap.pixelsWide]
-            for range in ranges {
-                for column in range where pixels[row * bitmap.bytesPerRow + column * 4 + 3] > 5 {
-                    throw NotchWindowGlowFailure(
-                        message: "fading content escaped the backing at \(column)/\(row), bounds \(edges)"
-                    )
-                }
-            }
-        }
     }
 
     private func pixel(at point: CGPoint) -> NotchRasterPixel {
@@ -306,7 +347,8 @@ private struct NotchWindowMotionProbe {
             for (backing, glow) in zip(edges.backing, edges.glow) {
                 maximumError = max(maximumError, abs(backing - glow))
             }
-            guard maximumError <= 1 else {
+            let edgeTolerance = NotchShellShape.outlineWidth(increaseContrast: false) * scale
+            guard maximumError <= edgeTolerance else {
                 throw NotchWindowGlowFailure(
                     message: "motion \(scale)x: backing \(edges.backing), glow \(edges.glow), " +
                         "error \(maximumError)px; " +
@@ -316,13 +358,21 @@ private struct NotchWindowMotionProbe {
             let bottom = edges.backing[2] / scale
             if bottom > 34 && bottom < 218 {
                 intermediateFrames += 1
+                guard !controller.revealsPhysicalContent else {
+                    throw NotchWindowGlowFailure(
+                        message: "content must remain hidden while the backing is moving"
+                    )
+                }
             }
             guard !reduceMotion || intermediateFrames == 0 else {
                 throw NotchWindowGlowFailure(message: "Reduce Motion must not animate shell geometry")
             }
             let glowBottom = edges.glow[2] / scale
+            let pointTolerance =
+                NotchShellShape.outlineWidth(increaseContrast: false) / 2
             let reached = crossesHeight ? min(bottom, glowBottom) >= height :
-                abs(bottom - height) <= 0.5 && abs(glowBottom - height) <= 0.5
+                abs(bottom - height) <= pointTolerance &&
+                    abs(glowBottom - height) <= pointTolerance
             if reached {
                 guard !expectsMotion || intermediateFrames > 0 else {
                     throw NotchWindowGlowFailure(message: "spatial transition must render intermediate geometry")
@@ -337,15 +387,18 @@ private struct NotchWindowMotionProbe {
 
     private func captureEdges() throws -> (backing: [Double], glow: [Double]) {
         guard let glowPanel = controller.panel.childWindows?.first,
-              let backingView = controller.panel.contentView,
-              let glowView = glowPanel.contentView else {
-            throw NotchWindowGlowFailure(message: "motion requires both native windows")
+              let visualView = glowPanel.contentView else {
+            throw NotchWindowGlowFailure(message: "motion requires the passive visual window")
         }
-        let backing = try NotchWindowRaster.capture(backingView, size: controller.panel.frame.size, scale: scale)
-        let glow = try NotchWindowRaster.capture(glowView, size: glowPanel.frame.size, scale: scale)
-        let backingEdges = try backing.motionEdges(glow: false)
-        try backing.assertContentBounds(backingEdges)
-        return try (backingEdges, glow.motionEdges(glow: true))
+        let visual = try NotchWindowRaster.captureLayer(
+            visualView,
+            size: glowPanel.frame.size,
+            scale: scale
+        )
+        var backingEdges = try visual.motionEdges(glow: false)
+        backingEdges[0] -= NotchGlowPanel.margin * scale
+        backingEdges[1] -= NotchGlowPanel.margin * scale
+        return try (backingEdges, visual.motionEdges(glow: true))
     }
 }
 
