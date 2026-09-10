@@ -69,7 +69,6 @@ private final class NotchShellVisualView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         layer = CALayer()
-        layer?.isGeometryFlipped = true
         for shapeLayer in [farGlowLayer, nearGlowLayer, glowLayer, backingLayer] {
             shapeLayer.fillColor = NSColor.clear.cgColor
             shapeLayer.lineCap = .round
@@ -93,10 +92,22 @@ private final class NotchShellVisualView: NSView {
             width: geometry.layout.width,
             height: geometry.layout.height
         )
-        let backingPath = geometry.shape.path(in: shellRect).cgPath
+        let layerTransform = CGAffineTransform(
+            a: 1,
+            b: 0,
+            c: 0,
+            d: -1,
+            tx: 0,
+            ty: bounds.height
+        )
+        let backingPath = geometry.shape.path(in: shellRect)
+            .applying(layerTransform)
+            .cgPath
         let glowPath = NotchShellShape.PhysicalNotchGlowShape(
             cornerRadius: geometry.layout.cornerRadius
-        ).edgePath(in: shellRect).cgPath
+        ).edgePath(in: shellRect)
+            .applying(layerTransform)
+            .cgPath
         let glowColor = color(for: presentation.signal)
         let outlineWidth = NotchShellShape.outlineWidth(
             increaseContrast: snapshot.increaseContrast

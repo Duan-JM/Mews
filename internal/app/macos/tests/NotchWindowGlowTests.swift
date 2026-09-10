@@ -217,35 +217,6 @@ struct NotchWindowRaster {
         return NotchWindowRaster(bitmap: bitmap, scale: scale)
     }
 
-    static func captureLayer(
-        _ host: NSView,
-        size: CGSize,
-        scale: CGFloat
-    ) throws -> NotchWindowRaster {
-        host.frame.size = size
-        host.layoutSubtreeIfNeeded()
-        host.displayIfNeeded()
-        guard let bitmap = NSBitmapImageRep(
-            bitmapDataPlanes: nil,
-            pixelsWide: Int(size.width * scale),
-            pixelsHigh: Int(size.height * scale),
-            bitsPerSample: 8,
-            samplesPerPixel: 4,
-            hasAlpha: true,
-            isPlanar: false,
-            colorSpaceName: .deviceRGB,
-            bytesPerRow: 0,
-            bitsPerPixel: 0
-        ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
-            throw NotchWindowGlowFailure(message: "could not allocate layer capture")
-        }
-        bitmap.size = size
-        context.cgContext.translateBy(x: 0, y: CGFloat(bitmap.pixelsHigh))
-        context.cgContext.scaleBy(x: scale, y: -scale)
-        host.layer?.render(in: context.cgContext)
-        return NotchWindowRaster(bitmap: bitmap, scale: scale)
-    }
-
     func brightness(at point: CGPoint) -> Int {
         let color = pixel(at: point)
         return max(color.red, color.green, color.blue)
@@ -261,6 +232,14 @@ struct NotchWindowRaster {
     func colorScore(at point: CGPoint) -> Int {
         let color = pixel(at: point)
         return abs(color.red - color.green)
+    }
+
+    func isOpaqueBlack(at point: CGPoint) -> Bool {
+        let color = pixel(at: point)
+        return color.red <= 20 &&
+            color.green <= 20 &&
+            color.blue <= 20 &&
+            alpha(at: point) >= 128
     }
 
     func motionEdges(glow: Bool) throws -> [Double] {
@@ -390,7 +369,7 @@ private struct NotchWindowMotionProbe {
               let visualView = glowPanel.contentView else {
             throw NotchWindowGlowFailure(message: "motion requires the passive visual window")
         }
-        let visual = try NotchWindowRaster.captureLayer(
+        let visual = try NotchWindowRaster.capture(
             visualView,
             size: glowPanel.frame.size,
             scale: scale
