@@ -20,9 +20,11 @@ extension MewsAppModelTests {
         }
         let shell = controller.panel.frame
         let window = rasterPanel.frame
-        let raster = try snapshot.placementMode == .notch
-            ? NotchWindowRaster.captureLayer(host, size: window.size, scale: scale)
-            : NotchWindowRaster.capture(host, size: window.size, scale: scale)
+        let raster = try NotchWindowRaster.capture(
+            host,
+            size: window.size,
+            scale: scale
+        )
         if glowPanel?.ignoresMouseEvents == false || shell.size != placement.frame.size {
             failures.append("native \(scale)x: halo must not enlarge the input window")
         }
@@ -92,6 +94,54 @@ extension MewsAppModelTests {
             probe.raster.alpha(at: shellCenter) < 128 {
             failures.append("native \(probe.scale)x: expanded idle shell lost its black backing")
         }
+        checkPhysicalBackingOrientation(probe: probe, failures: &failures)
+    }
+
+    private static func checkPhysicalBackingOrientation(
+        probe: GlowPixelProbe,
+        failures: inout [String]
+    ) {
+        guard probe.snapshot.placementMode == .notch,
+              probe.snapshot.visibility == .expanded else {
+            return
+        }
+        let shellLeft = probe.shell.minX - probe.window.minX
+        let shellBottom = probe.window.maxY - probe.shell.minY
+        let points = PhysicalBackingProbePoints(
+            topCenter: CGPoint(
+                x: probe.shell.midX - probe.window.minX,
+                y: 2
+            ),
+            bottomHalo: CGPoint(
+                x: probe.shell.midX - probe.window.minX,
+                y: shellBottom + 4
+            ),
+            topLeft: CGPoint(x: shellLeft + 4, y: 4),
+            bottomLeft: CGPoint(
+                x: shellLeft + 4,
+                y: shellBottom - 4
+            )
+        )
+        if !probe.raster.isOpaqueBlack(at: points.topCenter) {
+            failures.append(
+                "native \(probe.scale)x: physical backing must start at the screen top"
+            )
+        }
+        if probe.raster.isOpaqueBlack(at: points.bottomHalo) {
+            failures.append(
+                "native \(probe.scale)x: physical backing leaked into the bottom halo"
+            )
+        }
+        if !probe.raster.isOpaqueBlack(at: points.topLeft) {
+            failures.append(
+                "native \(probe.scale)x: physical backing top edge is vertically inverted"
+            )
+        }
+        if probe.raster.isOpaqueBlack(at: points.bottomLeft) {
+            failures.append(
+                "native \(probe.scale)x: physical backing bottom corner is vertically inverted"
+            )
+        }
     }
 
     private static func checkGlowLifecycle(
@@ -138,6 +188,13 @@ private struct GlowPixelProbe {
     let window: CGRect
     let shell: CGRect
     let scale: CGFloat
+}
+
+private struct PhysicalBackingProbePoints {
+    let topCenter: CGPoint
+    let bottomHalo: CGPoint
+    let topLeft: CGPoint
+    let bottomLeft: CGPoint
 }
 
 private struct GlowLifecycleProbe {
