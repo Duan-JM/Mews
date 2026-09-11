@@ -5,6 +5,21 @@ struct SessionControllerSnapshot: Equatable {
     let sessions: [CurrentSessionState]
     let reconciliationAnchor: SessionReconciliationAnchor?
     let orderingKnown: Bool
+    let stopTransitions: [SessionStopTransition]
+
+    init(
+        revision: UInt64,
+        sessions: [CurrentSessionState],
+        reconciliationAnchor: SessionReconciliationAnchor?,
+        orderingKnown: Bool,
+        stopTransitions: [SessionStopTransition] = []
+    ) {
+        self.revision = revision
+        self.sessions = sessions
+        self.reconciliationAnchor = reconciliationAnchor
+        self.orderingKnown = orderingKnown
+        self.stopTransitions = stopTransitions
+    }
 }
 
 enum SessionControllerReconciliation {
@@ -100,12 +115,15 @@ final class SessionStateController {
         }
     }
 
-    private func makeSnapshot() -> SessionControllerSnapshot {
+    private func makeSnapshot(
+        stopTransitions: [SessionStopTransition] = []
+    ) -> SessionControllerSnapshot {
         return SessionControllerSnapshot(
             revision: revision,
             sessions: repository.snapshot(),
             reconciliationAnchor: anchor,
-            orderingKnown: repository.orderingKnown
+            orderingKnown: repository.orderingKnown,
+            stopTransitions: stopTransitions
         )
     }
 
@@ -130,15 +148,17 @@ final class SessionStateController {
         )
         let sessionReload = EventReload(
             events: reload.events,
-            newEvents: scan.didResync ? [] : scan.events,
+            newEvents: scan.didResync ? reload.newEvents : scan.events,
             recoveryEvents: scan.events,
             sessionResyncEvents: scan.didResync ? scan.events : [],
             sessionCandidateAnchor: scan.candidateAnchor,
             sessionDidResync: scan.didResync
         )
-        _ = try repository.apply(sessionReload)
+        let result = try repository.applyWithResult(sessionReload)
         anchor = scan.candidateAnchor
         revision += 1
-        return makeSnapshot()
+        return makeSnapshot(
+            stopTransitions: result.stopTransitions
+        )
     }
 }

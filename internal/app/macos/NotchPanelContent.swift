@@ -10,6 +10,7 @@ struct NotchPanelContent: Equatable {
         actionableIdentity: nil,
         actionableEventID: nil,
         sessionRows: [],
+        aggregateStatuses: nil,
         sessionRevision: nil,
         health: nil,
         unscopedRecent: []
@@ -21,6 +22,7 @@ struct NotchPanelContent: Equatable {
     let actionableIdentity: SessionIdentity?
     let actionableEventID: String?
     let sessionRows: [SessionPresentationRow]
+    let aggregateStatuses: [SessionStatus]?
     let sessionRevision: UInt64?
     let health: RuntimeHealthPresentation?
     let unscopedRecent: [NotchEventSummary]
@@ -91,6 +93,7 @@ struct NotchPanelContent: Equatable {
             actionableIdentity: legacy.actionableIdentity,
             actionableEventID: legacy.actionableEventID,
             sessionRows: presentation.rows,
+            aggregateStatuses: presentation.aggregateStatuses,
             sessionRevision: presentation.sessionRevision,
             health: presentation.health,
             unscopedRecent: unscopedRecent
@@ -110,6 +113,7 @@ struct NotchPanelContent: Equatable {
                 canonical: sessionRows,
                 previous: previous.sessionRows
             ),
+            aggregateStatuses: aggregateStatuses,
             sessionRevision: sessionRevision,
             health: previous.health,
             unscopedRecent: previous.unscopedRecent
@@ -123,6 +127,7 @@ struct NotchPanelContent: Equatable {
         actionableIdentity: SessionIdentity?,
         actionableEventID: String?,
         sessionRows: [SessionPresentationRow],
+        aggregateStatuses: [SessionStatus]?,
         sessionRevision: UInt64?,
         health: RuntimeHealthPresentation?,
         unscopedRecent: [NotchEventSummary]
@@ -133,6 +138,7 @@ struct NotchPanelContent: Equatable {
         self.actionableIdentity = actionableIdentity
         self.actionableEventID = actionableEventID
         self.sessionRows = sessionRows
+        self.aggregateStatuses = aggregateStatuses
         self.sessionRevision = sessionRevision
         self.health = health
         self.unscopedRecent = unscopedRecent
@@ -153,6 +159,7 @@ struct NotchPanelContent: Equatable {
             actionableIdentity = nil
             actionableEventID = nil
             sessionRows = []
+            aggregateStatuses = nil
             sessionRevision = nil
             health = nil
             unscopedRecent = []
@@ -175,6 +182,7 @@ struct NotchPanelContent: Equatable {
         )
         actionableEventID = currentEvent.id
         sessionRows = []
+        aggregateStatuses = nil
         sessionRevision = nil
         health = nil
         unscopedRecent = []

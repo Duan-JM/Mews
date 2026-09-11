@@ -1,13 +1,16 @@
 import Foundation
+import SwiftUI
 
 extension MewsAppModelTests {
     static func testNotchShellPresentation() throws {
         let snapshot = notchShellSnapshot()
         try testNotchShellLayout(snapshot: snapshot)
+        try testNotchSharedSpring(snapshot: snapshot)
+        try testNotchDisplayLinkSelection(snapshot: snapshot)
+        try testNotchSpringClock(snapshot: snapshot)
         try testNotchShellHitGeometry(snapshot: snapshot)
         try testTopCenterShellGeometry()
         try testExpandedHeaderNotchAvoidance()
-        try testNotchStatusCopies()
         try testNotchAccessibilityPreferences()
         try testNotchPresentationPolicy()
     }
@@ -23,6 +26,92 @@ extension MewsAppModelTests {
             transitionStyle: .spatial,
             reduceTransparency: false,
             increaseContrast: false
+        )
+    }
+
+    private static func testNotchSharedSpring(snapshot: NotchShellSnapshot) throws {
+        let from = NotchShellLayout.resolved(snapshot: snapshot)
+        let to = NotchShellLayout.resolved(snapshot: snapshot, visibility: .expanded)
+        let animation = NotchShellAnimation(from: from, to: to)
+        try shellExpect(
+            animation.frame(at: 0).layout == from && animation.frame(at: 0).velocity == .zero,
+            "a shared spring must begin at the displayed layout without inventing velocity"
+        )
+        let middle = animation.frame(at: 0.09)
+        let reversed = NotchShellAnimation(from: middle.layout, to: from, velocity: middle.velocity)
+        try shellExpect(
+            abs(reversed.frame(at: 0).layout.height - middle.layout.height) < 0.000001,
+            "reversing a spring must preserve the displayed position"
+        )
+        for index in 0..<4 {
+            try shellExpect(
+                abs(reversed.frame(at: 0).velocity[index] - middle.velocity[index]) < 0.000001,
+                "reversing a spring must preserve every geometry component's velocity"
+            )
+        }
+        for (driver, target) in [(animation, to), (reversed, from)] {
+            try shellExpect(
+                driver.frame(at: driver.duration).layout == target &&
+                    driver.frame(at: driver.duration).velocity == .zero,
+                "a completed spring must settle at the exact target and stop moving"
+            )
+        }
+        if #available(macOS 14, *) {
+            let reference = Spring(response: 0.3, dampingRatio: 0.88)
+            for time in [0.02, 0.09, 0.2, 0.3] {
+                let expected = reference.value(target: Double(to.height - from.height), time: time)
+                let reverseExpected = reference.value(
+                    target: Double(from.height - middle.layout.height),
+                    initialVelocity: middle.velocity[1], time: time
+                )
+                try shellExpect(
+                    abs(Double(animation.frame(at: time).layout.height - from.height) - expected) < 0.000001 &&
+                        abs(Double(reversed.frame(at: time).layout.height - middle.layout.height) -
+                            reverseExpected) < 0.000001,
+                    "the shared clock must preserve SwiftUI's spring response, damping, and reversal curve"
+                )
+            }
+        }
+    }
+
+    private static func testNotchSpringClock(snapshot: NotchShellSnapshot) throws {
+        let driver = NotchShellAnimation(
+            from: .resolved(snapshot: snapshot), to: .resolved(snapshot: snapshot, visibility: .expanded)
+        )
+        var frames = 0
+        driver.onFrame = { _ in frames += 1 }
+        driver.start()
+        let deadline = Date().addingTimeInterval(1)
+        while frames == 0 && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+        }
+        driver.stop()
+        try shellExpect(frames > 0, "the shared animation clock must publish real intermediate frames")
+        let stoppedFrames = frames
+        RunLoop.main.run(until: Date().addingTimeInterval(0.04))
+        try shellExpect(frames == stoppedFrames, "stopping or hiding must stop the shared animation clock")
+    }
+
+    private static func testNotchDisplayLinkSelection(snapshot: NotchShellSnapshot) throws {
+        guard #available(macOS 14, *) else {
+            return
+        }
+        let panel = NSPanel(
+            contentRect: CGRect(origin: .zero, size: snapshot.panelSize),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        let driver = NotchShellAnimation(
+            from: .resolved(snapshot: snapshot),
+            to: .resolved(snapshot: snapshot, visibility: .expanded),
+            displayLinkWindow: panel
+        )
+        driver.start()
+        defer { driver.stop() }
+        try shellExpect(
+            driver.frameSource == .displayLink,
+            "visible notch motion must use the window display link instead of a fixed run-loop timer"
         )
     }
 
@@ -73,14 +162,14 @@ extension MewsAppModelTests {
 
         try shellExpect(
             compact.contentTopInset == anchorSize.height &&
-                compact.contentHeight >= 22,
-            "compact status content should sit below the physical notch"
+                compact.contentHeight == 0,
+            "the collapsed contour must use the measured hardware height before applying its stroke"
         )
         try shellExpect(
-            preview.width > compact.width &&
-                preview.height > compact.height &&
-                preview.contentHeight >= 44,
-            "the bounded preview should grow from the compact notch shell"
+            preview == compact &&
+                compact.width == anchorSize.width + NotchShellLayout.collapsedCornerRadius * 2 &&
+                compact.height == anchorSize.height,
+            "collapsed glow states should stay tight to the physical notch"
         )
         try shellExpect(
             expanded.width == panelSize.width &&
@@ -98,8 +187,25 @@ extension MewsAppModelTests {
         let compactFrame = compactGeometry.screenFrame(in: panelFrame)
         try shellExpect(
             compactFrame.maxY == panelFrame.maxY &&
-                compactFrame.minY < panelFrame.maxY - anchorSize.height,
-            "the compact hit region should include the visible strip below the notch"
+                compactFrame.minY == panelFrame.maxY - anchorSize.height,
+            "the compact anchor frame must stay aligned with the measured hardware"
+        )
+        try shellExpect(
+            !compactGeometry.contains(
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 3),
+                in: panelFrame
+            ),
+            "soft glow beyond the solid edge must not become a compact hit target"
+        )
+        try shellExpect(
+            compactGeometry.contains(
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY - 0.75),
+                in: panelFrame
+            ) && compactGeometry.contains(
+                CGPoint(x: compactFrame.minX - 0.75, y: compactFrame.midY),
+                in: panelFrame
+            ),
+            "the visible outside stroke should remain clickable at the bottom and sides"
         )
         try shellExpect(
             !compactFrame.contains(CGPoint(x: panelFrame.midX, y: panelFrame.minY + 20)),
@@ -107,17 +213,10 @@ extension MewsAppModelTests {
         )
         try shellExpect(
             compactGeometry.contains(
-                CGPoint(x: panelFrame.midX, y: compactFrame.minY + 11),
+                CGPoint(x: panelFrame.midX, y: compactFrame.minY + 7),
                 in: panelFrame
             ),
-            "the visible compact status band should be part of the hit region"
-        )
-        try shellExpect(
-            !compactGeometry.contains(
-                CGPoint(x: compactFrame.minX + 4, y: compactFrame.maxY - 4),
-                in: panelFrame
-            ),
-            "transparent space beside the hardware-width neck should not be clickable"
+            "the bottom notch edge should be part of the hit region"
         )
     }
 
@@ -176,37 +275,6 @@ extension MewsAppModelTests {
         )
     }
 
-    private static func testNotchStatusCopies() throws {
-        let expectedCopies = [
-            NotchStatusCopyExpectation(
-                status: .idle,
-                copy: NotchStatusCopy(code: "IDLE", detail: "Standing by")
-            ),
-            NotchStatusCopyExpectation(
-                status: .running,
-                copy: NotchStatusCopy(code: "RUN", detail: "Agent running")
-            ),
-            NotchStatusCopyExpectation(
-                status: .needsInput,
-                copy: NotchStatusCopy(code: "ASK", detail: "Needs input")
-            ),
-            NotchStatusCopyExpectation(
-                status: .done,
-                copy: NotchStatusCopy(code: "DONE", detail: "Task complete")
-            ),
-            NotchStatusCopyExpectation(
-                status: .failed,
-                copy: NotchStatusCopy(code: "FAIL", detail: "Task failed")
-            )
-        ]
-        for expectation in expectedCopies {
-            try shellExpect(
-                NotchStatusCopy.resolved(status: expectation.status) == expectation.copy,
-                "\(expectation.status) should have distinct compact and preview copy"
-            )
-        }
-    }
-
     private static func testNotchAccessibilityPreferences() throws {
         try shellExpect(
             NotchShellTransitionStyle.resolved(reduceMotion: false) == .spatial,
@@ -254,24 +322,27 @@ extension MewsAppModelTests {
 
     private static func testNotchPresentationPolicy() throws {
         try shellExpect(
-            NotchPanelPresentationPolicy.isVisible(
+            !NotchPanelPresentationPolicy.isVisible(
                 visibility: .closed,
-                placementMode: .notch
+                placementMode: .notch,
+                hasCollapsedSignal: false
             ),
-            "a physical notch should keep the compact status visible"
+            "an idle physical notch should not keep an empty overlay visible"
         )
         try shellExpect(
             NotchPanelPresentationPolicy.isVisible(
                 visibility: .peek,
-                placementMode: .notch
+                placementMode: .notch,
+                hasCollapsedSignal: true
             ),
-            "a physical notch should show bounded status previews"
+            "a physical notch should show a transient stop glow"
         )
         for visibility in [NotchVisibility.closed, .peek] {
             try shellExpect(
                 !NotchPanelPresentationPolicy.isVisible(
                     visibility: visibility,
-                    placementMode: .topCenter
+                    placementMode: .topCenter,
+                    hasCollapsedSignal: true
                 ),
                 "top-center fallback should hide automatic status surfaces"
             )
@@ -279,7 +350,8 @@ extension MewsAppModelTests {
         try shellExpect(
             NotchPanelPresentationPolicy.isVisible(
                 visibility: .expanded,
-                placementMode: .topCenter
+                placementMode: .topCenter,
+                hasCollapsedSignal: false
             ),
             "top-center fallback should remain available after an explicit action"
         )
@@ -298,11 +370,7 @@ extension MewsAppModelTests {
             throw NotchShellViewTestFailure(message: message)
         }
     }
-}
 
-private struct NotchStatusCopyExpectation {
-    let status: MewsPresentationStatus
-    let copy: NotchStatusCopy
 }
 
 private struct NotchShellViewTestFailure: Error {

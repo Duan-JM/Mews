@@ -29,7 +29,29 @@ struct SessionSwipeActionGeometry: Equatable {
     }
 
     var verticalOffset: CGFloat {
-        return -SessionRowLayout.contentBottomInset / 2
+        return 0
+    }
+
+    var edgeHorizontalRadius: CGFloat {
+        return min(
+            SessionRowLayout.actionButtonCornerRadius + SessionSwipeMetrics.trailingGutter,
+            trackWidth
+        )
+    }
+
+    var edgeVerticalRadius: CGFloat {
+        guard edgeHorizontalRadius > 0 else {
+            return 0
+        }
+        let buttonInset = (SessionRowLayout.rowHeight - SessionRowLayout.actionButtonHeight) / 2
+        let targetRadius = SessionRowLayout.actionButtonCornerRadius + buttonInset
+        let horizontalTarget =
+            SessionRowLayout.actionButtonCornerRadius + SessionSwipeMetrics.trailingGutter
+        return targetRadius * edgeHorizontalRadius / horizontalTarget
+    }
+
+    var renderedTrackWidth: CGFloat {
+        return trackWidth > 0 ? trackWidth + edgeHorizontalRadius : 0
     }
 
     var labelOpacity: Double {
@@ -65,28 +87,40 @@ struct SessionSwipeActionView: View, Animatable {
     }
 
     var body: some View {
-        ZStack(alignment: .trailing) {
-            trackBackground
-                .allowsHitTesting(false)
-            hideButton
-                .offset(x: -SessionSwipeMetrics.actionInset, y: geometry.verticalOffset)
-        }
-        .frame(width: geometry.trackWidth, height: SessionRowLayout.rowHeight)
-        .clipped()
+        Color.clear
+            .frame(width: geometry.trackWidth, height: SessionRowLayout.rowHeight)
+            .background(alignment: .trailing) {
+                trackBackground
+                    .frame(width: renderedTrackWidth, height: SessionRowLayout.rowHeight)
+                    .allowsHitTesting(false)
+            }
+            .overlay(alignment: .trailing) {
+                hideButton
+                    .offset(x: -SessionSwipeMetrics.actionInset, y: geometry.verticalOffset)
+            }
+    }
+
+    private var renderedTrackWidth: CGFloat {
+        return isFullSwipe ? geometry.trackWidth : geometry.renderedTrackWidth
     }
 
     @ViewBuilder
     private var trackBackground: some View {
+        let shape = SessionSwipeTrackShape(
+            horizontalRadius: isFullSwipe ? 0 : geometry.edgeHorizontalRadius,
+            verticalRadius: isFullSwipe ? 0 : geometry.edgeVerticalRadius
+        )
         if NotchSurfaceTreatment.resolved(
             placementMode: snapshot.placementMode,
             reduceTransparency: snapshot.reduceTransparency,
             increaseContrast: snapshot.increaseContrast
         ) == .adaptiveMaterial {
-            Rectangle()
+            shape
                 .fill(.regularMaterial)
                 .overlay(Color.black.opacity(0.04))
+                .clipShape(shape)
         } else {
-            Color.black.opacity(snapshot.increaseContrast ? 0.12 : 0.06)
+            shape.fill(Color.black.opacity(snapshot.increaseContrast ? 0.12 : 0.06))
         }
     }
 
@@ -129,6 +163,44 @@ struct SessionSwipeActionView: View, Animatable {
         green: 15.0 / 255.0,
         blue: 40.0 / 255.0
     )
+}
+
+private struct SessionSwipeTrackShape: Shape {
+    let horizontalRadius: CGFloat
+    let verticalRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let radiusX = min(max(0, horizontalRadius), rect.width)
+        let radiusY = min(max(0, verticalRadius), rect.height / 2)
+        guard radiusX > 0, radiusY > 0 else {
+            return Path(rect)
+        }
+        let control: CGFloat = 0.552_284_8
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addCurve(
+            to: CGPoint(x: rect.minX + radiusX, y: rect.maxY - radiusY),
+            control1: CGPoint(x: rect.minX + control * radiusX, y: rect.maxY),
+            control2: CGPoint(
+                x: rect.minX + radiusX,
+                y: rect.maxY - radiusY + control * radiusY
+            )
+        )
+        path.addLine(to: CGPoint(x: rect.minX + radiusX, y: rect.minY + radiusY))
+        path.addCurve(
+            to: CGPoint(x: rect.minX, y: rect.minY),
+            control1: CGPoint(
+                x: rect.minX + radiusX,
+                y: rect.minY + radiusY - control * radiusY
+            ),
+            control2: CGPoint(x: rect.minX + control * radiusX, y: rect.minY)
+        )
+        path.closeSubpath()
+        return path
+    }
 }
 
 private struct SessionHideActionButtonStyle: ButtonStyle {

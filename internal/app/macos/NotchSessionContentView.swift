@@ -110,7 +110,7 @@ private struct NotchSessionRowsView: View {
         visual: SessionSwipeRowVisual,
         rowWidth: CGFloat
     ) -> some View {
-        HStack(spacing: 7) {
+        HStack(spacing: SessionSwipeMetrics.trailingGutter) {
             Text(row.statusCode)
                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .tracking(0.3)
@@ -128,7 +128,6 @@ private struct NotchSessionRowsView: View {
                 }
             }
         )
-        .padding(.bottom, SessionRowLayout.contentBottomInset)
         .frame(height: SessionRowLayout.rowHeight)
         .overlay(rule, alignment: .bottom)
         .accessibilityElement(children: .contain)

@@ -91,13 +91,13 @@ Mews first handles five states:
 
 | State | Meaning | UI expression |
 |---|---|---|
-| `running` | Agent is working | `RUN` compact notch state and running menu-bar pose |
-| `needs_input` | Main agent is waiting for user input, permission, or confirmation | 4-second notch preview followed by compact `ASK`, or a system notification without a physical notch |
-| `done` | Main task finished | 2.5-second notch preview followed by compact `DONE`, or a system notification fallback |
-| `failed` | Main task failed or a command exited unexpectedly | 4-second notch preview followed by compact `FAIL`, or a system notification fallback |
-| `idle` | No active task | Quiet `IDLE` compact notch state |
+| `running` | Agent is working | Steady green physical-notch edge glow, including its expanded shell, and running menu-bar pose |
+| `needs_input` | Main agent is waiting for user input, permission, or confirmation | Red breathing physical-notch edge glow, including its expanded shell, until resolved, or a system notification without a physical notch |
+| `done` | Main task finished | Two-second red breathing physical-notch edge glow, preserved across expansion, then green while another session runs or steady red when all sessions stop |
+| `failed` | Main task failed or a command exited unexpectedly | Two-second red breathing physical-notch edge glow, preserved across expansion, then the same aggregate running/stopped state as completion |
+| `idle` | No active task | No collapsed physical-notch surface |
 
-UI freshness is separate from stored history. `running` and `needs_input` can drive the compact current UI for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code, Codex, or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while legacy or hookless sources remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
+UI freshness is separate from stored history. `running` and `needs_input` can drive the collapsed notch signal for 24 hours, while `done` and `failed` can drive it for 30 minutes. Session presence is tracked separately: explicit Claude Code, Codex, or Copilot CLI lifecycle evidence is treated as open until `SessionEnd`, with a 24-hour safety cap, while legacy or hookless sources remain unknown and use status freshness. A stopped unknown-presence session therefore expires after 30 minutes. Closed and expired sessions stay available in bounded local history. Timestamps more than five minutes ahead of the local clock are not treated as current.
 
 Events stay deliberately small:
 
@@ -121,15 +121,15 @@ Events stay deliberately small:
 5. Missed notifications and silent subagent events should be recoverable from recent local history.
 6. Stale unknown-presence states return to `idle` on the fixed freshness schedule, and known-open states use the 24-hour safety cap so missed closure events cannot stay visible forever.
 7. Returning to work should take one action: open a confirmed Codex App thread directly, switch an available tmux client back to the original pane, or open kitty and attach when the validated same-user tmux socket and pane still exist without a client. If no exact target is available, use the configured terminal and a validated directory. Keep a local Mews history command available without executing event-provided command text.
-8. Each attention event uses one automatic channel: the physical-notch shell when available, otherwise Notification Center.
+8. Each attention event uses one automatic channel: the physical-notch glow when available, otherwise Notification Center.
 9. While expanded, retained session order and health actions stay fixed so refreshes cannot move an action target beneath the pointer; sessions that close disappear immediately.
 
 ### Hide stopped sessions
 
 - Active Session rows stay unchanged by default. Only an ordered `STOP` row accepts a mouse left-drag or a two-finger trackpad swipe to the left.
 - Movement remains attached to the pointer or fingers after an 8-point slop and a 1.25 horizontal direction lock. Native vertical scrolling wins when that lock is not met, and only one row can be dragged or revealed at a time.
-- A deliberate short swipe that passes input slop but does not cross 20% settles at approximately 10% of the row width, with a 56-point minimum so a complete 44×24 `HIDE` button and six-point side insets fit. Smaller movements close the row.
-- The revealed background is only slightly darker than the original row and follows the shell's native macOS material and accessibility fallbacks. The separate `#c80f28` HIDE button grows from a circle into the same compact shape and typography as `COPY`, without clipping its label. Its right edge stays fixed while further dragging lengthens it leftward; its centered text initially moves only slightly.
+- A deliberate short swipe that passes input slop but does not cross 20% settles at approximately 10% of the row width, with a 63-point minimum so a seven-point gutter, complete 44×24 `HIDE` button, and six-point side insets fit. Smaller movements close the row.
+- The revealed background is only slightly darker than the original row and follows the shell's native macOS material and accessibility fallbacks. Its leading edge uses an elliptical 11×13-point curve derived from the `COPY` corner radius plus the seven-point horizontal gutter and nine-point vertical inset. The separate `#c80f28` HIDE button grows from a circle into the same compact shape and typography as `COPY`, without clipping its label. Its right edge stays fixed while further dragging lengthens it leftward; its centered text initially moves only slightly.
 - Crossing 20% springs the red button across the full track, with six-point side insets, unchanged 24-point height, and the accepted vertical alignment. Only the HIDE text snaps to the button's left inner edge, without scaling or a separate alignment animation. The button elongates rather than moving across the row as a fixed-width slider. Hiding still occurs only after release, and a 16-point retreat hysteresis cancels the full-swipe state.
 - Both the revealed button and full swipe submit the same evidence-scoped local write. The row leaves only after persistence succeeds. A write failure returns it to the revealed position for retry, while an ordering-unknown row remains visible and unavailable.
 - Hiding removes only the matching evidence from Active Sessions. Local event history, notifications, and the upstream CLI session remain unchanged. Strictly newer primary evidence restores the session automatically.
@@ -139,10 +139,11 @@ Events stay deliberately small:
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
-- Keep a hardware-width neck over the physical notch and place recognizable compact status below the occluded area. Preview and expanded hit regions must follow the rendered shell rather than the transparent panel bounds.
+- Join the active collapsed signal to the hardware with a continuous black backing derived from the safe-area rectangle. Widen only the sides enough for the backing's rounded corners; keep its height at the safe-area height. Trace that software boundary with uniform solid thickness rather than promising an exact hardware curve. Idle still hides the overlay.
+- Use only left, right, and bottom glow edges on a physical notch, collapsed or expanded. Carry the active color and breathing or stop-pulse timing across expansion without restarting the effect. Soft glow may extend past the menu bar and content window; its drawing space must never enlarge the input region. Top-center placement keeps its native window shadow without a colored outline or glow.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
 - Keep the panel available across Spaces and full-screen windows without activating the app.
-- Keep the physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
+- Keep the active collapsed backing and expanded physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
 - Reduce Transparency and Increase Contrast replace top-center material with an opaque high-contrast surface.
 - Increase Contrast strengthens secondary copy, separators, borders, status labels, and disabled controls.
@@ -155,17 +156,17 @@ Events stay deliberately small:
 
 These synthetic previews use fixed, privacy-safe data.
 
-Compact physical-notch states in light and dark appearance:
+Collapsed physical-notch glows in light and dark appearance:
 
-![Synthetic Mews physical-notch states in light and dark appearance with the pixel mascot and IDLE, RUN, ASK, DONE, and FAIL labels](../assets/screenshots/mews-status-states.png)
+![Synthetic Mews physical-notch glows in light and dark appearance for idle, running, needs-input, done, and failed states](../assets/screenshots/mews-status-states.png)
 
-The light top-center panel shows multiple active sessions and enabled or disabled return actions:
+The light top-center panel uses its detached material and native window shadow without a colored edge glow while showing multiple active sessions and enabled or disabled return actions:
 
-![Synthetic light-appearance top-center panel reporting five active sessions, with visible needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
+![Synthetic light-appearance top-center panel without a colored edge glow, reporting five active sessions with needs-input, failed, stopped, and running rows plus enabled and disabled Return and Copy controls](../assets/screenshots/mews-multi-session.png)
 
-The dark top-center panel shows a degraded health message and session actions:
+The dark physical-notch panel inherits the green running glow on its sides and bottom, without a top border, while showing a degraded health message and session actions:
 
-![Synthetic dark-appearance top-center panel reporting two active sessions, with a degraded event-delivery row, Copy Fix control, actionable running session, and disabled stopped session](../assets/screenshots/mews-degraded-health.png)
+![Synthetic dark physical-notch panel with a green running glow on its sides and bottom, no top border, two active sessions, a degraded event-delivery row, Copy Fix, an actionable running session, and a disabled stopped session](../assets/screenshots/mews-degraded-health.png)
 
 ## Install and Distribution
 

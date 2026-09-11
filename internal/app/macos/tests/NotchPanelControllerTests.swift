@@ -19,6 +19,7 @@ extension MewsAppModelTests {
 
         try testInitialNotchPresentation(controller)
         try testExpandedRowOrderStaysStable(controller)
+        try testTopCenterAnimationUsesVisibleWindow()
         try testSwipeCancellationOnPlacementLoss(
             controller: controller,
             notifications: notifications,
@@ -30,6 +31,35 @@ extension MewsAppModelTests {
             notifications: notifications,
             screenChangeNotification: screenChangeNotification,
             screens: screens
+        )
+    }
+
+    private static func testTopCenterAnimationUsesVisibleWindow() throws {
+        let controller = NotchPanelController(
+            screenProvider: { [controllerExternalScreen()] }
+        )
+        defer { controller.hide() }
+        controller.update(
+            interactionState: NotchInteractionState(
+                visibility: .expanded,
+                openReason: .click,
+                presentationState: MewsPresentationState(event: nil)
+            ),
+            accessibilityPreferences: NotchAccessibilityPreferences(
+                reduceMotion: false,
+                reduceTransparency: false,
+                increaseContrast: false
+            )
+        )
+        RunLoop.main.run(until: Date().addingTimeInterval(0.7))
+        try controllerExpect(
+            controller.containsVisibleShell(
+                CGPoint(
+                    x: controller.panel.frame.midX,
+                    y: controller.panel.frame.minY + 20
+                )
+            ),
+            "top-center motion must use the visible content window's display link"
         )
     }
 
@@ -194,9 +224,9 @@ extension MewsAppModelTests {
             "controller should start on the available notched display"
         )
         try controllerExpect(
-            controller.containsNotchTrigger(CGPoint(x: 756, y: 940)) &&
-                controller.containsVisibleShell(CGPoint(x: 756, y: 940)),
-            "the visible compact strip below the physical notch should be clickable"
+            controller.containsNotchTrigger(CGPoint(x: 756, y: 954)) &&
+                !controller.containsVisibleShell(CGPoint(x: 756, y: 954)),
+            "the idle notch should remain a trigger without showing an empty strip"
         )
         try controllerExpect(
             !controller.containsNotchTrigger(CGPoint(x: 756, y: 800)) &&
@@ -217,6 +247,21 @@ extension MewsAppModelTests {
         try controllerExpect(
             !controller.panel.hasShadow,
             "the physical-notch shell should not add a detached window shadow"
+        )
+
+        controller.update(content: controllerContent(
+            rows: [try controllerGlowRow(status: .running)],
+            revision: 1
+        ))
+        try controllerExpect(
+            controller.panel.isVisible &&
+                controller.containsVisibleShell(CGPoint(x: 756, y: 954)),
+            "a content-only running update should reveal the collapsed glow"
+        )
+        controller.update(content: controllerContent(rows: [], revision: 2))
+        try controllerExpect(
+            !controller.panel.isVisible,
+            "removing the last displayable session should hide the idle overlay"
         )
     }
 
@@ -297,6 +342,29 @@ extension MewsAppModelTests {
             priority: .recent,
             evidenceID: request.evidenceID,
             dismissalRequest: request
+        )
+    }
+
+    private static func controllerGlowRow(
+        status: SessionStatus
+    ) throws -> SessionPresentationRow {
+        guard let identity = SessionIdentity(
+            source: "codex",
+            sessionID: "panel-glow"
+        ) else {
+            throw NotchPanelControllerTestFailure(message: "invalid glow identity")
+        }
+        return SessionPresentationRow(
+            identity: identity,
+            status: status,
+            sourceLabel: "Codex",
+            projectLabel: "Mews",
+            sessionLabel: "panel-glow",
+            statusLabel: status.sessionPresentationLabel,
+            statusCode: status.sessionPresentationCode,
+            returnContext: nil,
+            evidenceAt: Date(timeIntervalSince1970: 1_900_000_000),
+            priority: .running
         )
     }
 

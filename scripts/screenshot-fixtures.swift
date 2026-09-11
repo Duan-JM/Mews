@@ -25,6 +25,17 @@ struct SyntheticPanelSnapshot {
     let snapshot: NotchShellSnapshot
 }
 
+struct SyntheticHardwareNotch: View {
+    let size: CGSize
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 6, style: .circular)
+            .fill(Color.black)
+            .overlay(alignment: .top) { Color.black.frame(height: 6) }
+            .frame(width: size.width, height: max(8, size.height - 4))
+    }
+}
+
 struct SyntheticScreenshotCatalog {
     static let pointSize = CGSize(width: 420, height: 220)
     static let pixelWidth = 840
@@ -105,7 +116,7 @@ struct SyntheticScreenshotCatalog {
                     health: health.presentation,
                     status: .running,
                     now: now,
-                    placementMode: .topCenter
+                    placementMode: .notch
                 )
             ),
             fixtureText: fixtureText(sessions: allSessions, health: health),

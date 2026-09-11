@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct NotchShellLayout: Equatable {
+    static let collapsedCornerRadius: CGFloat = 8
+
     let width: CGFloat
     let height: CGFloat
     let cornerRadius: CGFloat
@@ -27,18 +29,17 @@ struct NotchShellLayout: Equatable {
                 cornerRadius: usesTopCenter ? 16 : 20,
                 contentTopInset: 0
             )
-        case .peek:
+        case .peek, .closed:
             return NotchShellLayout(
-                width: min(snapshot.panelSize.width, max(248, anchorWidth + 120)),
-                height: min(snapshot.panelSize.height, max(48, anchorHeight + 44)),
-                cornerRadius: 16,
-                contentTopInset: anchorHeight
-            )
-        case .closed:
-            return NotchShellLayout(
-                width: min(snapshot.panelSize.width, max(152, anchorWidth + 56)),
-                height: min(snapshot.panelSize.height, max(28, anchorHeight + 22)),
-                cornerRadius: 12,
+                width: min(
+                    snapshot.panelSize.width,
+                    usesTopCenter ? 8 : anchorWidth + Self.collapsedCornerRadius * 2
+                ),
+                height: min(
+                    snapshot.panelSize.height,
+                    usesTopCenter ? 8 : anchorHeight
+                ),
+                cornerRadius: Self.collapsedCornerRadius,
                 contentTopInset: anchorHeight
             )
         }
@@ -56,16 +57,19 @@ struct NotchShellLayout: Equatable {
 
 struct NotchShellGeometry {
     let layout: NotchShellLayout
+    let visibility: NotchVisibility
     let placementMode: OverlayPlacementMode
     let anchorWidth: CGFloat
     let anchorHeight: CGFloat
+    let outlineWidth: CGFloat
 
     static func resolved(
         snapshot: NotchShellSnapshot,
-        visibility: NotchVisibility? = nil
+        visibility: NotchVisibility? = nil,
+        layout: NotchShellLayout? = nil
     ) -> NotchShellGeometry {
         let resolvedVisibility = visibility ?? snapshot.visibility
-        let layout = NotchShellLayout.resolved(
+        let layout = layout ?? NotchShellLayout.resolved(
             snapshot: snapshot,
             visibility: resolvedVisibility
         )
@@ -74,11 +78,13 @@ struct NotchShellGeometry {
             snapshot.placementMode == .notch
         return NotchShellGeometry(
             layout: layout,
+            visibility: resolvedVisibility,
             placementMode: snapshot.placementMode,
             anchorWidth: usesPhysicalNeck ? snapshot.anchorSize.width : layout.width,
             anchorHeight: snapshot.placementMode == .notch
                 ? snapshot.anchorSize.height
-                : 0
+                : 0,
+            outlineWidth: NotchShellShape.outlineWidth(increaseContrast: snapshot.increaseContrast)
         )
     }
 
@@ -88,20 +94,25 @@ struct NotchShellGeometry {
 
     func contains(_ screenPoint: CGPoint, in panelFrame: CGRect) -> Bool {
         let frame = screenFrame(in: panelFrame)
-        guard frame.contains(screenPoint) else {
+        let outerWidth = placementMode == .notch ? outlineWidth : 0
+        guard frame.insetBy(dx: -outerWidth, dy: -outerWidth).contains(screenPoint) else {
             return false
         }
         let localPoint = CGPoint(
             x: screenPoint.x - frame.minX,
             y: frame.maxY - screenPoint.y
         )
-        return shape.path(
+        let path = shape.path(
             in: CGRect(origin: .zero, size: frame.size)
-        ).contains(localPoint)
+        )
+        return path.contains(localPoint) || (outerWidth > 0 && path.strokedPath(
+            StrokeStyle(lineWidth: outerWidth * 2)
+        ).contains(localPoint))
     }
 
     var shape: NotchShellShape {
         return NotchShellShape(
+            visibility: visibility,
             placementMode: placementMode,
             cornerRadius: layout.cornerRadius,
             anchorWidth: anchorWidth,
@@ -114,6 +125,7 @@ struct NotchShellSurfaceModifier: ViewModifier {
     let snapshot: NotchShellSnapshot
     let geometry: NotchShellGeometry
     let surface: NotchSurfacePalette
+    var rendersPhysicalNotchSurface = true
 
     func body(content: Content) -> some View {
         content
@@ -123,25 +135,32 @@ struct NotchShellSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     private var shellBackground: some View {
-        switch NotchSurfaceTreatment.resolved(
-            placementMode: snapshot.placementMode,
-            reduceTransparency: snapshot.reduceTransparency,
-            increaseContrast: snapshot.increaseContrast
-        ) {
-        case .solidBlack:
+        if rendersPhysicalNotchSurface &&
+            snapshot.placementMode == .notch &&
+            (snapshot.visibility == .expanded || NotchGlowPresentation.resolved(snapshot: snapshot).isVisible) {
             geometry.shape.fill(Color.black)
-        case .adaptiveMaterial:
-            geometry.shape
-                .fill(.regularMaterial)
-                .overlay(geometry.shape.fill(surface.materialTint))
-        case .opaqueFallback:
-            geometry.shape.fill(surface.opaqueBackground)
+        } else if snapshot.visibility == .expanded {
+            switch NotchSurfaceTreatment.resolved(
+                placementMode: snapshot.placementMode,
+                reduceTransparency: snapshot.reduceTransparency,
+                increaseContrast: snapshot.increaseContrast
+            ) {
+            case .solidBlack:
+                geometry.shape.fill(Color.black)
+            case .adaptiveMaterial:
+                geometry.shape
+                    .fill(.regularMaterial)
+                    .overlay(geometry.shape.fill(surface.materialTint))
+            case .opaqueFallback:
+                geometry.shape.fill(surface.opaqueBackground)
+            }
         }
     }
 
     @ViewBuilder
     private var shellBorder: some View {
-        if snapshot.placementMode == .topCenter {
+        if snapshot.visibility == .expanded &&
+            snapshot.placementMode == .topCenter {
             geometry.shape
                 .stroke(
                     surface.foreground.opacity(surface.outerBorder),
@@ -152,14 +171,24 @@ struct NotchShellSurfaceModifier: ViewModifier {
 }
 
 struct NotchShellShape: Shape {
+    let visibility: NotchVisibility
     let placementMode: OverlayPlacementMode
     let cornerRadius: CGFloat
     let anchorWidth: CGFloat
     let anchorHeight: CGFloat
 
+    static func outlineWidth(increaseContrast: Bool) -> CGFloat {
+        return increaseContrast ? 2 : 1.5
+    }
+
     func path(in rect: CGRect) -> Path {
         switch placementMode {
         case .notch:
+            if visibility != .expanded {
+                return PhysicalNotchGlowShape(
+                    cornerRadius: cornerRadius
+                ).path(in: rect)
+            }
             return TopAnchoredShellShape(
                 cornerRadius: cornerRadius,
                 anchorWidth: anchorWidth,
@@ -170,6 +199,34 @@ struct NotchShellShape: Shape {
                 cornerRadius: cornerRadius,
                 style: .continuous
             ).path(in: rect)
+        }
+    }
+
+    struct PhysicalNotchGlowShape: Shape {
+        let cornerRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            var path = edgePath(in: rect)
+            path.closeSubpath()
+            return path
+        }
+
+        func edgePath(in rect: CGRect) -> Path {
+            let radius = min(cornerRadius, min(rect.width, rect.height) / 2)
+            var path = Path()
+            path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.maxX - radius, y: rect.maxY),
+                control: CGPoint(x: rect.maxX, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.minX + radius, y: rect.maxY))
+            path.addQuadCurve(
+                to: CGPoint(x: rect.minX, y: rect.maxY - radius),
+                control: CGPoint(x: rect.minX, y: rect.maxY)
+            )
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+            return path
         }
     }
 }

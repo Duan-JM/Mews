@@ -133,7 +133,6 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         reconcilesAttention: Bool = true
     ) {
         events = reload.events
-        let current = currentPrimaryEvent(in: events, now: now)
         let physicalNotchAvailable = notchPanelController?.canPresentNotchAlert == true
         let attentionUpdate = reconcilesAttention
             ? reconcileAttention(reload, sessions: sessionSnapshot?.sessions)
@@ -150,31 +149,32 @@ final class MewsApp: NSObject, NSApplicationDelegate {
             now: now,
             sessionRevision: presentationInput.revision
         )
-        let notchSession = attentionUpdate.flatMap {
-            currentSession(for: current, in: $0.sessions)
+        let attentionCandidates = attentionUpdate?.reconciliation.newlyAlertable ?? []
+        let stopTransitions = sessionSnapshot?.stopTransitions ?? []
+        let stopTransitionWillPresent =
+            interactionCoordinator?.canPresentStopTransition == true
+        if !stopTransitionWillPresent {
+            notifyUnmatchedStopTransitions(
+                stopTransitions,
+                attentionCandidates: attentionCandidates
+            )
         }
-        var announcesNotchTransition = false
-        for candidate in attentionUpdate?.reconciliation.newlyAlertable ?? [] {
-            switch AttentionAlertRoutingPolicy.channel(
-                for: candidate,
-                notchSession: notchSession,
-                physicalNotchAvailable: physicalNotchAvailable
-            ) {
-            case .none:
-                break
-            case .notch:
-                announcesNotchTransition = true
-            case .systemNotification:
-                notifications.send(for: candidate)
-            }
-        }
+        routeAttentionCandidates(
+            attentionCandidates,
+            presentation: sessionPresentation,
+            stopTransitions: stopTransitions,
+            stopTransitionWillPresent: stopTransitionWillPresent,
+            physicalNotchAvailable: physicalNotchAvailable
+        )
         notifications.remove(
             identifiers: attentionUpdate?.reconciliation.resolvedNotificationIdentifiers ?? []
         )
         updateStatusItem(
             now: now,
             sessionPresentation: sessionPresentation,
-            announcesNotchTransition: announcesNotchTransition
+            stopTransitionIdentifier: stopTransitionWillPresent
+                ? stopTransitions.last?.identifier
+                : nil
         )
     }
 
@@ -185,7 +185,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private func updateStatusItem(
         now: Date,
         sessionPresentation: SessionPresentation,
-        announcesNotchTransition: Bool
+        stopTransitionIdentifier: String?
     ) {
         let current = currentPrimaryEvent(in: events, now: now)
         let presentationState = MewsPresentationState(event: current)
@@ -203,7 +203,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         )
         interactionCoordinator?.update(
             presentationState: presentationState,
-            announcesTransition: announcesNotchTransition
+            stopTransitionIdentifier: stopTransitionIdentifier
         )
     }
 
