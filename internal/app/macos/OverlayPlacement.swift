@@ -49,6 +49,111 @@ struct ScreenSnapshot: Equatable {
     }
 }
 
+struct FullscreenWindowSnapshot: Equatable {
+    let ownerProcessID: Int32
+    let layer: Int
+    let bounds: CGRect
+}
+
+struct FullscreenCoverDetector {
+    @MainActor
+    func isActive(onScreenID screenID: String?) -> Bool {
+        guard let screenID,
+              let application = NSWorkspace.shared.frontmostApplication else {
+            return false
+        }
+        let windowInfo = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] ?? []
+        let windows = windowInfo.compactMap { window -> FullscreenWindowSnapshot? in
+            guard let ownerProcessID =
+                    (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
+                  let layer = (window[kCGWindowLayer as String] as? NSNumber)?.intValue,
+                  let dictionary = window[kCGWindowBounds as String] as? NSDictionary,
+                  let bounds = CGRect(dictionaryRepresentation: dictionary) else {
+                return nil
+            }
+            return FullscreenWindowSnapshot(
+                ownerProcessID: ownerProcessID,
+                layer: layer,
+                bounds: bounds
+            )
+        }
+        return isActive(
+            frontmostProcessID: application.processIdentifier,
+            windows: windows,
+            screens: ScreenSnapshot.currentScreens(),
+            screenID: screenID
+        )
+    }
+
+    func isActive(
+        frontmostProcessID: Int32?,
+        windows: [FullscreenWindowSnapshot],
+        screens: [ScreenSnapshot],
+        screenID: String
+    ) -> Bool {
+        guard let frontmostProcessID,
+              let referenceTop = screens.first(where: \.isMain)?.frame.maxY ??
+                screens.map(\.frame.maxY).max(),
+              let screen = screens.first(where: { $0.id == screenID }) else {
+            return false
+        }
+        let foregroundWindows = windows.filter {
+            $0.ownerProcessID == frontmostProcessID
+        }
+        let quartzFrame = CGRect(
+            x: screen.frame.minX,
+            y: referenceTop - screen.frame.maxY,
+            width: screen.frame.width,
+            height: screen.frame.height
+        )
+        let topInset = max(
+            screen.frame.maxY - screen.visibleFrame.maxY,
+            screen.safeAreaInsets.top
+        )
+        return foregroundWindows.contains { window in
+            coversFullScreen(window.bounds, screen: quartzFrame) ||
+                coversTopEdge(
+                    window,
+                    screen: quartzFrame,
+                    topInset: topInset
+                )
+        }
+    }
+
+    private func coversFullScreen(
+        _ window: CGRect,
+        screen: CGRect
+    ) -> Bool {
+        return spansWidth(window, screen: screen) &&
+            abs(window.minY - screen.minY) <= 2 &&
+            window.maxY >= screen.maxY - 2
+    }
+
+    private func coversTopEdge(
+        _ window: FullscreenWindowSnapshot,
+        screen: CGRect,
+        topInset: CGFloat
+    ) -> Bool {
+        guard window.layer > 0, topInset > 0 else {
+            return false
+        }
+        return spansWidth(window.bounds, screen: screen) &&
+            abs(window.bounds.minY - screen.minY) <= 2 &&
+            window.bounds.height >= topInset - 2
+    }
+
+    private func spansWidth(
+        _ window: CGRect,
+        screen: CGRect
+    ) -> Bool {
+        return window.minX <= screen.minX + 2 &&
+            window.maxX >= screen.maxX - 2
+    }
+}
+
 extension ScreenSnapshot {
     init(screen: NSScreen, isMain: Bool) {
         let insets = screen.safeAreaInsets

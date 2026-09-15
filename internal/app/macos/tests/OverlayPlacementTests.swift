@@ -12,6 +12,7 @@ enum OverlayPlacementTests {
         try testWidthCapping()
         try testPlacementHitTesting()
         try testDisplayTopologyTransitions()
+        try testFullscreenCoverDetection()
         try testNoScreens()
     }
 
@@ -230,6 +231,116 @@ enum OverlayPlacementTests {
 }
 
 private extension OverlayPlacementTests {
+    static func testFullscreenCoverDetection() throws {
+        let display = fullscreenDisplay()
+        let detector = FullscreenCoverDetector()
+        try testFullFrameCover(detector, display: display)
+        try testBrowserTopCover(detector, display: display)
+        try testNormalWindow(detector, display: display)
+        try testOtherDisplayCover(detector, display: display)
+    }
+
+    static func testFullFrameCover(
+        _ detector: FullscreenCoverDetector,
+        display: ScreenSnapshot
+    ) throws {
+        let window = FullscreenWindowSnapshot(
+            ownerProcessID: 42,
+            layer: 0,
+            bounds: display.frame
+        )
+        try expect(
+            detector.isActive(
+                frontmostProcessID: 42,
+                windows: [window],
+                screens: [display],
+                screenID: display.id
+            ),
+            "a frontmost full-frame window should suppress the overlay"
+        )
+    }
+
+    static func testBrowserTopCover(
+        _ detector: FullscreenCoverDetector,
+        display: ScreenSnapshot
+    ) throws {
+        let windows = [
+            FullscreenWindowSnapshot(
+                ownerProcessID: 42,
+                layer: 26,
+                bounds: CGRect(x: 0, y: 0, width: 1470, height: 33)
+            ),
+            FullscreenWindowSnapshot(
+                ownerProcessID: 42,
+                layer: 0,
+                bounds: CGRect(x: 0, y: 33, width: 1470, height: 923)
+            )
+        ]
+        try expect(
+            detector.isActive(
+                frontmostProcessID: 42,
+                windows: windows,
+                screens: [display],
+                screenID: display.id
+            ),
+            "a frontmost full-width top cover should suppress browser video fullscreen"
+        )
+    }
+
+    static func testNormalWindow(
+        _ detector: FullscreenCoverDetector,
+        display: ScreenSnapshot
+    ) throws {
+        let window = FullscreenWindowSnapshot(
+            ownerProcessID: 42,
+            layer: 0,
+            bounds: CGRect(x: 0, y: 33, width: 1470, height: 923)
+        )
+        try expect(
+            !detector.isActive(
+                frontmostProcessID: 42,
+                windows: [window],
+                screens: [display],
+                screenID: display.id
+            ),
+            "a normal frontmost window below the menu bar should keep the overlay visible"
+        )
+    }
+
+    static func testOtherDisplayCover(
+        _ detector: FullscreenCoverDetector,
+        display: ScreenSnapshot
+    ) throws {
+        let external = screen(
+            id: "external",
+            frame: CGRect(x: 1470, y: 0, width: 1920, height: 1080)
+        )
+        let window = FullscreenWindowSnapshot(
+            ownerProcessID: 42,
+            layer: 0,
+            bounds: external.frame
+        )
+        try expect(
+            !detector.isActive(
+                frontmostProcessID: 42,
+                windows: [window],
+                screens: [display, external],
+                screenID: display.id
+            ),
+            "full-screen content on another display should not suppress the overlay"
+        )
+    }
+
+    static func fullscreenDisplay() -> ScreenSnapshot {
+        return screen(
+            id: "fullscreen",
+            frame: CGRect(x: 0, y: 0, width: 1470, height: 956),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1470, height: 923),
+            isMain: true,
+            safeTop: 32
+        )
+    }
+
     static func testDisplayTopologyTransitions() throws {
         let resolver = OverlayScreenResolver()
         let calculator = OverlayPlacementCalculator()

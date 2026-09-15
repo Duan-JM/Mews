@@ -240,9 +240,9 @@ extension MewsAppModelTests {
         )
         try controllerExpect(
             controller.panel.collectionBehavior.contains(.canJoinAllSpaces) &&
-                controller.panel.collectionBehavior.contains(.fullScreenAuxiliary) &&
+                !controller.panel.collectionBehavior.contains(.fullScreenAuxiliary) &&
                 controller.panel.collectionBehavior.contains(.stationary),
-            "panel should remain available across Spaces and full-screen transitions"
+            "panel should join normal Spaces without appearing over full-screen content"
         )
         try controllerExpect(
             !controller.panel.hasShadow,
@@ -258,6 +258,7 @@ extension MewsAppModelTests {
                 controller.containsVisibleShell(CGPoint(x: 756, y: 954)),
             "a content-only running update should reveal the collapsed glow"
         )
+        try testFullscreenWindowBehavior(controller)
         controller.update(content: controllerContent(rows: [], revision: 2))
         try controllerExpect(
             !controller.panel.isVisible,

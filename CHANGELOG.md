@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- changelog release notes start -->
 
+## [0.0.5] - 2026-09-15
+
+### Fixed
+
+- Soften the physical-notch status glow into one continuous fade, narrow its red or green edge, extend the black backing over display-edge gaps, and keep it out of full-screen content. ([#151](https://github.com/Duan-JM/Mews/issues/151))
+
+
 ## [0.0.4] - 2026-09-10
 
 ### Changed
