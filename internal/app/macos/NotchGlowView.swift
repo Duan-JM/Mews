@@ -75,14 +75,10 @@ struct NotchGlowView: View {
             )
         ) { context in
             let intensity = pulseIntensity(at: context.date)
-            outline(color: signalColor.opacity((increaseContrast ? 1 : 0.82) * intensity))
+            outline(color: signalColor.opacity((increaseContrast ? 0.78 : 0.56) * intensity))
                 .shadow(
-                    color: signalColor.opacity(0.9 * intensity),
-                    radius: 3 + (3 * intensity)
-                )
-                .shadow(
-                    color: signalColor.opacity(0.48 * intensity),
-                    radius: 8 + (5 * intensity)
+                    color: signalColor.opacity(intensity),
+                    radius: 4 + (2 * intensity)
                 )
         }
         .accessibilityHidden(true)
@@ -100,8 +96,10 @@ struct NotchGlowView: View {
 
         func path(in rect: CGRect) -> Path {
             if shape.placementMode == .notch {
-                return NotchShellShape.PhysicalNotchGlowShape(cornerRadius: shape.cornerRadius)
-                    .edgePath(in: rect)
+                return NotchShellShape.PhysicalNotchGlowShape(
+                    cornerRadius: shape.physicalVisualShape.cornerRadius
+                )
+                    .edgePath(in: NotchShellShape.physicalVisualRect(in: rect))
             }
             return shape.path(in: rect)
         }

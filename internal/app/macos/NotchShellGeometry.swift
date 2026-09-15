@@ -138,7 +138,8 @@ struct NotchShellSurfaceModifier: ViewModifier {
         if rendersPhysicalNotchSurface &&
             snapshot.placementMode == .notch &&
             (snapshot.visibility == .expanded || NotchGlowPresentation.resolved(snapshot: snapshot).isVisible) {
-            geometry.shape.fill(Color.black)
+            NotchShellShape.PhysicalVisualShape(shape: geometry.shape)
+                .fill(Color.black)
         } else if snapshot.visibility == .expanded {
             switch NotchSurfaceTreatment.resolved(
                 placementMode: snapshot.placementMode,
@@ -171,6 +172,8 @@ struct NotchShellSurfaceModifier: ViewModifier {
 }
 
 struct NotchShellShape: Shape {
+    static let physicalVisualOutset: CGFloat = 2
+
     let visibility: NotchVisibility
     let placementMode: OverlayPlacementMode
     let cornerRadius: CGFloat
@@ -178,7 +181,26 @@ struct NotchShellShape: Shape {
     let anchorHeight: CGFloat
 
     static func outlineWidth(increaseContrast: Bool) -> CGFloat {
-        return increaseContrast ? 2 : 1.5
+        return increaseContrast ? 1.5 : 1
+    }
+
+    static func physicalVisualRect(in rect: CGRect) -> CGRect {
+        return CGRect(
+            x: rect.minX - physicalVisualOutset,
+            y: rect.minY,
+            width: rect.width + physicalVisualOutset * 2,
+            height: rect.height + physicalVisualOutset
+        )
+    }
+
+    var physicalVisualShape: NotchShellShape {
+        return NotchShellShape(
+            visibility: visibility,
+            placementMode: placementMode,
+            cornerRadius: cornerRadius + Self.physicalVisualOutset,
+            anchorWidth: anchorWidth + Self.physicalVisualOutset * 2,
+            anchorHeight: anchorHeight
+        )
     }
 
     func path(in rect: CGRect) -> Path {
@@ -227,6 +249,17 @@ struct NotchShellShape: Shape {
             )
             path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
             return path
+        }
+
+    }
+
+    struct PhysicalVisualShape: Shape {
+        let shape: NotchShellShape
+
+        func path(in rect: CGRect) -> Path {
+            return shape.physicalVisualShape.path(
+                in: NotchShellShape.physicalVisualRect(in: rect)
+            )
         }
     }
 }

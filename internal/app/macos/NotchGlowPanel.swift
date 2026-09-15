@@ -22,7 +22,6 @@ final class NotchGlowPanel: NSPanel {
         hidesOnDeactivate = false
         level = .statusBar
         collectionBehavior = [
-            .fullScreenAuxiliary,
             .canJoinAllSpaces,
             .stationary,
             .ignoresCycle
@@ -59,8 +58,6 @@ final class NotchGlowPanel: NSPanel {
 
 @MainActor
 private final class NotchShellVisualView: NSView {
-    private let farGlowLayer = CAShapeLayer()
-    private let nearGlowLayer = CAShapeLayer()
     private let glowLayer = CAShapeLayer()
     private let backingLayer = CAShapeLayer()
     private var pulseKey: PulseKey?
@@ -69,7 +66,7 @@ private final class NotchShellVisualView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         layer = CALayer()
-        for shapeLayer in [farGlowLayer, nearGlowLayer, glowLayer, backingLayer] {
+        for shapeLayer in [glowLayer, backingLayer] {
             shapeLayer.fillColor = NSColor.clear.cgColor
             shapeLayer.lineCap = .round
             shapeLayer.lineJoin = .round
@@ -100,12 +97,14 @@ private final class NotchShellVisualView: NSView {
             tx: 0,
             ty: bounds.height
         )
-        let backingPath = geometry.shape.path(in: shellRect)
+        let visualRect = NotchShellShape.physicalVisualRect(in: shellRect)
+        let visualShape = geometry.shape.physicalVisualShape
+        let backingPath = visualShape.path(in: visualRect)
             .applying(layerTransform)
             .cgPath
         let glowPath = NotchShellShape.PhysicalNotchGlowShape(
-            cornerRadius: geometry.layout.cornerRadius
-        ).edgePath(in: shellRect)
+            cornerRadius: visualShape.cornerRadius
+        ).edgePath(in: visualRect)
             .applying(layerTransform)
             .cgPath
         let glowColor = color(for: presentation.signal)
@@ -121,7 +120,7 @@ private final class NotchShellVisualView: NSView {
             backingPath: backingPath,
             glowPath: glowPath,
             glowColor: glowColor,
-            glowAlpha: snapshot.increaseContrast ? 1 : 0.82,
+            glowAlpha: snapshot.increaseContrast ? 0.78 : 0.56,
             outlineWidth: outlineWidth,
             showsBacking: showsBacking,
             showsGlow: showsGlow
@@ -137,54 +136,22 @@ private final class NotchShellVisualView: NSView {
     private func updateLayers(_ update: VisualLayerUpdate) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for shapeLayer in [farGlowLayer, nearGlowLayer, glowLayer, backingLayer] {
+        for shapeLayer in [glowLayer, backingLayer] {
             shapeLayer.frame = bounds
         }
         backingLayer.path = update.backingPath
         backingLayer.isHidden = !update.showsBacking
-        for shapeLayer in [farGlowLayer, nearGlowLayer, glowLayer] {
-            shapeLayer.path = update.glowPath
-            shapeLayer.lineWidth = update.outlineWidth * 2
-            shapeLayer.isHidden = !update.showsGlow
-        }
+        glowLayer.path = update.glowPath
+        glowLayer.lineWidth = update.outlineWidth * 2
+        glowLayer.isHidden = !update.showsGlow
         glowLayer.strokeColor = update.glowColor.withAlphaComponent(
             update.glowAlpha
         ).cgColor
-        configureShadow(
-            farGlowLayer,
-            style: GlowShadowStyle(
-                color: update.glowColor,
-                lineWidth: update.outlineWidth * 2 + 16,
-                strokeOpacity: 0.12,
-                shadowOpacity: 0.48,
-                radius: 11
-            )
-        )
-        configureShadow(
-            nearGlowLayer,
-            style: GlowShadowStyle(
-                color: update.glowColor,
-                lineWidth: update.outlineWidth * 2 + 8,
-                strokeOpacity: 0.24,
-                shadowOpacity: 0.9,
-                radius: 6
-            )
-        )
+        glowLayer.shadowColor = update.glowColor.cgColor
+        glowLayer.shadowOpacity = 1
+        glowLayer.shadowRadius = 6
+        glowLayer.shadowOffset = .zero
         CATransaction.commit()
-    }
-
-    private func configureShadow(
-        _ shapeLayer: CAShapeLayer,
-        style: GlowShadowStyle
-    ) {
-        shapeLayer.lineWidth = style.lineWidth
-        shapeLayer.strokeColor = style.color.withAlphaComponent(
-            style.strokeOpacity
-        ).cgColor
-        shapeLayer.shadowColor = style.color.cgColor
-        shapeLayer.shadowOpacity = style.shadowOpacity
-        shapeLayer.shadowRadius = style.radius
-        shapeLayer.shadowOffset = .zero
     }
 
     private func updatePulse(_ key: PulseKey) {
@@ -192,21 +159,19 @@ private final class NotchShellVisualView: NSView {
             return
         }
         pulseKey = key
-        for shapeLayer in [farGlowLayer, nearGlowLayer, glowLayer] {
-            shapeLayer.removeAnimation(forKey: "mews-pulse")
-            shapeLayer.opacity = 1
-            guard key.pulses && !key.reduceMotion else {
-                continue
-            }
-            let pulse = CABasicAnimation(keyPath: "opacity")
-            pulse.fromValue = 0.55
-            pulse.toValue = 1
-            pulse.duration = 0.5
-            pulse.autoreverses = true
-            pulse.repeatCount = .infinity
-            pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            shapeLayer.add(pulse, forKey: "mews-pulse")
+        glowLayer.removeAnimation(forKey: "mews-pulse")
+        glowLayer.opacity = 1
+        guard key.pulses && !key.reduceMotion else {
+            return
         }
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 0.55
+        pulse.toValue = 1
+        pulse.duration = 0.5
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        glowLayer.add(pulse, forKey: "mews-pulse")
     }
 
     private func color(for signal: NotchGlowSignal) -> NSColor {
@@ -229,14 +194,6 @@ private struct VisualLayerUpdate {
     let outlineWidth: CGFloat
     let showsBacking: Bool
     let showsGlow: Bool
-}
-
-private struct GlowShadowStyle {
-    let color: NSColor
-    let lineWidth: CGFloat
-    let strokeOpacity: CGFloat
-    let shadowOpacity: Float
-    let radius: CGFloat
 }
 
 private struct PulseKey: Equatable {
