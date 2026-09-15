@@ -12,7 +12,7 @@ final class NotchPanelController: NSObject {
     let panel: NSPanel
     private(set) var placement: OverlayPlacement?
     var canPresentNotchAlert: Bool {
-        placement?.mode == .notch
+        !fullscreenSuppressed && placement?.mode == .notch
     }
     var revealsPhysicalContent: Bool {
         contentModel.revealsContent
@@ -34,13 +34,10 @@ final class NotchPanelController: NSObject {
     private var content = NotchPanelContent.empty
     private var canonicalContent = NotchPanelContent.empty
     private var interactionState = NotchInteractionState(
-        presentationState: MewsPresentationState(event: nil)
-    )
+        presentationState: MewsPresentationState(event: nil))
     private var accessibilityPreferences = NotchAccessibilityPreferences(
-        reduceMotion: false,
-        reduceTransparency: false,
-        increaseContrast: false
-    )
+        reduceMotion: false, reduceTransparency: false, increaseContrast: false)
+    private var fullscreenSuppressed = false
     private lazy var sessionListModel = SessionListPresentationModel(
         hide: onHideSession,
         log: log,
@@ -194,6 +191,13 @@ final class NotchPanelController: NSObject {
         glowPanel.orderOut(nil)
     }
 
+    func setFullscreenSuppressed(_ suppressed: Bool) {
+        guard fullscreenSuppressed != suppressed else { return }
+        fullscreenSuppressed = suppressed
+        if suppressed { shellModel.finishAnimation() }
+        applyWindowPresentation()
+    }
+
     @objc private func screenParametersDidChange(_ notification: Notification) {
         reposition()
     }
@@ -204,7 +208,6 @@ final class NotchPanelController: NSObject {
         panel.hasShadow = false
         panel.level = .statusBar
         panel.collectionBehavior = [
-            .fullScreenAuxiliary,
             .canJoinAllSpaces,
             .stationary,
             .ignoresCycle
@@ -222,7 +225,7 @@ final class NotchPanelController: NSObject {
     }
 
     private func applyWindowPresentation() {
-        guard let placement else {
+        guard let placement, !fullscreenSuppressed else {
             shellModel.finishAnimation()
             panel.hasShadow = false
             panel.ignoresMouseEvents = true
@@ -321,7 +324,8 @@ extension NotchPanelController {
     }
 
     func containsNotchTrigger(_ point: CGPoint) -> Bool {
-        guard let placement, placement.mode == .notch else {
+        guard !fullscreenSuppressed, let placement,
+              placement.mode == .notch else {
             return false
         }
         let visibility = interactionState.visibility == .expanded
@@ -335,7 +339,7 @@ extension NotchPanelController {
 
     func containsVisibleShell(_ point: CGPoint) -> Bool {
         let glow = NotchGlowPresentation.resolved(snapshot: shellModel.snapshot)
-        guard let placement,
+        guard !fullscreenSuppressed, let placement,
               NotchPanelPresentationPolicy.isVisible(
                   visibility: interactionState.visibility,
                   placementMode: placement.mode,
@@ -421,6 +425,4 @@ private extension NotchPanelController {
     }
 }
 
-private enum NotchPanelControllerError: Error {
-    case dismissalUnavailable
-}
+private enum NotchPanelControllerError: Error { case dismissalUnavailable }

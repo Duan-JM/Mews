@@ -135,8 +135,9 @@ extension MewsAppModelTests {
         if raster.colorScore(at: CGPoint(x: 100, y: 40)) > 10 {
             failures.append("expanded \(scale)x: unwanted colored top edge")
         }
-        if raster.colorScore(at: CGPoint(x: 38, y: 150)) < 5 ||
-            raster.colorScore(at: CGPoint(x: 250, y: 264)) < 5 {
+        let outset = NotchShellShape.physicalVisualOutset
+        if raster.colorScore(at: CGPoint(x: 40 - outset - 2, y: 150)) < 3 ||
+            raster.colorScore(at: CGPoint(x: 250, y: 260 + outset + 2)) < 3 {
             failures.append("expanded \(scale)x: missing positive side/bottom glow control")
         }
     }
@@ -326,7 +327,8 @@ private struct NotchWindowMotionProbe {
             for (backing, glow) in zip(edges.backing, edges.glow) {
                 maximumError = max(maximumError, abs(backing - glow))
             }
-            let edgeTolerance = NotchShellShape.outlineWidth(increaseContrast: false) * scale
+            let edgeTolerance =
+                NotchShellShape.outlineWidth(increaseContrast: false) * scale + 0.5
             guard maximumError <= edgeTolerance else {
                 throw NotchWindowGlowFailure(
                     message: "motion \(scale)x: backing \(edges.backing), glow \(edges.glow), " +
@@ -375,9 +377,17 @@ private struct NotchWindowMotionProbe {
             scale: scale
         )
         var backingEdges = try visual.motionEdges(glow: false)
+        var glowEdges = try visual.motionEdges(glow: true)
+        let outset = NotchShellShape.physicalVisualOutset * scale
         backingEdges[0] -= NotchGlowPanel.margin * scale
         backingEdges[1] -= NotchGlowPanel.margin * scale
-        return try (backingEdges, visual.motionEdges(glow: true))
+        backingEdges[0] += outset
+        backingEdges[1] -= outset
+        backingEdges[2] -= outset
+        glowEdges[0] += outset
+        glowEdges[1] -= outset
+        glowEdges[2] -= outset
+        return (backingEdges, glowEdges)
     }
 }
 

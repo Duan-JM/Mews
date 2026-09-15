@@ -139,10 +139,10 @@ Events stay deliberately small:
 
 - Prefer a physical notch when one is available. In clamshell or external-display layouts, use the main display's top center below its menu bar.
 - Use live display topology for alert routing. A physical-notch alert suppresses the matching system notification; fallback layouts notify without auto-opening the top-center panel.
-- Join the active collapsed signal to the hardware with a continuous black backing derived from the safe-area rectangle. Widen only the sides enough for the backing's rounded corners; keep its height at the safe-area height. Trace that software boundary with uniform solid thickness rather than promising an exact hardware curve. Idle still hides the overlay.
+- Join the active collapsed signal to the hardware with a continuous black backing derived from the safe-area rectangle. Widen the sides for the backing's rounded corners, then extend its visual boundary two points farther on the sides and bottom to cover display-edge antialiasing. Trace that software boundary with uniform solid thickness rather than promising an exact hardware curve. Idle still hides the overlay.
 - Use only left, right, and bottom glow edges on a physical notch, collapsed or expanded. Carry the active color and breathing or stop-pulse timing across expansion without restarting the effect. Soft glow may extend past the menu bar and content window; its drawing space must never enlarge the input region. Top-center placement keeps its native window shadow without a colored outline or glow.
 - Recalculate placement after display hot-plug, resolution, coordinate, or main-screen changes. Hide cleanly if macOS temporarily reports no screens.
-- Keep the panel available across Spaces and full-screen windows without activating the app.
+- Keep the panel available across normal Spaces without activating the app, and leave full-screen content unobstructed.
 - Keep the active collapsed backing and expanded physical-notch shell solid black. Use a detached, appearance-aware material surface for top-center placement.
 - Reduce Motion removes repeating pixel animation and spatial shell transitions without changing layout.
 - Reduce Transparency and Increase Contrast replace top-center material with an opaque high-contrast surface.

@@ -105,8 +105,9 @@ extension MewsAppModelTests {
               probe.snapshot.visibility == .expanded else {
             return
         }
-        let shellLeft = probe.shell.minX - probe.window.minX
-        let shellBottom = probe.window.maxY - probe.shell.minY
+        let outset = NotchShellShape.physicalVisualOutset
+        let shellLeft = probe.shell.minX - probe.window.minX - outset
+        let shellBottom = probe.window.maxY - probe.shell.minY + outset
         let points = PhysicalBackingProbePoints(
             topCenter: CGPoint(
                 x: probe.shell.midX - probe.window.minX,

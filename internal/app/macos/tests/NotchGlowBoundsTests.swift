@@ -3,6 +3,7 @@ import SwiftUI
 
 extension MewsAppModelTests {
     static func testNotchGlowBounds() throws {
+        try assertExpandedVisualRootOutset()
         for height: CGFloat in [24, 32, 37.5, 44] {
             for visibility in [NotchVisibility.closed, .peek] {
                 let snapshot = boundedGlowSnapshot(height: height, visibility: visibility)
@@ -52,6 +53,26 @@ extension MewsAppModelTests {
         print("Notch glow: collapsed, expanded, stop-pulse, and glow-free top-center renders passed at 1x/2x")
     }
 
+    private static func assertExpandedVisualRootOutset() throws {
+        let snapshot = boundedGlowSnapshot(visibility: .expanded)
+        let shape = NotchShellGeometry.resolved(snapshot: snapshot).shape
+        let rect = CGRect(origin: .zero, size: snapshot.panelSize)
+        let outset = NotchShellShape.physicalVisualOutset
+        let visualPath = shape.physicalVisualShape.path(
+            in: NotchShellShape.physicalVisualRect(in: rect)
+        )
+        for point in [
+            CGPoint(x: rect.minX - outset / 2, y: rect.minY + 1),
+            CGPoint(x: rect.maxX + outset / 2, y: rect.minY + 1)
+        ] {
+            guard visualPath.contains(point) else {
+                throw GlowBoundsFailure(
+                    "expanded visual root must follow the backing outset at \(point)"
+                )
+            }
+        }
+    }
+
     private static func boundedGlowSnapshot(
         height: CGFloat = 32,
         visibility: NotchVisibility = .closed,
@@ -90,8 +111,12 @@ extension MewsAppModelTests {
                 throw GlowBoundsFailure("expanded glow must retain its full-height edge")
             }
         } else {
-            try GlowContourRaster(bitmap: bitmap, snapshot: snapshot, scale: scale).assertOutline()
-            let lineWidth: CGFloat = snapshot.increaseContrast ? 2 : 1.5
+            let contour = GlowContourRaster(bitmap: bitmap, snapshot: snapshot, scale: scale)
+            try contour.assertOutline()
+            try contour.assertContinuousFade()
+            let lineWidth = NotchShellShape.outlineWidth(
+                increaseContrast: snapshot.increaseContrast
+            )
             guard bounds.maxY > bottom + lineWidth * scale else {
                 throw GlowBoundsFailure("soft glow must extend below the solid bottom edge")
             }
@@ -200,8 +225,10 @@ private struct GlowContourRaster {
     let scale: CGFloat
 
     func assertOutline() throws {
-        let expectedWidth = (snapshot.increaseContrast ? 2.0 : 1.5) * scale
-        let threshold = snapshot.increaseContrast ? 100.0 : 85.0
+        let expectedWidth = NotchShellShape.outlineWidth(
+            increaseContrast: snapshot.increaseContrast
+        ) * scale
+        let threshold = snapshot.increaseContrast ? 70.0 : 55.0
         var failures: [String] = []
         var widths: [Double] = []
         for sample in contourSamples() {
@@ -231,13 +258,53 @@ private struct GlowContourRaster {
         }
     }
 
+    func assertContinuousFade() throws {
+        let outlineWidth = NotchShellShape.outlineWidth(
+            increaseContrast: snapshot.increaseContrast
+        ) * scale
+        let centerX = (40 + snapshot.panelSize.width / 2) * scale
+        let edgeY = (
+            40 + snapshot.anchorSize.height +
+                NotchShellShape.physicalVisualOutset
+        ) * scale
+        let scores = stride(from: outlineWidth + 1, through: outlineWidth + 14 * scale, by: 1)
+            .map { distance in
+                score(at: CGPoint(x: centerX, y: edgeY + distance))
+            }
+        guard let near = scores.first, let far = scores.last, near > 5, far < near * 0.4 else {
+            throw GlowBoundsFailure(
+                "halo fade at \(scale)x must remain visible near the edge and fade toward transparency: \(scores)"
+            )
+        }
+        let outerBand = score(at: CGPoint(
+            x: centerX,
+            y: edgeY + outlineWidth + 2 * scale
+        ))
+        guard outerBand <= 32 else {
+            throw GlowBoundsFailure(
+                "halo fade at \(scale)x must not retain a wide opaque color band: \(outerBand)"
+            )
+        }
+        let upwardSteps = zip(scores, scores.dropFirst()).filter { previous, next in
+            next > previous + 3
+        }
+        guard upwardSteps.isEmpty else {
+            throw GlowBoundsFailure(
+                "halo fade at \(scale)x must not form a brighter outer band: \(scores)"
+            )
+        }
+    }
+
     private func contourSamples() -> [GlowContourSample] {
         let width = NotchShellLayout.resolved(snapshot: snapshot).width
-        let left = 40 + (snapshot.panelSize.width - width) / 2
-        let right = left + width
-        let bottom = 40 + snapshot.anchorSize.height
+        let outset = NotchShellShape.physicalVisualOutset
+        let left = 40 + (snapshot.panelSize.width - width) / 2 - outset
+        let right = left + width + outset * 2
+        let bottom = 40 + snapshot.anchorSize.height + outset
         let middle = 40 + snapshot.anchorSize.height / 2
-        let radius: CGFloat = 8
+        let radius =
+            NotchShellLayout.resolved(snapshot: snapshot).cornerRadius +
+                outset
         var samples = [
             GlowContourSample(name: "left", point: CGPoint(x: left, y: middle), normal: CGVector(dx: -1, dy: 0)),
             GlowContourSample(name: "right", point: CGPoint(x: right, y: middle), normal: CGVector(dx: 1, dy: 0)),

@@ -104,6 +104,7 @@ swiftc \
   "$ROOT/internal/app/macos/tests/NotchWindowGlowPlacementTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchShellViewTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelControllerTests.swift" \
+  "$ROOT/internal/app/macos/tests/NotchPanelFullscreenTests.swift" \
   "$ROOT/internal/app/macos/tests/NotchPanelContentTests.swift" \
   "$ROOT/internal/app/macos/tests/PixelStatusLogoTests.swift" \
   -framework AppKit \

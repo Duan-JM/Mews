@@ -10,6 +10,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     private var agent: Process?
     private var agentProcessCoordinator = AgentProcessCoordinator()
     private var agentProbeInFlight = false
+    private let fullscreenSuppressionMonitor = FullscreenSuppressionMonitor()
     var events: [MewsEvent] = []
     var started = false
     var sessionStateController: SessionStateController?
@@ -65,6 +66,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         configureSessionState()
         configureAttention()
         notifications.configure()
+        fullscreenSuppressionMonitor.start(panelController: notchPanelController)
         reloadEvents()
         let timer = Timer(
             timeInterval: 2.0,
@@ -81,6 +83,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
         started = false
         reloadTimer?.invalidate()
         reloadTimer = nil
+        fullscreenSuppressionMonitor.stop()
         interactionCoordinator?.stop()
         interactionCoordinator = nil
         notchPanelController = nil
@@ -239,9 +242,7 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     func configureSessionState() {
-        guard sessionStateController == nil else {
-            return
-        }
+        guard sessionStateController == nil else { return }
         do {
             sessionStateController = try SessionStateController(
                 storeDirectory: storeDirectoryURL,
@@ -256,17 +257,13 @@ final class MewsApp: NSObject, NSApplicationDelegate {
     }
 
     private func recordSessionStateError(_ message: String) {
-        guard sessionStateErrorMessage != message else {
-            return
-        }
+        guard sessionStateErrorMessage != message else { return }
         sessionStateErrorMessage = message
         appendAppLog(message)
     }
 
     private func clearSessionStateError() {
-        guard sessionStateErrorMessage != nil else {
-            return
-        }
+        guard sessionStateErrorMessage != nil else { return }
         sessionStateErrorMessage = nil
         appendAppLog("Session state recovered")
     }
